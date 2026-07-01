@@ -1,6 +1,6 @@
 ---
 name: dispatcher
-description: Orquestrador local do pipeline agêntico. Processa fila de tasks em <cwd>/.docs/tasks/*.md (status=todo) — invoca grounding → builder → tester → librarian → notifier sequencialmente; push + PR + ClickUp comment automáticos quando ciclo verde. Trust mode (sem pause-confirm entre tasks; fila é o gate). Loop noturno bounded por quota REAL do plano (quota_gate.py lê rate_limits da statusline: para em 70% da janela 5h, 10pts/dia e 50pts/semana da janela 7d, cap de tasks). Triggers - "/dispatcher", "rodar fila", "processa as tasks", "pega próxima task". Suporta /loop /dispatcher via ScheduleWakeup. STATUS - V1.1 quota-bounded, TOS-safe (dentro da sessão Claude Code interativa).
+description: Orquestrador local do pipeline agêntico. Processa fila de tasks em <cwd>/.docs/tasks/*.md (status=todo) — invoca grounding → builder → tester → librarian → notifier sequencialmente; push + PR automáticos quando ciclo verde; ClickUp comment opcional (só quando task tem clickup_id E CLICKUP_API_KEY está set). Trust mode (sem pause-confirm entre tasks; fila é o gate). Loop noturno bounded por quota REAL do plano (quota_gate.py lê rate_limits da statusline: para em 70% da janela 5h, 10pts/dia e 50pts/semana da janela 7d, cap de tasks). Scripts do pipeline em PIPELINE_SCRIPTS_DIR (default: <repo>/scripts/). Triggers - "/dispatcher", "rodar fila", "processa as tasks", "pega próxima task". Suporta /loop /dispatcher via ScheduleWakeup. STATUS - V1.1 quota-bounded, TOS-safe (dentro da sessão Claude Code interativa).
 tools: Bash, Read, Edit, Write, Glob, Grep, Skill, ScheduleWakeup
 ---
 
@@ -21,8 +21,10 @@ Orquestrador. Quando invocado: pega 1 task ready da fila, roda pipeline end-to-e
 ## 2. Find next ready task
 
 ```bash
-# Locate guidelines_IA scripts (para validators)
-SCRIPTS_DIR=$(realpath <path>/guidelines_IA/scripts)
+# Locate pipeline scripts — set PIPELINE_SCRIPTS_DIR env var to override
+SCRIPTS_DIR="${PIPELINE_SCRIPTS_DIR:-$repo_path/scripts}"
+# (copy agentic-pipeline/scripts/ into your repo root, or point PIPELINE_SCRIPTS_DIR
+#  at wherever validate_task.py / validate_closure.py / quota_gate.py live)
 
 # Scan task dir
 TASK_DIR="$repo_path/.docs/tasks"
@@ -96,12 +98,17 @@ python "$SCRIPTS_DIR/validate_task.py" "$task"
    → librarian roda validate_closure.py internamente (já wired)
    → resultado: docs commitados, frontmatter librarian_pass set
    - Se librarian falha: idem § anterior (skip downstream, continue)
-8. Push + PR + ClickUp:
+8. Push + PR + notificação:
    git push origin feat/<NNNN>-<slug>  (non-interactive — token cached / SSH key)
    gh pr create --base "$BASE" --title "<title from task>" --body-file <prepared from CHANGELOG_BRANCH>   # $BASE do §3
    - Sem --reviewer flag (sem @-mention; pattern solo)
-   Invoke Skill(notifier) com event='pr.opened' + payload {clickup_id, pr_url, title}
-   → notifier posta comment ClickUp (sem @mention) atualizando status
+   # ClickUp é opt-in: só notifica se task tem clickup_id E CLICKUP_API_KEY está set
+   if task.clickup_id AND env.CLICKUP_API_KEY:
+     Invoke Skill(notifier) com event='pr.opened' + payload {clickup_id, pr_url, title, channels=['clickup','github']}
+     → notifier posta comment ClickUp + GitHub PR comment
+   else:
+     Invoke Skill(notifier) com event='pr.opened' + payload {pr_url, title, channels=['github']}
+     → notifier posta só GitHub PR comment
 9. Move task → completed/:
    git mv .docs/tasks/<NNNN>-*.md .docs/tasks/completed/
    git commit -m "chore(NNNN): move task to completed/"
@@ -125,7 +132,7 @@ PR: #<num> https://github.com/<org>/<repo>/pull/<num>
 Commits: <N>
 Tests: <pass details OR pending>
 Librarian: 7/7 Lei de Fechamento §3 OK
-ClickUp comment: <id>
+ClickUp: <comment_id | skipped (no clickup_id or no CLICKUP_API_KEY)>
 Quota: 5h <X%> · 7d <Y%> · consumo do loop hoje <D>/10pts · dia <N> do ciclo · tasks <T>/5
 Próximo: <CONTINUE → ScheduleWakeup 60s | STOP <motivo do gate> → loop encerra>
 ```
@@ -169,7 +176,7 @@ O gate é a única autoridade de "pode continuar?". O dispatcher NUNCA estima qu
 - **Não @-menciona reviewer** em comments ClickUp/GitHub. Pattern solo. Notifier sem `mentions` payload.
 - **Não faz merge** no GitHub. Só push + PR. Merge sempre humano.
 - **Não escolhe modelo.** Roda no modelo da sessão atual.
-- **Idempotency**: task já em `completed/` = no-op. Branch já com PR aberto = skip create, só atualiza ClickUp comment.
+- **Idempotency**: task já em `completed/` = no-op. Branch já com PR aberto = skip create; se ClickUp ativo, atualiza comment.
 - **Crash safety**: se Claude Code morre, task em `in_progress` é re-pickable na próxima invocação (validate_task detecta estado e re-tenta).
 - **Push non-interactive**: se push prompt credentials, ABORTA + log + skip task. Não fica esperando input (referência [[git-push-hang-is-afk-timeout]]).
 
@@ -179,7 +186,7 @@ O gate é a única autoridade de "pode continuar?". O dispatcher NUNCA estima qu
 |---|---|
 | Queue vazia | Exit, no ScheduleWakeup. Log "queue empty, /loop terminates". |
 | `validate_task.py` exit 1 | Append erro em §Pendências, continue queue |
-| Branch já existe + PR aberto | Skip create, só atualiza ClickUp comment com link existente |
+| Branch já existe + PR aberto | Skip create; se ClickUp ativo (clickup_id + key), atualiza comment |
 | `git push` rejected (não-fast-forward) | `git pull --rebase origin main`; se conflito → mark blocked, continue |
 | `git push` hang (credential prompt) | Timeout 30s → kill + skip task + log [[git-push-hang-is-afk-timeout]] |
 | `gh pr create` falha (auth) | Log + continue queue (próxima invocação tenta de novo) |
@@ -215,10 +222,10 @@ Downstream (orquestradas por este skill):
 - [[librarian]] (Lei de Fechamento §3, roda validate_closure.py)
 - [[notifier]] (ClickUp comment + GH comment se aplicável)
 
-Validators / gates:
-- `scripts/validate_task.py` (antes do builder)
-- `scripts/validate_closure.py` (dentro do librarian)
-- `scripts/quota_gate.py` (fim de cada task no loop mode — decide ScheduleWakeup)
+Validators / gates (em `$PIPELINE_SCRIPTS_DIR`, default `<repo>/scripts/`):
+- `validate_task.py` (antes do builder)
+- `validate_closure.py` (dentro do librarian)
+- `quota_gate.py` (fim de cada task no loop mode — decide ScheduleWakeup)
 
 ## 11. Concrete example
 

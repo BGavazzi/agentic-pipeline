@@ -26,7 +26,9 @@ Não re-escreve docs. Edit cirúrgico — adiciona entries, atualiza seções re
 git -C "$repo_path" branch --show-current  # bate com $branch
 
 # Task schema bem-formado (deterministic gate — não precisa LLM)
-python <guidelines_IA>/scripts/validate_task.py "$task_path" || \
+# PIPELINE_SCRIPTS_DIR default: <repo_path>/scripts/ (copy from agentic-pipeline/scripts/)
+SCRIPTS_DIR="${PIPELINE_SCRIPTS_DIR:-$repo_path/scripts}"
+python "$SCRIPTS_DIR/validate_task.py" "$task_path" || \
   STOP "Task schema inválido — Builder deveria ter falhado preflight"
 
 # Task .md existe e tem §Condições marcadas
@@ -94,7 +96,7 @@ Pra cada item: (a) determinar relevância, (b) editar OU justificar `[N/A]`, (c)
 
 4.5. **Validation gate (Lei de Fechamento §3)** — deterministic check:
      ```
-     python <guidelines_IA>/scripts/validate_closure.py "$task_path"
+     python "${PIPELINE_SCRIPTS_DIR:-$repo_path/scripts}/validate_closure.py" "$task_path"
      ```
      - exit 0 → OK, prosseguir
      - exit 1 → algum item da Lei §3 unresolved sem justificativa OR rubber-stamp

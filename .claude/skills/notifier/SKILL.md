@@ -1,6 +1,6 @@
 ---
 name: notifier
-description: Posta comments estruturados em ClickUp + GitHub PR no fim do ciclo (task.done, pr.opened, deploy.success/fail) usando os patterns UTF-8-safe + structured mentions já cravados em memória. Triggers - "notifica ciclo fechado", "manda comment pro PR e ClickUp", "fecha o loop", OU invocação direta por builder/librarian downstream. STATUS - ready (V1 = ClickUp + GitHub PR; Slack/WA/Telegram = backlog).
+description: Posta comments estruturados em GitHub PR (obrigatório) e ClickUp (opt-in — só quando clickup_id presente no payload E CLICKUP_API_KEY set) no fim do ciclo (task.done, pr.opened, deploy.success/fail). Triggers - "notifica ciclo fechado", "manda comment pro PR", "fecha o loop", OU invocação direta por builder/librarian downstream. STATUS - ready (V1 = GitHub PR sempre + ClickUp opt-in; Slack/WA/Telegram = backlog).
 tools: Bash, Write, Read
 ---
 
@@ -8,7 +8,9 @@ tools: Bash, Write, Read
 
 **Runtime: sessão Claude Code aberta.** Spec humana: `.docs/skills/notifier.md`.
 
-V1 escopo: **ClickUp comment + GitHub PR comment.** Slack/WhatsApp/Telegram/Discord ficam pra V2 (specificados no companion mas não runnable aqui).
+V1 escopo: **GitHub PR comment** (sempre) + **ClickUp comment** (opt-in). Slack/WhatsApp/Telegram/Discord ficam pra V2.
+
+**ClickUp opt-in:** se `clickup_id` ausente no payload OU `CLICKUP_API_KEY` não está set no ambiente → skip §3 inteiro, saltar direto pra §4 (GitHub). Sem erro, sem STOP — ClickUp é um canal adicional, não o canal primário.
 
 Composta inline pelo Librarian no fim do ciclo, ou invocada manualmente pra postar update estruturado.
 
@@ -16,7 +18,7 @@ Composta inline pelo Librarian no fim do ciclo, ou invocada manualmente pra post
 
 - `event_type`: `task.done` | `pr.opened` | `pr.merged` | `pr.review.requested` | `deploy.success` | `deploy.fail`
 - `payload`:
-  - `clickup_id`: string (obrigatório se evento toca ClickUp)
+  - `clickup_id`: string (opcional — ausente ou CLICKUP_API_KEY não set → skip ClickUp silenciosamente)
   - `pr_number`: int (obrigatório se evento toca GitHub)
   - `repo`: string `<org>/<repo>` (obrigatório com `pr_number`)
   - `title`: string (1 linha resumo)
@@ -36,7 +38,9 @@ Se `mentions` contém nome **não na tabela**: ANTES de postar, resolver via `cu
 
 ## 3. ClickUp comment — método UTF-8-safe (CRÍTICO)
 
-**Inline `curl -d '...'` no Windows CORROMPE UTF-8** (acentos/emoji viram U+FFFD irrecuperáveis no ClickUp). Memória [[clickup-api-org-conventions]] doc o gotcha — sempre seguir:
+**Pré-condição:** `clickup_id` presente E `CLICKUP_API_KEY` set → executar §3. Caso contrário: skip para §4.
+
+**Inline `curl -d '...'` no Windows CORROMPE UTF-8** (acentos/emoji viram U+FFFD irrecuperáveis no ClickUp). Sempre usar Write tool + `--data-binary` conforme abaixo:
 
 ### 3.1. Build payload JSON via Write tool
 
@@ -191,8 +195,8 @@ Pre-post: se entrada existe e `< 24h`, log "duplicate skipped" + no-op.
 ```
 ✅ Notifier — event: <event_type>
 Channels:
-  - ClickUp <CLICKUP_ID>: comment <comment_id> ✅ (UTF-8 verified)
   - GitHub <REPO>#<PR_NUMBER>: comment ✅
+  - ClickUp <CLICKUP_ID>: comment <comment_id> ✅ (UTF-8 verified)  | skipped (no clickup_id or no CLICKUP_API_KEY)
 Mentions resolvidos: <N>
 Verification: <state=MERGED, mergedAt=...>
 ```
@@ -211,7 +215,7 @@ Verification: <state=MERGED, mergedAt=...>
 
 | Erro | O que fazer |
 |---|---|
-| CLICKUP_API_KEY ausente | STOP, perguntar (não auto-fetch — segredo) |
+| CLICKUP_API_KEY ausente mas clickup_id presente | Log "ClickUp skipped — CLICKUP_API_KEY not set"; continuar com GitHub |
 | ClickUp 401/403 | Verificar key não rotacionou; log + STOP |
 | ClickUp 429 (rate limit) | Backoff 90s, retry 1x |
 | Encoding check falha pós-post | DELETE comment + retry 1x; persiste → STOP |
@@ -231,8 +235,7 @@ Verification: <state=MERGED, mergedAt=...>
 
 ## 12. Skills consumidas
 
-- [[clickup-api]] — referência de auth + rate limit.
-- (memória) [[clickup-api-org-conventions]] — UTF-8 gotcha + tabela de mention IDs.
+- [[clickup-api]] — referência de auth + rate limit (opcional; só relevante se ClickUp ativo).
 
 ## 13. Skills downstream
 
