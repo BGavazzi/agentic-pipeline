@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Interview the user (or a ClickUp task author) relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Picks a Product/Design variant or a Developer variant depending on who's being grilled. Use when user mentions "grill me", wants to stress-test a plan, or asks Claude to interrogate a new All Blue task.
+description: Interview the user (or a task author) relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Picks a Product/Design variant or a Developer variant depending on who's being grilled. Mode 1 (interactive) works out of the box. Modes 2/3 (per-task, poll) require CLICKUP_API_KEY + CLICKUP_SPACE_ID. Use when user mentions "grill me", wants to stress-test a plan, or asks Claude to interrogate a new task.
 tools: Bash, Read, Glob, Grep, WebFetch
 ---
 
@@ -48,6 +48,8 @@ the current plan/design under discussion. Behave as follows:
    the codebase instead** — don't ask what you can verify.
 
 ### 2. Per-task mode — `/grill-me <clickup_task_id>`
+
+**Preconditions:** `CLICKUP_API_KEY` and `CLICKUP_SPACE_ID` must be set. If absent, print setup instructions and exit — don't attempt API calls.
 
 Grill the author of a specific ClickUp task by posting comments on it.
 
@@ -133,14 +135,15 @@ Grill the author of a specific ClickUp task by posting comments on it.
 
 ### 3. Poll mode — `/grill-me poll` (or wired to a cron)
 
-Scan the All Blue space for newly created tasks **and** surface new
-replies on previously-grilled tasks. Two phases per tick.
+**Preconditions:** `CLICKUP_API_KEY`, `CLICKUP_SPACE_ID`, and `CLICKUP_BOT_USER_ID` must be set. If absent, print setup instructions and exit.
+
+Scan the configured space (`$CLICKUP_SPACE_ID`) for newly created tasks **and** surface new replies on previously-grilled tasks. Two phases per tick.
 
 #### Phase A — scan new tasks
 
 1. Compute window: tasks created in the last N minutes (default 15,
    override with `/grill-me poll <minutes>`).
-2. `GET /team/<WORKSPACE_ID>/task?space_ids[]=<SPACE_ID>&date_created_gt=<unix_ms>&order_by=created&reverse=true&include_closed=false`
+2. `GET /team/$CLICKUP_WORKSPACE_ID/task?space_ids[]=$CLICKUP_SPACE_ID&date_created_gt=<unix_ms>&order_by=created&reverse=true&include_closed=false`
 3. For each task in the response:
    - Skip if `creator.id == CLICKUP_BOT_USER_ID`.
    - Skip if the bot has already commented on it
@@ -159,7 +162,7 @@ JSON cache is only used to remember `last_reply_seen_ms` between ticks.
 1. **Hydrate active-grills set from ClickUp.**
    - Load `~/.claude/skills/grill-me/state/grilled-tasks.json` (may
      be missing/empty — fine, treat as `{}`).
-   - Run `GET /team/<WORKSPACE_ID>/task?space_ids[]=<SPACE_ID>&date_updated_gt=<now - N min>&include_closed=false`
+   - Run `GET /team/$CLICKUP_WORKSPACE_ID/task?space_ids[]=$CLICKUP_SPACE_ID&date_updated_gt=<now - N min>&include_closed=false`
      to discover tasks with activity in the window.
    - For each task in the response **not already in cache**: fetch
      `GET /task/{id}/comment`; if any comment has
@@ -307,7 +310,7 @@ load-bearing for the specific task; don't ask all of them.
 ### F. Security & Compliance
 - What user input touches this? Sanitisation? Authorisation check?
 - Any secrets involved? Where do they live? Rotated how?
-- PII / LGPD-sensitive fields touched? Logged? Where?
+- PII / privacy-regulation-sensitive fields touched (GDPR, LGPD, CCPA, etc.)? Logged? Where?
 
 ---
 
@@ -353,44 +356,43 @@ member-roles.json".
 
 ---
 
-## ClickUp specifics
+## ClickUp adapter (modes 2 and 3 only)
 
-Auth, rate limit, comment endpoint, and discovery are canonical in
-`../clickup-api/SKILL.md` — see that skill rather than duplicating here.
-The rate limit fact behind the 0.7s poll-loop pacing lives there too.
+Required env vars:
 
-Grill-specific constants (configure via env vars):
+| Var | Purpose |
+|---|---|
+| `CLICKUP_API_KEY` | Personal or bot token — gate for modes 2/3 |
+| `CLICKUP_WORKSPACE_ID` | Team ID (numeric); find via `GET /v2/team` |
+| `CLICKUP_SPACE_ID` | Space to poll for new tasks |
+| `CLICKUP_BOT_USER_ID` | Bot's ClickUp user ID — **never grill the bot** |
 
-- Space ID: `$CLICKUP_SPACE_ID` — the space to poll for new tasks
-- Bot user ID: `$CLICKUP_BOT_USER_ID` — **never grill the bot**
+Auth, rate limit, and comment endpoint patterns: see `../clickup-api/SKILL.md` if the skill is present. The 0.7s poll pacing enforces ClickUp's 100 req/min limit.
+
+**Mode 1 (interactive) does not need any of these.**
 
 ---
 
 ## Language & tone
 
-**Write in Brazilian Portuguese, not European Portuguese.**
+**Match the language of the task/plan being grilled.** Default: English.
 
-Hard rules:
+- Task written in English → respond in English.
+- Task written in another language → match it.
+- Mixed or unclear → use English.
 
-| Don't (EU-PT) | Do (BR-PT) |
+Configure a default with the `GRILL_LANGUAGE` env var (e.g. `pt-BR`, `en`, `es`). If set, use it as the default when language is ambiguous.
+
+Register: **direct and casual, not slangy.** Contractions OK. One emoji max (the `🔍` header). No memes, no excessive punctuation.
+
+**PT-BR style reference** (for teams that use Brazilian Portuguese):
+
+| Avoid (EU-PT) | Use (BR-PT) |
 |---|---|
-| `tu` / `tuas` / second-person-singular | `você` / `suas` |
-| `discordares` / `tiveres` / `queres` | `discordar` / `tiver` / `quer` |
-| `rebate` (as challenge verb) | `me corrige` / `discorde` |
+| `tu` / `tuas` | `você` / `suas` |
 | `fora de scope` | `fora de escopo` |
-| `pinaria` / `pinar` | `travaria` / `fixaria` |
 | `actual` / `actualizar` | `atual` / `atualizar` |
-| `ramo` (branch of decision tree) | `galho` |
-| `mestre` (general) | `master` is fine in tech contexts |
 | `tens / és / fazes` | `tem / é / faz` |
-
-Register: **direct and casual, but not slangy.** Match how a Carioca PM
-writes in Slack — contractions OK (`tá`, `pra`, `né`), but no memes,
-no overuse of `kkkkkk`, no excessive emojis (the `🔍` header is the
-only one).
-
-If the task itself is written in English (e.g. `creator` from an
-international team), respond in English. Otherwise default PT-BR.
 
 ---
 
@@ -415,14 +417,14 @@ These hold even though the user opted in to auto-posting:
 Claude: [picks dev variant, asks 5 architecture/data/failure questions
          with recommendations]
 
-# Cron tick fires, calls /grill-me poll:
+# Cron tick fires, calls /grill-me poll (requires CLICKUP_* env vars):
 > /grill-me poll 15
-Claude: [scans All Blue, finds task 86c1abc by <team-member>, looks up roles=[po],
+Claude: [scans $CLICKUP_SPACE_ID, finds task abc123 by <team-member>, looks up roles=[po],
          generates 5 product questions, posts comment, prints URL]
-Claude: 86c1abc | Product Owner | grilled | po-designer
-Claude: 86c1def | Bot User | skipped (bot author)
-Claude: 86c1ghi | <team-member> | skipped (role=skip)
-Claude: 86c1jkl | <team-member> | skipped (already grilled)
+Claude: abc123 | Product Owner | grilled | po-designer
+Claude: def456 | Bot User    | skipped (bot author)
+Claude: ghi789 | <team-member> | skipped (role=skip)
+Claude: jkl012 | <team-member> | skipped (already grilled)
 ```
 
 ---
@@ -466,7 +468,8 @@ only divergence is the *trigger*: local `/loop` vs. remote cron.
 
 ## Pointers
 
-- `member-roles.json` — sibling of this file, role map. Edit when team changes.
-- `state/grilled-tasks.json` — runtime state for Phase B reply scan. Lives **only** in `~/.claude/skills/grill-me/state/` (user-global), never committed. Schema documented in mode 3 Phase B.
-- `../clickup-api/SKILL.md` — full ClickUp API reference.
-- `~/.claude/skills/grill-me/` — user-global mirror; keep in sync with this copy (excluding `state/`).
+- `member-roles.json` — sibling of this file, role map. Edit when team changes. Keys are ClickUp user IDs (modes 2/3 only; mode 1 ignores this file).
+- `state/grilled-tasks.json` — runtime state for Phase B reply scan. Lives **only** in `~/.claude/skills/grill-me/state/` (user-global, gitignored). Schema documented in mode 3 Phase B.
+- `../clickup-api/SKILL.md` — ClickUp API reference (optional; only needed for modes 2/3).
+- Required env vars for modes 2/3: `CLICKUP_API_KEY`, `CLICKUP_WORKSPACE_ID`, `CLICKUP_SPACE_ID`, `CLICKUP_BOT_USER_ID`.
+- Optional: `GRILL_LANGUAGE` — default language when task language is ambiguous (e.g. `en`, `pt-BR`).
