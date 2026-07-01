@@ -1,0 +1,11 @@
+{
+  "_doc": "userId -> { name, roles[] } for your workspace. Each entry has a list of roles ∈ {po, designer, dev, skip}. Any role in {po, designer} routes to the PO/Designer variant; 'dev' routes to the Developer variant; 'skip' is never grilled. Update when team composition changes.",
+  "_source": "GET /api/v2/team/{WORKSPACE_ID}; roles set by workspace admin.",
+
+  "<bot-user-id>":  { "name": "Your ClickUp Bot",     "roles": ["skip"] },
+
+  "<po-user-id>":   { "name": "PO / Product Owner",   "roles": ["po"] },
+  "<des-user-id>":  { "name": "Designer",              "roles": ["po", "designer"] },
+
+  "<dev-user-id>":  { "name": "Developer",             "roles": ["dev"] }
+}
