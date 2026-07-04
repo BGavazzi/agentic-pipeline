@@ -2,6 +2,17 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-07-04] - Tighten blast_radius.py import/grep signal (found via dogfooding)
+### Fixed
+- `import_grep_signal` matched on generic filename stems (e.g. `SKILL`, from
+  every `.claude/skills/*/SKILL.md`) as plain substrings — caught by running
+  the classifier against this very PR's own diff, which flagged ~15 files as
+  "affected" mostly through that one over-broad match. Added a stoplist of
+  generic stems (`skill`, `index`, `readme`, `template`, `config`, `test`,
+  etc.), raised the minimum stem length to 4, and switched to word-boundary
+  matching (`\bstem\b`) instead of a bare substring search.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-07-04] - Implement blast-radius + risk-tier classifier (task 0002)
 ### Added
 - `scripts/blast_radius.py` — deterministic diff-scoped blast-radius +

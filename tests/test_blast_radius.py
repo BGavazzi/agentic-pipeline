@@ -142,6 +142,23 @@ def test_cochange_signal_surfaces_coupled_file(sandbox: Path):
     assert "app/worker.py" in result["affected_modules"]
 
 
+def test_import_grep_ignores_generic_stems(sandbox: Path):
+    # "SKILL" is the stem of every .claude/skills/*/SKILL.md in the real
+    # pipeline repo — a literal-name grep on it would match nearly everything.
+    # Regression guard for that over-matching.
+    write(sandbox, "pkg/one/SKILL.md", "some skill doc\n")
+    write(sandbox, "pkg/two/SKILL.md", "mentions SKILL in prose\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed two skill docs")
+    git(sandbox, "checkout", "-q", "-b", "feat/u")
+    write(sandbox, "pkg/one/SKILL.md", "some skill doc, edited\n")
+    git(sandbox, "commit", "-q", "-am", "edit one SKILL.md")
+
+    result = blast_radius.classify(sandbox, "0105", base="master", branch="feat/u")
+
+    assert "pkg/two/SKILL.md" not in result["affected_modules"]
+
+
 def test_no_origin_remote_does_not_crash(sandbox: Path):
     # Regression guard: detect_base must not blow up when there's no origin
     # remote configured (plain local sandbox, no push yet).

@@ -159,6 +159,14 @@ def ownership_signal(changed: list[str], rules: list[OwnerRule]) -> set[str]:
     return hits
 
 
+# Generic filename stems that would swamp import_grep_signal with false
+# positives (e.g. "SKILL" from every .claude/skills/*/SKILL.md) — every repo
+# using this pipeline has many files sharing these stems, so a literal-name
+# grep on them is noise, not signal.
+GENERIC_STEMS = {"skill", "index", "readme", "template", "config", "test",
+                 "tests", "utils", "main", "init", "setup"}
+
+
 def import_grep_signal(repo: Path, changed: list[str]) -> set[str]:
     """Cheap 'what references this changed file's name' — literal grep on the
     file's stem across tracked files, no AST/dependency graph."""
@@ -170,9 +178,9 @@ def import_grep_signal(repo: Path, changed: list[str]) -> set[str]:
     changed_set = set(changed)
     for f in changed:
         stem = Path(f).stem
-        if len(stem) < 3:
-            continue  # too short, would match noise
-        pattern = re.compile(re.escape(stem))
+        if len(stem) < 4 or stem.lower() in GENERIC_STEMS:
+            continue  # too short or too generic, would match noise
+        pattern = re.compile(r"\b" + re.escape(stem) + r"\b")
         for candidate in tracked:
             if candidate in changed_set or candidate == f:
                 continue

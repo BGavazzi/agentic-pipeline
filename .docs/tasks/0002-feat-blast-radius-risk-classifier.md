@@ -122,3 +122,11 @@ kind of self-reported claim the pipeline's anti-fake-green philosophy
 - `import_grep_signal` reads every tracked file's full contents on each run
   (no caching, no size cap) — fine at this repo's current size, would need
   revisiting before pointing this at a large monorepo.
+- Dogfooding this against the repo's own real diff (task 0002's own PR)
+  caught a precision bug: the grep stem "SKILL" (from every `SKILL.md`)
+  matched almost everything. Fixed with a generic-stem stoplist + word-
+  boundary matching (see CHANGELOG). `affected_modules` also mixes owner
+  TAGS (e.g. `pipeline-scripts`) with file PATHS in the same list per the
+  original spec — works, but is a minor API wart; a future pass could
+  separate them into `affected_owners` vs `affected_files` if it starts
+  causing confusion downstream.
