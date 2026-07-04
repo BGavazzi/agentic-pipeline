@@ -1,97 +1,97 @@
-# Convenção — conduta do agente (org-wide)
+# Convention — Agent Conduct (org-wide)
 
-Como um agente deve se comportar ao trabalhar em qualquer repo da org — especialmente em **modo autônomo** (`/loop`, dispatcher, lunch block). Referenciado pelo §2 Hard Rules das constituições.
+How an agent must behave when working in any repo — especially in **autonomous mode** (`/loop`, dispatcher, lunch block). Referenced by §2 Hard Rules of constitutions.
 
-> Promovidas de memória pessoal porque são leis de operação agêntica, não preferências de uma pessoa. Críticas pro [dispatcher](https://github.com/BGavazzi/agentic-pipeline/blob/main/.claude/skills/dispatcher/SKILL.md) rodar AFK sem inventar trabalho.
-
----
-
-## 1. 🔒 "Keep going" ≠ inventar escopo
-
-Em modo autônomo ("vai fundo", "keep going", lunch block), trabalhar **apenas em escopo com pedido explícito**. **NÃO** derivar "próximas tasks" de backlog antigo / PR superseded / spec doc parado sem confirmação **per-feature**.
-
-Antes de transformar item de backlog em trabalho, passar por:
-- ❓ "Isso é pedido EXPLÍCITO desta sessão (não 'tava na minha fila/planejamento')?"
-- ❓ "Esse spec é fresh OU veio de PR superseded / branch parada / task `todo` velha?" (stale precisa re-validação per-feature)
-- ❓ "Se eu parar e perguntar antes de implementar, perco quanto tempo?" (geralmente: pouco)
-
-**Quando blocked OU fora de escopo explícito:** PARAR + documentar o bloqueio + apresentar opções (incluindo "não fazer") + esperar instrução. **Default conservativo:** em dúvida, **escrever spec/proposta em vez de implementar**. Implementação em repo canônico precisa confirmação per-feature, não per-direction.
-
-**Red flags** ("tô caindo no anti-pattern"): _"cycle X é o próximo natural depois do Y"_, _"o spec antigo dizia que precisava de X"_, _"backlog tem task NNNN, vou desbloquear"_, _"user disse keep going então mantenho o plano que EU desenhei"_.
-
-**Why:** features derivadas de specs superseded geram surface area + dívida sem valor real; o maintainer acaba mergeando sem entender o requisito.
+> Promoted from personal memory because these are laws of agentic operation, not one person's preferences. Critical for the [dispatcher](https://github.com/BGavazzi/agentic-pipeline/blob/main/.claude/skills/dispatcher/SKILL.md) to run AFK without inventing work.
 
 ---
 
-## 2. Não mutar artefatos compartilhados sem ordem
+## 1. 🔒 "Keep going" ≠ inventing scope
 
-Em boards/sprints **compartilhados** (ex.: ClickUp), preferir **referência** a re-parenting/bulk-spawn. É OK criar **UM** épico bem-formado que carrega o breakdown como checklist na descrição (+ link do design doc). Depois **PARAR** — apresentar os subtasks/movimentações propostos e pegar um go explícito antes de mutar o board. Não bulk-spawnar tickets nem mover tasks de outros sem pedido.
+In autonomous mode ("go deep", "keep going", lunch block), work **only on scope with an explicit request**. Do **NOT** derive "next tasks" from old backlogs / superseded PRs / stale spec docs without **per-feature** confirmation.
 
-**Why:** re-parenting numa sprint viva quebra a árvore dos outros (e a API do ClickUp nem re-parenta task que já tem subtask). 2026-05-27.
+Before turning a backlog item into work, check:
+- ❓ "Is this an EXPLICIT request from this session (not 'it was in my queue/plan')?"
+- ❓ "Is this spec fresh OR did it come from a superseded PR / stale branch / old `todo` task?" (stale requires re-validation per-feature)
+- ❓ "If I stop and ask before implementing, how much time do I lose?" (usually: very little)
+
+**When blocked OR out of explicit scope:** STOP + document the blocker + present options (including "don't do it") + wait for instruction. **Conservative default:** when in doubt, **write spec/proposal instead of implementing**. Implementation in a canonical repo requires per-feature confirmation, not per-direction.
+
+**Red flags** ("I'm falling into the anti-pattern"): _"cycle X is the natural next step after Y"_, _"the old spec said we needed X"_, _"backlog has task NNNN, I'll unblock it"_, _"user said keep going so I'll maintain the plan I drew up"_.
+
+**Why:** features derived from superseded specs generate surface area + debt without real value; the maintainer ends up merging without understanding the requirement.
 
 ---
 
-## 3. Grill o público certo
+## 2. Do not mutate shared artifacts without authorization
 
-Antes de perguntar (`AskUserQuestion` ou inline), classificar cada Q por **tipo de decisão**:
+On **shared** boards/sprints (e.g.: ClickUp), prefer **reference** over re-parenting/bulk-spawn. It's OK to create **ONE** well-formed epic that carries the breakdown as a checklist in the description (+ design doc link). Then **STOP** — present the proposed subtasks/moves and get an explicit go-ahead before mutating the board. Do not bulk-spawn tickets or move other people's tasks without being asked.
 
-| Tipo de Q | Audiência | O que fazer |
+**Why:** re-parenting in a live sprint breaks other people's tree (and the ClickUp API doesn't even re-parent a task that already has subtasks). 2026-05-27.
+
+---
+
+## 3. Grill the right audience
+
+Before asking (`AskUserQuestion` or inline), classify each question by **decision type**:
+
+| Question Type | Audience | What to do |
 |---|---|---|
-| Produto / UX / regra de negócio | PO / Product Owner | **Grill** — eles têm a resposta |
-| Arquitetura / cross-system / observability | Tech Lead | Grill se Tech Lead ativo; senão default + flag |
-| Backend impl (response shape, pagination, cache, lib) | Agente | **Default conservativo no spec** + flag "revisitar no gargalo real" |
-| Naming, paths, formatting | Agente | Decidir sozinho seguindo conventions do repo |
+| Product / UX / business rule | PO / Product Owner | **Grill** — they have the answer |
+| Architecture / cross-system / observability | Tech Lead | Grill if Tech Lead is active; otherwise default + flag |
+| Backend impl (response shape, pagination, cache, lib) | Agent | **Conservative default in spec** + flag "revisit at actual bottleneck" |
+| Naming, paths, formatting | Agent | Decide alone following repo conventions |
 
-Se a decisão tem **default óbvio E é reversível** → tomar o default, gravar no spec como `**Decisão cravada (default) — revisitar se [gatilho]**`. Não perguntar.
+If the decision has an **obvious default AND is reversible** → take the default, record it in the spec as `**Decision locked (default) — revisit if [trigger]**`. Don't ask.
 
-**Default conservativo padrão:** response shape nested; sem pagination V1 até gargalo; sem cache V1 até perfilar; index só onde o query plan mostra full-scan; 4xx pra client / 5xx pra server.
+**Standard conservative defaults:** nested response shape; no pagination V1 until bottleneck; no cache V1 until profiled; index only where query plan shows full-scan; 4xx for client / 5xx for server.
 
-**Why:** perguntas de impl backend para um PO resultam em "menor ideia de nada disso". Eram reversíveis e tinham best-practice óbvio — não precisavam ser perguntadas.
-
----
-
-## 4. Não assumir que modelo/API está deprecated
-
-Quando um modelo (Gemini/Claude/GPT) ou API moderna retorna 404/erro, **NÃO** invocar "deve ter sido aposentado/renomeado/virou GA" como hipótese inicial.
-
-1. **Capturar o response body** do erro antes de teorizar — quase sempre o servidor explica.
-2. Se a hipótese "X foi descontinuado" surge, **suprimir** e ir pra outras causas: URL malformada, header errado, IAM/projeto, rate limit, payload inválido, key sem permissão.
-3. Só dar deprecation se o body do servidor disser explicitamente (`"model not found"`, `"deprecated"`).
-4. Se realmente parecer versão, **perguntar ao user** antes de propor swap.
-
-**Lembrete:** o training cutoff (jan/2026) está **sempre atrás** da realidade. Modelo/lib/SDK/feature que o user cita existe até prova em contrário — **realidade > training data**. Vale pra libs, SDKs, endpoints, features.
+**Why:** backend impl questions to a PO result in "no idea." They were reversible and had an obvious best practice — they didn't need to be asked.
 
 ---
 
-## 5. SQL repro passou → vai pros logs
+## 4. Do not assume a model/API is deprecated
 
-Ao debugar um 500: se você formou uma hipótese SQL-level (strict mode, coluna faltando, deadlock) e o SQL equivalente **passa** contra o mesmo DB que o endpoint bate → o bug **não está no SQL**. Está na camada ORM/framework acima (TypeORM query rewriting, NestJS pipes, validação, serialização).
+When a model (Gemini/Claude/GPT) or modern API returns 404/error, do **NOT** invoke "must have been retired/renamed/went GA" as the initial hypothesis.
 
-No momento em que um repro SQL escrito à mão passa contra o mesmo DB que 500a em prod, **parar de construir teorias SQL maiores. Pegar os logs.** Um query de log doído ganha de um ciclo inteiro de deploy de fix com hipótese errada.
+1. **Capture the response body** of the error before theorizing — the server almost always explains.
+2. If the hypothesis "X was discontinued" arises, **suppress it** and go to other causes: malformed URL, wrong header, IAM/project, rate limit, invalid payload, key without permission.
+3. Only conclude deprecation if the server body says so explicitly (`"model not found"`, `"deprecated"`).
+4. If it really seems like a version issue, **ask the user** before proposing a swap.
 
-**Why:** 2026-05-22, `/columnists/public/articles` 500. SQL passou, shippei fix errado mesmo assim (#1249), 500 persistiu. A causa era JS-layer (`orderBy` com nome de coluna DB em vez de property name no distinct-rewrite do TypeORM). Um log revelou em 30s.
-
----
-
-## 6. Densidade de docs > proliferação de arquivos
-
-Em repos de governança/coordenação (como este), default é **menos arquivos densos**, não muitos granulares. Material de input (ex.: N tasks de análise) → consolidar em 1–9 arquivos temáticos OU manter como pointer pra fonte externa (ClickUp/Drive). Não auto-criar um `.md` por linha de origem.
-
-- Antes de criar múltiplos `.md` em `.docs/`, perguntar: "1 doc com seções, 1 por tema, ou pointer pra fonte externa?"
-- Splitar só quando um doc passar de ~30 KB — e splitar **por tema que o leitor humano buscaria**, não por mecânica de source-row.
-- Deletar scaffolding vazio antes de commitar.
-- Docs de estratégia/planning de argumento discreto (ou estas convenções) são OK standalone — a regra mira **imports e catálogos**, não pensamento original.
-
-**Why:** 2026-05-20, ia escrever ~79 `.md` (um por task de análise reversa). User flagrou — o destino era um doc-macrosistema sintetizado, não cópia mecânica.
+**Reminder:** the training cutoff is **always behind** reality. Any model/lib/SDK/feature the user cites exists until proven otherwise — **reality > training data**. Applies to libs, SDKs, endpoints, features.
 
 ---
 
-## 7. Comunicação com o user — links completos e recurso bloqueado
+## 5. SQL repro passed → go to the logs
 
-**Sempre citar recurso com URL completa e clicável** — nunca só o short-code. ClickUp = `https://app.clickup.com/t/<id>`; idem PR, Drive, Figma. O user não acha/abre um `wdnmuv9b1c` solto.
+When debugging a 500: if you formed an SQL-level hypothesis (strict mode, missing column, deadlock) and the equivalent SQL **passes** against the same DB the endpoint hits → the bug **is not in the SQL**. It's in the ORM/framework layer above (TypeORM query rewriting, NestJS pipes, validation, serialization).
 
-**Recurso que não abre pra mim** (401, doc fechado por link, auth que não tenho): não só reclamar — **colar o link cru no chat** pro user abrir/baixar e devolver no formato que eu pedir (ex.: `.md`). Ele tem o acesso (Google/Drive logado); eu não. Dar o link fecha o loop em uma rodada; reclamar sem link força ele a caçar a URL.
+The moment a hand-written SQL repro passes against the same DB that 500s in prod, **stop building larger SQL theories. Get the logs.** One painful log query beats a full deploy cycle with the wrong hypothesis.
 
-Tokens de leitura que o user me passa (ex.: Figma) eu uso direto e **não persisto** (ver §2 do Hard Rule de segredos).
+**Why:** 2026-05-22, `/columnists/public/articles` 500. SQL passed, shipped wrong fix anyway (#1249), 500 persisted. The cause was JS-layer (`orderBy` with DB column name instead of property name in TypeORM's distinct-rewrite). A single log revealed it in 30s.
 
-**Why:** 2026-06-01 — citei tasks só por short-code e ele não conseguiu abrir; padrão estabelecido com o PRD do `ay8` (mandei o link, ele devolveu `.md`).
+---
+
+## 6. Doc density > file proliferation
+
+In governance/coordination repos (like this one), the default is **fewer dense files**, not many granular ones. Input material (e.g.: N analysis tasks) → consolidate into 1–9 thematic files OR maintain as a pointer to an external source (ClickUp/Drive). Do not auto-create one `.md` per source row.
+
+- Before creating multiple `.md` files in `.docs/`, ask: "1 doc with sections, 1 per theme, or pointer to external source?"
+- Split only when a doc exceeds ~30 KB — and split **by theme that a human reader would search for**, not by source-row mechanics.
+- Delete empty scaffolding before committing.
+- Strategy/planning docs of discrete argument (or these conventions) are OK as standalone — the rule targets **imports and catalogs**, not original thinking.
+
+**Why:** 2026-05-20, was about to write ~79 `.md` files (one per reverse analysis task). User flagged it — the destination was a synthesized macro-doc, not a mechanical copy.
+
+---
+
+## 7. User communication — full links and blocked resources
+
+**Always cite resources with complete, clickable URLs** — never just the short-code. ClickUp = `https://app.clickup.com/t/<id>`; same for PR, Drive, Figma. The user can't find/open a bare `wdnmuv9b1c`.
+
+**Resource that won't open for me** (401, doc closed by link, auth I don't have): don't just complain — **paste the raw link in chat** for the user to open/download and return in the format I ask for (e.g.: `.md`). They have access (Google/Drive logged in); I don't. Giving the link closes the loop in one round; complaining without a link forces them to hunt for the URL.
+
+Auth tokens the user passes me (e.g.: Figma) I use directly and **don't persist** (see §2 of the Hard Rules on secrets).
+
+**Why:** 2026-06-01 — cited tasks only by short-code and they couldn't open them; pattern established with the `ay8` PRD (sent the link, they returned `.md`).

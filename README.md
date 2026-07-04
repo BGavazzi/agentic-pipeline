@@ -46,7 +46,7 @@ Edit `AGENTS.md` — fill in your repo name, stack, and any project-specific rul
 ### 2. Create a task
 ```
 cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
-# edit it, fill in §O Que Fazer and §Condições de Saída
+# edit it, fill in §What To Do and §Exit Conditions
 ```
 
 ### 3. Run the pipeline

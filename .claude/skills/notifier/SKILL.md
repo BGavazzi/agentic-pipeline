@@ -1,59 +1,59 @@
 ---
 name: notifier
-description: Posta comments estruturados em GitHub PR (obrigatório) e ClickUp (opt-in — só quando clickup_id presente no payload E CLICKUP_API_KEY set) no fim do ciclo (task.done, pr.opened, deploy.success/fail). Triggers - "notifica ciclo fechado", "manda comment pro PR", "fecha o loop", OU invocação direta por builder/librarian downstream. STATUS - ready (V1 = GitHub PR sempre + ClickUp opt-in; Slack/WA/Telegram = backlog).
+description: Posts structured comments to GitHub PR (mandatory) and ClickUp (opt-in — only when clickup_id present in payload AND CLICKUP_API_KEY set) at the end of the cycle (task.done, pr.opened, deploy.success/fail). Triggers - "notify closed cycle", "post comment to PR", "close the loop", OR direct invocation by builder/librarian downstream. STATUS - ready (V1 = GitHub PR always + ClickUp opt-in; Slack/WA/Telegram = backlog).
 tools: Bash, Write, Read
 ---
 
 # Notifier
 
-**Runtime: sessão Claude Code aberta.** Spec humana: `.docs/skills/notifier.md`.
+**Runtime: open Claude Code session.** Human spec: `.docs/skills/notifier.md`.
 
-V1 escopo: **GitHub PR comment** (sempre) + **ClickUp comment** (opt-in). Slack/WhatsApp/Telegram/Discord ficam pra V2.
+V1 scope: **GitHub PR comment** (always) + **ClickUp comment** (opt-in). Slack/WhatsApp/Telegram/Discord go to V2.
 
-**ClickUp opt-in:** se `clickup_id` ausente no payload OU `CLICKUP_API_KEY` não está set no ambiente → skip §3 inteiro, saltar direto pra §4 (GitHub). Sem erro, sem STOP — ClickUp é um canal adicional, não o canal primário.
+**ClickUp opt-in:** if `clickup_id` absent from payload OR `CLICKUP_API_KEY` not set in environment → skip §3 entirely, jump to §4 (GitHub). No error, no STOP — ClickUp is an additional channel, not the primary one.
 
-Composta inline pelo Librarian no fim do ciclo, ou invocada manualmente pra postar update estruturado.
+Composed inline by Librarian at cycle end, or invoked manually to post a structured update.
 
 ## 1. Inputs
 
 - `event_type`: `task.done` | `pr.opened` | `pr.merged` | `pr.review.requested` | `deploy.success` | `deploy.fail`
 - `payload`:
-  - `clickup_id`: string (opcional — ausente ou CLICKUP_API_KEY não set → skip ClickUp silenciosamente)
-  - `pr_number`: int (obrigatório se evento toca GitHub)
-  - `repo`: string `<org>/<repo>` (obrigatório com `pr_number`)
-  - `title`: string (1 linha resumo)
-  - `body`: string (detalhe; pode ter newlines/acentos/emoji)
-  - `mentions`: lista de strings (nome humano) — resolver via tabela abaixo
-- `channels_override`: opcional — força subset (`["clickup"]` ou `["github"]`)
+  - `clickup_id`: string (optional — absent or CLICKUP_API_KEY not set → skip ClickUp silently)
+  - `pr_number`: int (mandatory if event touches GitHub)
+  - `repo`: string `<org>/<repo>` (mandatory with `pr_number`)
+  - `title`: string (1-line summary)
+  - `body`: string (detail; can have newlines/accents/emoji)
+  - `mentions`: list of strings (human name) — resolve via table below
+- `channels_override`: optional — forces subset (`["clickup"]` or `["github"]`)
 
-## 2. Mention resolution — tabela de membros
+## 2. Mention resolution — members table
 
-ClickUp user_ids (atualizar via `GET /v2/list/<list_id>/member` conforme necessário):
+ClickUp user_ids (update via `GET /v2/list/<list_id>/member` as needed):
 
-| Nome | ClickUp user_id | GitHub handle |
+| Name | ClickUp user_id | GitHub handle |
 |---|---|---|
-| (adicione membros da sua equipe aqui) | — | — |
+| (add your team members here) | — | — |
 
-Se `mentions` contém nome **não na tabela**: ANTES de postar, resolver via `curl GET .../v2/list/<list_id>/member` (cache local em `<repo>/.docs/notifier-mentions-cache.json` 24h) ou `gh api search/users?q=<query>`. Falhou → STOP, perguntar ao usuário.
+If `mentions` contains a name **not in the table**: BEFORE posting, resolve via `curl GET .../v2/list/<list_id>/member` (local cache in `<repo>/.docs/notifier-mentions-cache.json` 24h) or `gh api search/users?q=<query>`. Failed → STOP, ask the user.
 
-## 3. ClickUp comment — método UTF-8-safe (CRÍTICO)
+## 3. ClickUp comment — UTF-8-safe method (CRITICAL)
 
-**Pré-condição:** `clickup_id` presente E `CLICKUP_API_KEY` set → executar §3. Caso contrário: skip para §4.
+**Precondition:** `clickup_id` present AND `CLICKUP_API_KEY` set → execute §3. Otherwise: skip to §4.
 
-**Inline `curl -d '...'` no Windows CORROMPE UTF-8** (acentos/emoji viram U+FFFD irrecuperáveis no ClickUp). Sempre usar Write tool + `--data-binary` conforme abaixo:
+**Inline `curl -d '...'` on Windows CORRUPTS UTF-8** (accents/emoji become U+FFFD irreversibly in ClickUp). Always use Write tool + `--data-binary` as below:
 
 ### 3.1. Build payload JSON via Write tool
 
 ```python
-# Pseudo — esta skill usa Bash + Write apenas
+# Pseudo — this skill uses only Bash + Write
 payload = {
   "comment": [
-    # Cada bloco {text, type, attributes} é um span; mention é type=tag.
+    # Each block {text, type, attributes} is a span; mention is type=tag.
     {"text": "TL;DR: ", "type": "text"},
     {"text": "<title>", "type": "text"},
     {"text": "\n\n", "type": "text"},
     {"text": "<body>", "type": "text"},
-    # Mentions estruturadas:
+    # Structured mentions:
     {"text": " @<username>", "type": "tag",
      "attributes": {"user": {"id": <clickup_user_id>}}}
   ],
@@ -62,11 +62,11 @@ payload = {
 }
 ```
 
-Escrever o JSON via **Write tool** (grava UTF-8 limpo, sem BOM) num arquivo temp:
+Write the JSON via **Write tool** (saves clean UTF-8, no BOM) to a temp file:
 
 ```
 Write file: <path>/_tmp/notifier-<ts>.json
-Content: <JSON serializado>
+Content: <serialized JSON>
 ```
 
 ### 3.2. Post via curl --data-binary
@@ -79,26 +79,26 @@ curl -X POST \
   --data-binary @<path>/_tmp/notifier-<ts>.json
 ```
 
-**Por que `--data-binary` e não `-d`**: `-d` strippa e re-encoda (perdendo UTF-8 no shell do Windows). `--data-binary` preserva bytes literais do arquivo.
+**Why `--data-binary` and not `-d`**: `-d` strips and re-encodes (losing UTF-8 on the Windows shell). `--data-binary` preserves the file's literal bytes.
 
-### 3.3. Verificar pós-post
+### 3.3. Verify post
 
 ```bash
-# Fetch o comment recém-criado
+# Fetch the newly created comment
 curl -s "https://api.clickup.com/api/v2/task/<CLICKUP_ID>/comment" \
   -H "Authorization: $CLICKUP_API_KEY" | \
   python -c "
 import sys, json, os
 os.environ['PYTHONUTF8']='1'
 data = json.load(sys.stdin)
-last = data['comments'][0]  # mais recente
+last = data['comments'][0]  # most recent
 text = last.get('comment_text', '')
-assert '�' not in text, 'CORRUPTION DETECTED'
+assert '?' not in text, 'CORRUPTION DETECTED'
 print('OK:', last['id'])
 "
 ```
 
-Se corrompeu (apesar do método correto): `DELETE /v2/comment/<comment_id>` + retry. Se persiste 2x: STOP, reportar.
+If corrupted (despite the correct method): `DELETE /v2/comment/<comment_id>` + retry. If it persists 2x: STOP, report.
 
 ### 3.4. Cleanup
 
@@ -119,16 +119,16 @@ EOF
 )"
 ```
 
-Mentions: `@<github_handle>` da tabela §2. Se handle desconhecido: usar `gh api search/users?q=<email>` ou perguntar.
+Mentions: `@<github_handle>` from table §2. If handle unknown: use `gh api search/users?q=<email>` or ask.
 
-**Heredoc com `'EOF'` single-quoted** preserva `$` / backticks como literais.
+**Heredoc with `'EOF'` single-quoted** preserves `$` / backticks as literals.
 
 ## 5. Verification pre-irreversible (A5')
 
-Se `event_type ∈ {pr.merged, deploy.success}`, ANTES de postar:
+If `event_type ∈ {pr.merged, deploy.success}`, BEFORE posting:
 
 ```bash
-# Confirmar PR realmente merged
+# Confirm PR is actually merged
 gh pr view <PR_NUMBER> --repo <REPO> --json state,mergedAt,reviews | \
   python -c "
 import json, sys
@@ -138,32 +138,32 @@ print('verified merged at', d['mergedAt'])
 "
 ```
 
-Se mismatch entre `payload` e estado real: STOP, reportar ao usuário. **Memory ≠ source of truth** — verificar contra o estado real antes de postar.
+If mismatch between `payload` and actual state: STOP, report to user. **Memory ≠ source of truth** — verify against real state before posting.
 
-## 6. Templates por evento
+## 6. Templates per event
 
 ### task.done
 
 ```
-TL;DR: V1 da <feature> entregue.
+TL;DR: V1 of <feature> delivered.
 
 Backend: PR <#NNN> ✅
 Frontend: PR <#MMM> ✅
 Validation: <smoke OK | product OK>
 
-@<PO> — tudo certo. Status do task: done.
+@<PO> — all good. Task status: done.
 ```
 
 ### pr.opened
 
 ```
-PR <#NNN> aberto: <title>
+PR <#NNN> opened: <title>
 
 Branch: <branch>
-Mudanças: <X arquivos, +Y -Z>
-Tests: <unit + e2e | smoke pendente>
+Changes: <X files, +Y -Z>
+Tests: <unit + e2e | smoke pending>
 
-@<reviewer> — review request. Detalhes no PR body §"O que pedir pro reviewer focar".
+@<reviewer> — review request. Details in PR body §"What to ask the reviewer to focus on".
 ```
 
 ### deploy.fail
@@ -171,24 +171,24 @@ Tests: <unit + e2e | smoke pendente>
 ```
 ⚠️ Deploy fail — <service> <env>
 
-Erro: <1 linha factual>
+Error: <1 factual line>
 Logs: <link>
 
-@<tech_lead> — escalada.
+@<tech_lead> — escalated.
 ```
 
 ## 7. Idempotency
 
-Cache local: `<repo>/.docs/notifier-idempotency.json` (gitignored).
+Local cache: `<repo>/.docs/notifier-idempotency.json` (gitignored).
 
 Schema:
 ```json
 { "<event_id>:<channel>": <unix_ms>, ... }
 ```
 
-Onde `event_id = sha1(event_type + clickup_id + pr_number)`.
+Where `event_id = sha1(event_type + clickup_id + pr_number)`.
 
-Pre-post: se entrada existe e `< 24h`, log "duplicate skipped" + no-op.
+Pre-post: if entry exists and `< 24h`, log "duplicate skipped" + no-op.
 
 ## 8. Output
 
@@ -197,54 +197,54 @@ Pre-post: se entrada existe e `< 24h`, log "duplicate skipped" + no-op.
 Channels:
   - GitHub <REPO>#<PR_NUMBER>: comment ✅
   - ClickUp <CLICKUP_ID>: comment <comment_id> ✅ (UTF-8 verified)  | skipped (no clickup_id or no CLICKUP_API_KEY)
-Mentions resolvidos: <N>
+Mentions resolved: <N>
 Verification: <state=MERGED, mergedAt=...>
 ```
 
 ## 9. Hard rules
 
-- **NUNCA `curl -d` inline com UTF-8** — sempre Write tool + `--data-binary @file` + `charset=utf-8` (§3).
-- **NUNCA postar credenciais** ([[feedback-never-post-secrets-to-external-systems]]) em comments.
-- **NUNCA usar `notify_all: true`** em ClickUp sem autorização explícita do usuário (spam → equipe inteira).
-- **Verificar `gh pr view` ANTES** de afirmar PR merged/approved (§5, regra A5').
-- **Truncar body > 5000 chars** (limite ClickUp) e linkar pro PR.
-- **Tabela de mention IDs** (§2) NÃO é hardcoded forever — quando user_id resolver falhar 2x, hidratar via API + atualizar.
-- **Idempotency by event_id**, nunca por hash do body.
+- **NEVER `curl -d` inline with UTF-8** — always Write tool + `--data-binary @file` + `charset=utf-8` (§3).
+- **NEVER post credentials** ([[feedback-never-post-secrets-to-external-systems]]) in comments.
+- **NEVER use `notify_all: true`** in ClickUp without explicit user authorization (spam → entire team).
+- **Verify `gh pr view` BEFORE** asserting PR merged/approved (§5, rule A5').
+- **Truncate body > 5000 chars** (ClickUp limit) and link to PR.
+- **Mention IDs table** (§2) is NOT hardcoded forever — when user_id resolution fails 2x, hydrate via API + update.
+- **Idempotency by event_id**, never by body hash.
 
 ## 10. Failure modes
 
-| Erro | O que fazer |
+| Error | What to do |
 |---|---|
-| CLICKUP_API_KEY ausente mas clickup_id presente | Log "ClickUp skipped — CLICKUP_API_KEY not set"; continuar com GitHub |
-| ClickUp 401/403 | Verificar key não rotacionou; log + STOP |
+| CLICKUP_API_KEY absent but clickup_id present | Log "ClickUp skipped — CLICKUP_API_KEY not set"; continue with GitHub |
+| ClickUp 401/403 | Check key wasn't rotated; log + STOP |
 | ClickUp 429 (rate limit) | Backoff 90s, retry 1x |
-| Encoding check falha pós-post | DELETE comment + retry 1x; persiste → STOP |
-| `gh` 401 | `gh auth status` — se logado, repo path errado |
-| Mention name unresolved | Cache hit? Tentar API; falhou → STOP, perguntar |
-| pr.merged event mas PR open | A5' triggered — STOP, alertar caller |
-| Network timeout > 30s | Backoff + retry 1x; persiste → STOP |
+| Encoding check fails post-post | DELETE comment + retry 1x; persists → STOP |
+| `gh` 401 | `gh auth status` — if logged in, repo path is wrong |
+| Mention name unresolved | Cache hit? Try API; failed → STOP, ask |
+| pr.merged event but PR open | A5' triggered — STOP, alert caller |
+| Network timeout > 30s | Backoff + retry 1x; persists → STOP |
 
 ## 11. Anti-patterns
 
-- ❌ `curl -d '{"comment_text":"olá com acento"}'` — vai corromper. Sempre §3.
-- ❌ Postar PR comment sem verificar PR existe via `gh pr view`.
-- ❌ Hardcode `notify_all: true` — vira spam, equipe ignora.
-- ❌ Mention via texto livre `"@username"` no comment_text — vira string sem tag estrutural. Use `type: tag` + `attributes.user.id`.
-- ❌ Postar `deploy.success` toda hora — V1 sem digest, mas evita ruído (1x/deploy).
-- ❌ Truncar erro de stack pra "ficar limpo" em deploy.fail — preserve linha 1; linkar log.
+- ❌ `curl -d '{"comment_text":"hello with accent"}'` — will corrupt. Always §3.
+- ❌ Posting PR comment without verifying PR exists via `gh pr view`.
+- ❌ Hardcode `notify_all: true` — becomes spam, team ignores it.
+- ❌ Mention via free text `"@username"` in comment_text — becomes a string without structural tag. Use `type: tag` + `attributes.user.id`.
+- ❌ Post `deploy.success` every time — V1 has no digest, but avoid noise (1x/deploy).
+- ❌ Truncate stack error "to clean it up" in deploy.fail — preserve line 1; link log.
 
-## 12. Skills consumidas
+## 12. Skills consumed
 
-- [[clickup-api]] — referência de auth + rate limit (opcional; só relevante se ClickUp ativo).
+- [[clickup-api]] — auth + rate limit reference (optional; only relevant if ClickUp is active).
 
-## 13. Skills downstream
+## 13. Downstream skills
 
-- Nenhuma — Notifier é o último estágio do ciclo.
+- None — Notifier is the last stage of the cycle.
 
-## 14. V2 backlog (companion spec cobre)
+## 14. V2 backlog (companion spec covers)
 
 - WhatsApp via Evolution API (bot config)
 - Slack incoming webhook (#shipped, #dev-alerts)
 - Telegram bot
 - Discord webhook
-- Digest diário (agrega `task.done` etc — fora do path crítico)
+- Daily digest (aggregates `task.done` etc — off the critical path)

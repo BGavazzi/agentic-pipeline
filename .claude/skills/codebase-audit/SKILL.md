@@ -1,136 +1,136 @@
 ---
 name: codebase-audit
-description: Audita um repo (read-only) contra suas próprias regras declaradas em CLAUDE.md/AGENTS.md/SDD_KIT.md. Produz report de violações em 10 dimensões (endpoint docs faltando, swagger missing, route não em map, Dxx órfão, migration sem rollback, entity sem migration, test orphan, route sem teste, continuity stale, claude.md self-violation). Triggers - "audita o repo", "scan de drift", "checa violações de CLAUDE.md", "housekeeping mensal". STATUS - ready (V1 = 5 checks core; outros 5 = backlog).
+description: Audits a repo (read-only) against its own declared rules in CLAUDE.md/AGENTS.md/SDD_KIT.md. Produces a violation report across 10 dimensions (missing endpoint docs, swagger missing, route not in map, orphan Dxx, migration without rollback, entity without migration, test orphan, route without test, stale continuity, claude.md self-violation). Triggers - "audit the repo", "drift scan", "check CLAUDE.md violations", "monthly housekeeping". STATUS - ready (V1 = 5 core checks; other 5 = backlog).
 tools: Read, Bash, Glob, Grep, Write
 ---
 
 # Codebase Audit
 
-**Runtime: sessão Claude Code aberta. Read-only.** Spec humana: `.docs/skills/codebase-audit.md`.
+**Runtime: open Claude Code session. Read-only.** Human spec: `.docs/skills/codebase-audit.md`.
 
-**NÃO confundir com [[clickup-audit]]** (workspace ClickUp). Este audita um **repo** contra a constituição declarada nele mesmo.
+**Do NOT confuse with [[clickup-audit]]** (ClickUp workspace). This audits a **repo** against the constitution declared within it.
 
-V1 implementa 5 checks core:
+V1 implements 5 core checks:
 1. `endpoint_doc_missing`
 2. `route_not_in_map`
 3. `sdd_decision_orphan`
 4. `claude_md_self_violation`
 5. `continuity_stale`
 
-V2 backlog (specificado mas não V1): swagger_decorators_missing, migration_no_rollback, entity_no_migration, test_orphan, route_no_test.
+V2 backlog (specified but not V1): swagger_decorators_missing, migration_no_rollback, entity_no_migration, test_orphan, route_no_test.
 
 ## 1. Inputs
 
-- `repo_path`: working tree (obrigatório)
-- `checks`: opcional — subset por nome (default: todos V1)
+- `repo_path`: working tree (mandatory)
+- `checks`: optional — subset by name (default: all V1)
 - `severity_floor`: `info | warn | error` (default: `warn`)
-- `since`: opcional — só audita arquivos modificados após ISO date
+- `since`: optional — only audits files modified after ISO date
 
 ## 2. Preconditions
 
 ```bash
-test -d "$repo_path/.git" || STOP "repo_path não é repo git"
+test -d "$repo_path/.git" || STOP "repo_path is not a git repo"
 ls "$repo_path/CLAUDE.md" "$repo_path/AGENTS.md" "$repo_path/AGENTS.balanced.md" 2>/dev/null | \
-  head -1 || STOP "repo sem constituição declarada — audit no-op"
+  head -1 || STOP "repo has no declared constitution — audit is a no-op"
 mkdir -p "$repo_path/.docs/audit-reports/"
 ```
 
-## 3. Loop principal
+## 3. Main loop
 
 ```
-1. Load constitution (mesmo flow do Step 0 codebase-grounding):
-   - Read CLAUDE.md (se existe)
-   - Read AGENTS.md / AGENTS.balanced.md (se existe)
-   - Read SDD_KIT.md (se existe)
-   - Read ROUTE_BEHAVIOR_MAP.md (se existe)
-   - Capturar hard_rules (frases must/never/always/sempre/nunca/obrigatório)
+1. Load constitution (same flow as codebase-grounding Step 0):
+   - Read CLAUDE.md (if exists)
+   - Read AGENTS.md / AGENTS.balanced.md (if exists)
+   - Read SDD_KIT.md (if exists)
+   - Read ROUTE_BEHAVIOR_MAP.md (if exists)
+   - Capture hard_rules (phrases must/never/always)
 
-2. Para cada check em `checks`:
-   a. Aplicar regra ao codebase (§4 abaixo)
-   b. Listar violations [(file, line, endpoint?, severity)]
-   c. Filtrar por severity_floor
+2. For each check in `checks`:
+   a. Apply rule to the codebase (§4 below)
+   b. List violations [(file, line, endpoint?, severity)]
+   c. Filter by severity_floor
 
 3. Write report:
    - Markdown: <repo>/.docs/audit-reports/<YYYY-MM-DD>-codebase-audit.md
    - JSON: <repo>/.docs/audit-reports/<YYYY-MM-DD>-codebase-audit.json
 
-4. Output summary ao usuário (§5 abaixo).
+4. Output summary to user (§5 below).
 
-5. NÃO criar tasks. Humano triagem decide.
+5. Do NOT create tasks. Human triage decides.
 ```
 
-## 4. Checks — implementação
+## 4. Checks — implementation
 
 ### 4.1. endpoint_doc_missing
 
-Aplica-se quando constituição tem regra tipo "todo endpoint exige .bru" ou "todo endpoint precisa de docs em docs/api/...".
+Applies when constitution has a rule like "every endpoint requires .bru" or "every endpoint needs docs in docs/api/...".
 
 ```bash
-# Encontrar handlers HTTP (NestJS pattern)
+# Find HTTP handlers (NestJS pattern)
 grep -rn -E "@(Get|Post|Put|Patch|Delete)\(" --include="*.ts" "$repo_path/src/"
-# → lista de arquivos:linha → endpoint paths
+# → list of files:line → endpoint paths
 
-# Encontrar .bru files
+# Find .bru files
 find "$repo_path" -name "*.bru" -type f | xargs grep -l "post:\|get:\|put:\|patch:\|delete:"
-# → set de endpoints documentados
+# → set of documented endpoints
 
-# Diff: handlers SEM .bru correspondente
+# Diff: handlers WITHOUT a corresponding .bru
 ```
 
-Severity: `error` (regra "must/exige").
+Severity: `error` (rule says "must/requires").
 
 ### 4.2. route_not_in_map
 
-Se `ROUTE_BEHAVIOR_MAP.md` existe: cada handler deveria ter entry.
+If `ROUTE_BEHAVIOR_MAP.md` exists: each handler should have an entry.
 
 ```bash
-# Set de rotas no map
+# Set of routes in the map
 grep -E "^- (GET|POST|PUT|PATCH|DELETE) " "$repo_path/ROUTE_BEHAVIOR_MAP.md"
-# Set de rotas no código (do check anterior)
+# Set of routes in code (from previous check)
 # Diff
 ```
 
-Severity: `warn` (mapa é honra-prática, não bloqueante).
+Severity: `warn` (map is honor-practice, not blocking).
 
 ### 4.3. sdd_decision_orphan
 
-`Dxx` references em código sem entry no SDD_KIT.md.
+`Dxx` references in code without an entry in SDD_KIT.md.
 
 ```bash
-# Capturar todos `// D01`, `// D02`, etc no código
+# Capture all `// D01`, `// D02`, etc in code
 grep -rn -E "//\s*D[0-9]+|#\s*D[0-9]+" --include="*.ts" --include="*.py" --include="*.js" "$repo_path/src/"
 
-# Capturar D's documentados no SDD_KIT
+# Capture D's documented in SDD_KIT
 grep -E "^##?\s+D[0-9]+" "$repo_path/SDD_KIT.md" | sed -E 's/.*D([0-9]+).*/D\1/'
 
-# Diff: códigos sem entry
+# Diff: codes without entry
 ```
 
 Severity: `warn`.
 
 ### 4.4. claude_md_self_violation
 
-CLAUDE.md cita arquivo/path/diretório que não existe.
+CLAUDE.md cites a file/path/directory that doesn't exist.
 
 ```bash
-# Extrair refs do CLAUDE.md (paths que começam com src/, docs/, .docs/, etc)
+# Extract refs from CLAUDE.md (paths starting with src/, docs/, .docs/, etc)
 grep -oE "\`[a-zA-Z0-9_./\-]+\.(ts|tsx|js|jsx|md|py|sql|yaml|yml|json|bru)\`" "$repo_path/CLAUDE.md"
 
-# Para cada path: test -e (relativo ao repo_path)
-# Listar broken refs
+# For each path: test -e (relative to repo_path)
+# List broken refs
 ```
 
-Severity: `error` (rules apontando pra vazio = regras quebradas).
+Severity: `error` (rules pointing to nothing = broken rules).
 
 ### 4.5. continuity_stale
 
-`.agents/continuity-*.md` com mtime > 90d se houver atividade recente na branch.
+`.agents/continuity-*.md` with mtime > 90d if there is recent activity on the branch.
 
 ```bash
-# Listar continuity files
+# List continuity files
 ls -la "$repo_path/.agents/continuity-"*.md 2>/dev/null
 
-# Para cada: mtime + comparar com último commit do repo
+# For each: mtime + compare with repo's last commit
 last_commit_ts=$(git -C "$repo_path" log -1 --format=%ct)
 for f in continuity-*.md; do
   mtime=$(stat -c %Y "$f")
@@ -139,7 +139,7 @@ for f in continuity-*.md; do
 done
 ```
 
-Severity: `info` (humano decide se mantém).
+Severity: `info` (human decides whether to keep it).
 
 ## 5. Output
 
@@ -156,12 +156,12 @@ Violations:
 Top 3 (error):
   1. endpoint_doc_missing — POST /notifications/register-token (src/notifications/notificationController.ts:42)
   2. endpoint_doc_missing — POST /notifications/test-notification (src/notifications/notificationController.ts:68)
-  3. claude_md_self_violation — `docs/api/Notifications/` (CLAUDE.md §1, target dir não existe)
+  3. claude_md_self_violation — `docs/api/Notifications/` (CLAUDE.md §1, target dir doesn't exist)
 
 Report: <repo>/.docs/audit-reports/2026-05-28-codebase-audit.md
 JSON:   <repo>/.docs/audit-reports/2026-05-28-codebase-audit.json
 
-Próximo: humano triagem → criar tasks chore/<NNNN> pro que vale a pena fixar.
+Next: human triage → create chore/<NNNN> tasks for what's worth fixing.
 ```
 
 ## 6. Report format (markdown)
@@ -169,12 +169,12 @@ Próximo: humano triagem → criar tasks chore/<NNNN> pro que vale a pena fixar.
 ```markdown
 # Codebase Audit — <repo>
 
-**Data**: <YYYY-MM-DD>
+**Date**: <YYYY-MM-DD>
 **Constitution sources**: CLAUDE.md, AGENTS.balanced.md
-**Checks rodados**: 5
+**Checks run**: 5
 **Severity floor**: warn
 
-## Sumário
+## Summary
 
 | Severity | Count |
 |---|---|
@@ -184,18 +184,18 @@ Próximo: humano triagem → criar tasks chore/<NNNN> pro que vale a pena fixar.
 
 ## Violations — error
 
-### endpoint_doc_missing (regra: CLAUDE.md §1)
+### endpoint_doc_missing (rule: CLAUDE.md §1)
 
 > "Every HTTP endpoint requires a .bru file under docs/api/Blue Events API/"
 
 - `src/notifications/notificationController.ts:42` — POST /notifications/register-token
 - `src/notifications/notificationController.ts:68` — POST /notifications/test-notification
 
-**Suggested action**: criar .bru files OU documentar em SDD_KIT como exceção justificada.
+**Suggested action**: create .bru files OR document in SDD_KIT as justified exception.
 
 ### claude_md_self_violation
 
-- `CLAUDE.md` linha 23: refer `docs/api/Notifications/` — diretório não existe
+- `CLAUDE.md` line 23: references `docs/api/Notifications/` — directory doesn't exist
 
 ## Violations — warn
 
@@ -204,34 +204,34 @@ Próximo: humano triagem → criar tasks chore/<NNNN> pro que vale a pena fixar.
 
 ## 7. Hard rules
 
-- **Read-only.** Nenhum arquivo do repo audit-alvo é modificado fora de `.docs/audit-reports/`.
-- **Não cria tasks.** Humano triagem decide.
-- **Não auto-fix.** Mesmo se violação é trivial (faltou .bru), audit não cria — pra forçar humano ver agregado.
-- **Não inventa regras.** Se CLAUDE.md não cita `.bru`, audit não checa `.bru`.
-- **Performance**: cap em 60s. Excedeu → particionar por path + warn.
+- **Read-only.** No file in the audit-target repo is modified outside `.docs/audit-reports/`.
+- **Does not create tasks.** Human triage decides.
+- **Does not auto-fix.** Even if the violation is trivial (missing .bru), audit doesn't create — to force the human to see the aggregate.
+- **Does not invent rules.** If CLAUDE.md doesn't mention `.bru`, audit doesn't check `.bru`.
+- **Performance**: cap at 60s. Exceeded → partition by path + warn.
 
 ## 8. Failure modes
 
-| Erro | O que fazer |
+| Error | What to do |
 |---|---|
-| Repo sem constituição | No-op + log "repo sem CLAUDE.md/AGENTS.md — audit incompleta" |
-| Glob retorna 10k+ matches | Particionar por subdir, warn no report |
-| Check específico crasha | Skip, log, continuar outros |
-| Audit interrompido | Salvar parcial com flag `"incomplete": true` no JSON |
-| .docs/audit-reports/ não existe | Criar (única exceção ao read-only) |
-| Constituição contraditória detectada | Report separado `<date>-constitution-conflicts.md` |
+| Repo without constitution | No-op + log "repo has no CLAUDE.md/AGENTS.md — audit incomplete" |
+| Glob returns 10k+ matches | Partition by subdir, warn in report |
+| Specific check crashes | Skip, log, continue others |
+| Audit interrupted | Save partial with flag `"incomplete": true` in JSON |
+| .docs/audit-reports/ doesn't exist | Create (sole exception to read-only) |
+| Contradictory constitution detected | Separate report `<date>-constitution-conflicts.md` |
 
 ## 9. Anti-patterns
 
-- ❌ Auto-criar tasks ClickUp pra cada violação (humano triagem é parte do design).
-- ❌ Edit/Write em arquivos do repo audit-alvo fora de `.docs/audit-reports/`.
-- ❌ Reportar "boas práticas universais" não declaradas (use TS, use ESLint).
-- ❌ Rodar como gate no ciclo crítico Builder→Tester→Librarian (audit é fora do ciclo).
-- ❌ Severity inflada — toda regra `error` vira ruído.
-- ❌ Audit chamado em loop pelo ciclo — 1x mensal por repo é o pattern.
+- ❌ Auto-creating ClickUp tasks for each violation (human triage is part of the design).
+- ❌ Edit/Write to audit-target repo files outside `.docs/audit-reports/`.
+- ❌ Reporting "universal best practices" not declared in the constitution (use TS, use ESLint).
+- ❌ Running as a gate in the critical Builder→Tester→Librarian cycle (audit is outside the cycle).
+- ❌ Inflated severity — every `error` rule becomes noise.
+- ❌ Audit called in a loop by the cycle — 1x/month per repo is the pattern.
 
-## 10. Skills relacionadas
+## 10. Related skills
 
-- [[codebase-grounding]] — reusa Step 0 (constitution loading).
-- [[librarian]] — escopo NNNN; este escopo agregado. Complementares.
-- [[clickup-audit]] — workspace, não repo.
+- [[codebase-grounding]] — reuses Step 0 (constitution loading).
+- [[librarian]] — NNNN scope; this is aggregate scope. Complementary.
+- [[clickup-audit]] — workspace, not repo.

@@ -1,73 +1,73 @@
 ---
 name: meta-test
-description: Roda fixtures de teste para skills do pipeline (builder/tester/notifier) usando Agent tool — spawnar subagent isolado por fixture, validar git state + task state + trajectory contra expected.yaml. Triggers - "/test-builder", "/test-skills", "roda os testes das skills", ou usuário pede pra validar mudança em SKILL.md. Runtime - Claude Code session (kept open) — consome subscription quota, não API tokens.
+description: Runs test fixtures for pipeline skills (builder/tester/notifier) using the Agent tool — spawns an isolated subagent per fixture, validates git state + task state + trajectory against expected.yaml. Triggers - "/test-builder", "/test-skills", "run skill tests", or user asks to validate a change in SKILL.md. Runtime - Claude Code session (kept open) — consumes subscription quota, not API tokens.
 tools: Bash, Read, Glob, Agent
 ---
 
 # meta-test
 
-**Runtime: sessão Claude Code aberta.** Skill de **teste de skills** — sem API tokens, sem CI gate-on-PR; use manualmente após mudança em qualquer `.claude/skills/<X>/SKILL.md` ou periodicamente via `/loop /test-builder`.
+**Runtime: open Claude Code session.** Skill for **testing skills** — no API tokens, no CI gate-on-PR; use manually after changing any `.claude/skills/<X>/SKILL.md` or periodically via `/loop /test-builder`.
 
-Arquitetura "tests in-session":
-- Cada fixture é um **subagent isolado** spawned via `Agent` tool.
-- Subagent herda contexto da sessão pai, recebe prompt enxuto apontando pra task seed.
-- Sessão pai valida: git state + task.md state + trajetória (do report do subagent) vs `expected.yaml`.
-- Nenhum processo externo, nenhuma chamada API direta — tudo dentro da sessão.
+"Tests in-session" architecture:
+- Each fixture is an **isolated subagent** spawned via `Agent` tool.
+- Subagent inherits the parent session context, receives a lean prompt pointing to the seed task.
+- Parent session validates: git state + task.md state + trajectory (from subagent report) vs `expected.yaml`.
+- No external process, no direct API calls — all within the session.
 
-## Quando invocar
+## When to invoke
 
-- Após editar `.claude/skills/<X>/SKILL.md` em qualquer skill testada.
-- Quando uma fixture nova é adicionada em `tests/skills/fixtures/`.
-- Periodicamente em loop (`/loop /test-builder`) — manual, não automatizado externamente.
+- After editing `.claude/skills/<X>/SKILL.md` in any tested skill.
+- When a new fixture is added to `tests/skills/fixtures/`.
+- Periodically in loop (`/loop /test-builder`) — manual, not externally automated.
 
-## O que testa hoje
+## What it tests today
 
-| Skill | Fixtures cobertas | Status |
+| Skill | Covered fixtures | Status |
 |---|---|---|
 | `builder` | 1: 001-trivial-readme-edit | baseline (happy path) |
 | `tester` | — | TODO |
 | `notifier` | — | TODO |
 
-Cada fixture deve cobrir um caso distinto: happy path, decision-tree branch, anti-pattern detection. Não duplicar.
+Each fixture should cover a distinct case: happy path, decision-tree branch, anti-pattern detection. Don't duplicate.
 
-## Loop principal
+## Main loop
 
 ```
 1. Glob: tests/skills/fixtures/*/expected.yaml
-   → lista de fixtures executáveis
+   → list of executable fixtures
 
-2. Para cada fixture:
+2. For each fixture:
    a. Bash: tests/skills/lib/setup.sh <fixture_name>
-      → cria /tmp/test-<fixture_name>/ com seed-repo extraído
-      → retorna path absoluto do sandbox
+      → creates /tmp/test-<fixture_name>/ with extracted seed-repo
+      → returns absolute path of the sandbox
 
    b. Agent tool spawn:
       subagent_type: general-purpose
       description: "Test <skill> via <fixture_name>"
       prompt: see "Subagent prompt template" §below
 
-   c. Subagent retorna texto descrevendo o que fez:
-      - lista de tool calls em ordem
-      - commits criados (sha + msg)
-      - status final da task
-      - quaisquer erros encontrados
+   c. Subagent returns text describing what it did:
+      - list of tool calls in order
+      - commits created (sha + msg)
+      - final task status
+      - any errors encountered
 
    d. Bash: tests/skills/lib/assert.sh <fixture_name> <sandbox_path>
-      → compara git state + task.md vs expected.yaml
-      → retorna 0 (pass) ou 1 (fail) + diff humano
+      → compares git state + task.md vs expected.yaml
+      → returns 0 (pass) or 1 (fail) + human-readable diff
 
-   e. Bash: tests/skills/lib/teardown.sh <fixture_name> (limpa sandbox)
-      ← OPCIONAL: skip teardown se TESTS_KEEP=1 (debug)
+   e. Bash: tests/skills/lib/teardown.sh <fixture_name> (cleans sandbox)
+      ← OPTIONAL: skip teardown if TESTS_KEEP=1 (debug)
 
 3. Output: summary table
    fixture | skill | pass | duration | notes
    001     | builder | ✅ | 45s | -
-   002     | builder | ❌ | 32s | §Condição [3] não marcada
+   002     | builder | ❌ | 32s | §Condition [3] not marked
 ```
 
 ## Subagent prompt template
 
-Passa via `Agent` tool, ajustando `<placeholders>`:
+Passed via `Agent` tool, adjusting `<placeholders>`:
 
 ```
 You are a Builder subagent under test. Read your full instructions from
@@ -79,9 +79,9 @@ Test context:
   Working directory: <sandbox_path>
 
 Constraints (NON-NEGOTIABLE — same as production):
-  - Surgical changes only — §Arquivos Afetados is contract
+  - Surgical changes only — §Affected Files is contract
   - Tests must pass at commit
-  - Lei de Fechamento §3 completa or [N/A] with justification
+  - Closure Law §3 complete or [N/A] with justification
   - NEVER --no-verify, --force, commit secrets
   - NEVER push (this is a sandbox)
 
@@ -95,8 +95,8 @@ At the end, report back in this exact format:
     - <sha1> <subject>
     - <sha2> <subject>
   Files touched: [<path1>, <path2>, ...]
-  §Condições marked done: <count>/<total>
-  Lei de Fechamento §3 items addressed:
+  §Conditions marked done: <count>/<total>
+  Closure Law §3 items addressed:
     - CHANGELOG: <yes|no|N/A>
     - function-catalog: <yes|no|N/A>
     - SDD_KIT: <yes|no|N/A>
@@ -151,43 +151,43 @@ expected:
 
 ## Assertions (tests/skills/lib/assert.sh)
 
-Bash script lê:
+Bash script reads:
 - expected.yaml
-- subagent report (texto)
+- subagent report (text)
 - git state via `git -C <sandbox> log --oneline`, `git -C <sandbox> diff --stat`, `git -C <sandbox> branch`
 - task file frontmatter via `head -20 <task_file>`
 
-Compara campo por campo, output `PASS` ou `FAIL: <campo>: expected <X> got <Y>`. Exit 0 se tudo verde.
+Compares field by field, outputs `PASS` or `FAIL: <field>: expected <X> got <Y>`. Exit 0 if all green.
 
-## Decision tree — falhas
+## Decision tree — failures
 
 ```
-Subagent estourou quota / timeout:
-├─ Fixture demora > 5min → marca SKIP, continua próxima.
+Subagent exceeded quota / timeout:
+├─ Fixture takes > 5min → mark SKIP, continue to next.
 │
-Subagent retornou texto fora do formato RESULT:
-├─ Parsing falha → log o texto, marca FAIL com motivo "report format".
+Subagent returned text outside RESULT format:
+├─ Parsing fails → log the text, mark FAIL with reason "report format".
 │
-Git state assertion falha:
-├─ Anota diff entre expected e actual, marca FAIL.
-├─ NÃO faz teardown (preserva sandbox pra inspeção manual).
+Git state assertion fails:
+├─ Notes diff between expected and actual, marks FAIL.
+├─ Does NOT teardown (preserves sandbox for manual inspection).
 │
-Task.md frontmatter ainda em "todo" no fim:
-├─ Subagent não cumpriu o ciclo. FAIL: "task not advanced".
+Task.md frontmatter still at "todo" at end:
+├─ Subagent didn't complete the cycle. FAIL: "task not advanced".
 │
-Tool call sequence violou must_include_in_order:
+Tool call sequence violated must_include_in_order:
 ├─ FAIL: "trajectory: missed <X> before <Y>".
 ```
 
 ## Hard rules
 
-- **Nunca executa contra repo real** — sempre sandbox em `/tmp/test-*/`.
-- **Nunca commitar resultados de teste** no guidelines_IA — `tests/skills/.last-run/` está em `.gitignore`.
-- **Nunca chama API direto** (`curl https://api.anthropic.com/...`) — sempre `Agent` tool.
-- **Idempotent**: rodar duas vezes seguidas deve dar mesmo resultado (teardown completo).
-- **Subagent é isolado**: cada fixture spawna 1 subagent novo, sem leak de contexto entre fixtures.
+- **Never executes against a real repo** — always sandbox in `/tmp/test-*/`.
+- **Never commit test results** to agentic-pipeline — `tests/skills/.last-run/` is in `.gitignore`.
+- **Never calls API directly** (`curl https://api.anthropic.com/...`) — always `Agent` tool.
+- **Idempotent**: running twice in a row must give the same result (complete teardown).
+- **Subagent is isolated**: each fixture spawns 1 new subagent, no context leak between fixtures.
 
-## Output format ao final
+## Final output format
 
 ```
 META-TEST run @ <timestamp>
@@ -195,7 +195,7 @@ META-TEST run @ <timestamp>
 fixture                          skill    pass   duration   notes
 001-trivial-readme-edit          builder  ✅     42s        —
 002-failing-test-regression      builder  ❌     31s        Tests: did not stop at red
-003-files-afetados-drift         builder  ✅     58s        Updated §Arquivos Afetados (1 commit extra OK)
+003-files-afetados-drift         builder  ✅     58s        Updated §Affected Files (1 extra commit OK)
 004-lock-conflict-parallel       builder  SKIP   —          multi_agent: false in fixture AGENTS.md
 005-push-blocked                 builder  ✅     38s        Reported branch local, no push
 
@@ -210,27 +210,27 @@ Failed details:
 
 ## Anti-patterns
 
-- ❌ Fixture que assume estado de outro fixture (cross-contamination).
-- ❌ Assertions sobre stdout do subagent texto (frágil) — usar git state + task.md.
-- ❌ Spawnar subagent sem sandbox (vai modificar repo real).
-- ❌ `tool_calls_must_include` muito específico (ex: "Bash com argumento exato X") — quebra com refactor do SKILL.md sem ganho.
+- ❌ Fixture that assumes state from another fixture (cross-contamination).
+- ❌ Assertions on subagent text output (fragile) — use git state + task.md.
+- ❌ Spawning subagent without a sandbox (will modify the real repo).
+- ❌ `tool_calls_must_include` too specific (e.g.: "Bash with exact argument X") — breaks with SKILL.md refactor without benefit.
 
-## Roadmap de fixtures
+## Fixture roadmap
 
-| Fixture | Cobre | Status |
+| Fixture | Covers | Status |
 |---|---|---|
-| `001-trivial-readme-edit` | happy path mais simples — edita 1 arquivo, 1 commit | ✅ baseline (smoke + e2e validated 2026-05-21) |
-| `002-failing-test-regression` | trap: test pre-existente quebra durante implementação — Builder deve STOP + criar fix-task + blocked_by | ✅ smoke validated 2026-05-22 |
-| `003-files-afetados-drift` | trap: §O Que Fazer precisa de arquivo fora de §Arquivos Afetados — Builder atualiza contrato primeiro | ✅ smoke validated 2026-05-22 |
-| `004-never-delete-archive-instead` | trap: task pede "remover" mas AGENTS §2 proíbe delete — Builder usa `mv .archive/` | ✅ smoke validated 2026-05-22 |
-| `005-lock-conflict-parallel` | trap: 3 subagents, 1 lock conflict resolvido (parallelism via Agent tool) | TODO — exige instrumentação extra |
-| `006-tester-prototype-mode` | tester skill, boots-and-responds | TODO (após tester upgrade) |
-| `007-notifier-clickup-comment` | notifier skill, post comment com TL;DR | TODO (após notifier upgrade) |
+| `001-trivial-readme-edit` | simplest happy path — edits 1 file, 1 commit | ✅ baseline (smoke + e2e validated 2026-05-21) |
+| `002-failing-test-regression` | trap: pre-existing test breaks during implementation — Builder must STOP + create fix-task + blocked_by | ✅ smoke validated 2026-05-22 |
+| `003-files-afetados-drift` | trap: §What To Do needs a file outside §Affected Files — Builder updates contract first | ✅ smoke validated 2026-05-22 |
+| `004-never-delete-archive-instead` | trap: task asks to "remove" but AGENTS §2 forbids delete — Builder uses `mv .archive/` | ✅ smoke validated 2026-05-22 |
+| `005-lock-conflict-parallel` | trap: 3 subagents, 1 lock conflict resolved (parallelism via Agent tool) | TODO — requires extra instrumentation |
+| `006-tester-prototype-mode` | tester skill, boots-and-responds | TODO (after tester upgrade) |
+| `007-notifier-clickup-comment` | notifier skill, post comment with TL;DR | TODO (after notifier upgrade) |
 
-## Como adicionar fixture
+## How to add a fixture
 
 1. `mkdir tests/skills/fixtures/<NNN>-<slug>/`
-2. Criar `seed-repo.tar.gz` com mini-repo (5-15 arquivos máx — pequeno é importante)
-3. Criar `task-id.txt`, `skill.txt`, `expected.yaml`, `README.md`
-4. Roda `/test-builder` localmente; verifica que passa
+2. Create `seed-repo.tar.gz` with mini-repo (5–15 files max — small is important)
+3. Create `task-id.txt`, `skill.txt`, `expected.yaml`, `README.md`
+4. Run `/test-builder` locally; verify it passes
 5. Commit + PR

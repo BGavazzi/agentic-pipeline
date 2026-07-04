@@ -1,24 +1,18 @@
-﻿# Convenção — Notificar o humano quando o agente para (Stop hook)
+# Convention — Notify the Human When the Agent Stops (Stop hook)
 
-> Status: ativa. Generaliza o padrão "me avise toda vez que parar de trabalhar".
+> Status: active. Generalizes the pattern "notify me every time you stop working."
 
-## Princípio
+## Principle
 
-Em runs longos/autônomos, o humano não fica olhando o terminal. Quando o agente **para**
-(fim de turno, idle, fim de tarefa), ele deve **empurrar um aviso** pro canal assíncrono do
-humano (WhatsApp/Slack/etc.), pra que a pessoa saiba que pode re-engajar — sem precisar
-adivinhar a cadência.
+In long/autonomous runs, the human isn't watching the terminal. When the agent **stops** (end of turn, idle, end of task), it must **push a notification** to the human's async channel (WhatsApp/Slack/etc.), so the person knows they can re-engage — without having to guess the cadence.
 
-Isto é um **comportamento automático disparado por evento** → **tem que ser um hook** no
-`settings.json`. Memória/preferência NÃO dispara ação automática; só o harness executa hooks.
-Evento certo: **`Stop`** (roda quando o Claude para, incluindo clear/resume/compact).
+This is an **event-triggered automatic behavior** → **it must be a hook** in `settings.json`. Memory/preference does NOT trigger automatic action; only the harness executes hooks. Right event: **`Stop`** (fires when Claude stops, including clear/resume/compact).
 
-Relacionado: respostas em canal público pedem follow-up no mesmo canal; ver também a regra de
-"convergência não é fechamento" (continuar até sinal explícito de parada).
+Related: responses in a public channel call for follow-up in the same channel; see also the "convergence is not closure" rule (keep going until an explicit stop signal).
 
-## Forma (genérica)
+## Form (generic)
 
-`.claude/settings.json` (escopo projeto ou user):
+`.claude/settings.json` (project or user scope):
 
 ```json
 {
@@ -29,9 +23,9 @@ Relacionado: respostas em canal público pedem follow-up no mesmo canal; ver tam
           {
             "type": "command",
             "shell": "bash",
-            "command": "<comando-de-notificação> || true",
+            "command": "<notification-command> || true",
             "timeout": 30,
-            "statusMessage": "Avisando o humano…"
+            "statusMessage": "Notifying the human…"
           }
         ]
       }
@@ -40,49 +34,36 @@ Relacionado: respostas em canal público pedem follow-up no mesmo canal; ver tam
 }
 ```
 
-Regras:
-- **Nunca bloquear o stop.** Terminar sempre em sucesso (`|| true`, e silenciar stderr no script).
-- **`shell: "bash"`** no Windows pra não cair no PowerShell (assume Git Bash presente).
-- **Mensagem CONTEXTUAL, não estática.** O Stop dispara a CADA fim de turno — uma string fixa
-  ("Claude parou") vira spam inútil. O agente escreve uma nota curta do que fez no turno num
-  arquivo (ex.: `~/.claude/claude-stop-note.txt`) e o script envia o conteúdo dela.
-- **Dedup por conteúdo.** O script guarda a última mensagem enviada; se a nota não mudou, NÃO
-  reenvia → turnos sem novidade não pingam. Sem isso o usuário recebe ~1 msg/turno (a cada poucos
-  minutos num run longo) e reclama — aprendizado real do run `teste_refactor_whitelabel`.
-- **Script, não one-liner gigante.** Encapsular num script (`~/.claude/zap_notify.sh`) e referenciar.
-- O comando NÃO deve vazar segredo: delega o envio a um componente que já tem as credenciais
-  (ex.: container do bot), em vez de ler API keys no hook.
+Rules:
+- **Never block the stop.** Always exit with success (`|| true`, and silence stderr in the script).
+- **`shell: "bash"`** on Windows to avoid falling into PowerShell (assumes Git Bash is present).
+- **CONTEXTUAL message, not static.** Stop fires at EVERY end of turn — a static string ("Claude stopped") becomes useless spam. The agent writes a short note about what it did in the turn to a file (e.g.: `~/.claude/claude-stop-note.txt`) and the script sends its contents.
+- **Dedup by content.** The script saves the last sent message; if the note hasn't changed, do NOT resend → turns with no news don't ping. Without this the user receives ~1 msg/turn (every few minutes in a long run) and complains — real learning from the `teste_refactor_whitelabel` run.
+- **Script, not a giant one-liner.** Encapsulate in a script (`~/.claude/zap_notify.sh`) and reference it.
+- The command MUST NOT leak secrets: delegate sending to a component that already has the credentials (e.g.: the bot container), instead of reading API keys in the hook.
 
-## Implementação local (WhatsApp via bot de zap)
+## Local implementation (WhatsApp via bot)
 
-Dependências (específicas do canal WhatsApp — por isso NÃO vai no `settings.json` compartilhado
-de repo, só no settings local/user de quem tem o ambiente):
-- Container do bot WhatsApp rodando (Docker), com Evolution configurado (`EVOLUTION_API_URL`,
-  `EVOLUTION_INSTANCE`, `EVOLUTION_API_KEY` no env do container — ver `<your-bot-repo>`).
-- Script `~/.claude/zap_notify.sh` que faz `docker exec <bot-container> python3 …` postando em
-  `POST {EVOLUTION_API_URL}/message/sendText/{INSTANCE}` com header `apikey` e body `{number,text}`.
-  As creds ficam dentro do container — o hook nunca as lê.
-- Destino: JID do humano (ex.: `<phone-number>`). Ver directory de JIDs no `<your-bot-repo>`.
+Dependencies (specific to the WhatsApp channel — which is why this does NOT go in the repo-shared `settings.json`, only in the local/user settings of whoever has the environment):
+- WhatsApp bot container running (Docker), with Evolution configured (`EVOLUTION_API_URL`, `EVOLUTION_INSTANCE`, `EVOLUTION_API_KEY` in the container env — see `<your-bot-repo>`).
+- Script `~/.claude/zap_notify.sh` that does `docker exec <bot-container> python3 …` posting to `POST {EVOLUTION_API_URL}/message/sendText/{INSTANCE}` with `apikey` header and `{number,text}` body. Credentials stay inside the container — the hook never reads them.
+- Destination: human's JID (e.g.: `<phone-number>`). See JID directory in `<your-bot-repo>`.
 
-Comando do hook (exemplo):
+Hook command (example):
 ```
 bash "~/.claude/zap_notify.sh" || true
 ```
-O `zap_notify.sh` lê `~/.claude/claude-stop-note.txt` (nota contextual que o agente atualiza
-ao fim de cada turno), aplica dedup contra `~/.claude/.claude-stop-note.last`, e só então envia.
+`zap_notify.sh` reads `~/.claude/claude-stop-note.txt` (contextual note the agent updates at the end of each turn), applies dedup against `~/.claude/.claude-stop-note.last`, and only then sends.
 
-## Companheira: pollar respostas
+## Companion: polling for replies
 
-Quando o agente MANDA algo no zap e fica aguardando, deve **pollar respostas a cada ~10 min**
-(em run autônomo, via ScheduleWakeup ~600s) até o humano responder ou o assunto fechar. Isso é
-comportamento do agente (não um hook), mas anda junto desta convenção.
+When the agent SENDS something on the messaging channel and is waiting, it must **poll for replies every ~10 min** (in autonomous run, via ScheduleWakeup ~600s) until the human responds or the subject closes. This is agent behavior (not a hook), but it goes hand in hand with this convention.
 
-## Como adotar em outro repo/perfil
+## How to adopt in another repo/profile
 
-1. Garantir o canal de envio (ex.: container do bot + `~/.claude/zap_notify.sh`).
-2. Adicionar o bloco `hooks.Stop` no `settings.json` de **escopo apropriado**:
-   - **user** (`~/.claude/settings.json`) se quiser em todos os projetos da máquina;
-   - **local** (`.claude/settings.local.json`, gitignored) pra um projeto sem afetar o time;
-   - **NÃO** no `.claude/settings.json` versionado de repo compartilhado (quebraria pra quem
-     não tem o canal/credenciais).
-3. Abrir `/hooks` uma vez (ou reiniciar) se o watcher não tinha settings no start da sessão.
+1. Ensure the sending channel (e.g.: bot container + `~/.claude/zap_notify.sh`).
+2. Add the `hooks.Stop` block to `settings.json` in the **appropriate scope**:
+   - **user** (`~/.claude/settings.json`) if you want it across all projects on the machine;
+   - **local** (`.claude/settings.local.json`, gitignored) for a project without affecting the team;
+   - **NOT** in the repo-shared `.claude/settings.json` (would break for anyone without the channel/credentials).
+3. Open `/hooks` once (or restart) if the watcher didn't have settings at session start.

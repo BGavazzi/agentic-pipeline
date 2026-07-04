@@ -1,52 +1,52 @@
-﻿# Convenção — defaults de engenharia (org-wide)
+# Convention — Engineering Defaults (org-wide)
 
-Decisões de arquitetura e stack que valem como **default** em todos os repos da org. Não são leis absolutas (👇 têm exceções justificáveis), mas o ônus de divergir é de quem diverge.
+Architecture and stack decisions that apply as **defaults** across all repos. Not absolute laws (👇 they have justifiable exceptions), but the burden of diverging falls on whoever diverges.
 
-> Promovidas de memória pessoal para a constituição porque descrevem\ como\ esta\ org\ constrói\ software, não a preferência de uma pessoa.
-
----
-
-## 1. Regras de negócio moram no backend que é dono do dado
-
-Validação, enforcement de invariantes, integração com 3rd-party (chaves/segredos) e auto-derivação **vão no backend que é dono do dado** — nunca no frontend. O front é **UX**: surfacing de erro do backend, affordance, disabling otimista. Nunca enforcement.
-
-- Regra de validação ("X obrigatório pra publicar", "Y ∈ Z"): use-case no backend + constraint no DB onde couber. Front mostra o 4xx/422.
-- Integração 3rd-party com segredo (image-gen, OpenAI, pagamento): endpoint no backend. Front faz POST e lê a resposta.
-- Auto-derivação ("derivar X de Y na escrita"): backend re-deriva autoritativamente. Front pode pré-preencher pra UX.
-- Invariante cross-record: transação no backend.
-
-**Why:** se a regra vive só no front, qualquer outro caller (scraper, webhook, microserviço futuro, `curl` manual) a contorna. Vivido com `news_items.source_id` (ADR-002). Se um ticket de front diz "enforce X" / "prevent Y", reescrever como ticket de backend + um follow-up fino de UI.
+> Promoted from personal memory to the constitution because these describe *how this org builds software*, not one person's preference.
 
 ---
 
-## 2. Sem encanamento técnico exposto na UI
+## 1. Business rules live in the backend that owns the data
 
-Não expor plumbing de backend (selectors de FK deriváveis do contexto) como escolha de formulário em telas de editor. **Preferir auto-derivação silenciosa.**
+Validation, invariant enforcement, 3rd-party integration (keys/secrets), and auto-derivation **go in the backend that owns the data** — never in the frontend. The front is **UX**: surfacing backend errors, affordance, optimistic disabling. Never enforcement.
 
-Quando um fix exige popular um FK relacional num form, primeiro perguntar se o FK pode ser **derivado** de outro campo que o usuário já se importa (host da URL, nome da categoria, slug). Se sim, derivar num watch/effect e esconder o FK. Só cair pra um picker quando a derivação for genuinamente ambígua e o usuário **tiver** que desambiguar. Documentar a lógica de derivação num ADR — inferência silenciosa não-rastreável vira fantasma.
+- Validation rule ("X required to publish", "Y ∈ Z"): use-case in the backend + DB constraint where applicable. Front shows the 4xx/422.
+- 3rd-party integration with secrets (image-gen, OpenAI, payments): endpoint in the backend. Front does POST and reads the response.
+- Auto-derivation ("derive X from Y on write"): backend re-derives authoritatively. Front can pre-fill for UX.
+- Cross-record invariant: transaction in the backend.
 
-**Why:** o editor pensa em "a URL do artigo original", não na tabela-taxonomia curada. Um picker adiciona um clique que o modelo mental do usuário não justifica.
-
----
-
-## 3. Imagem gerada por IA: nunca fotorrealista
-
-Imagem gerada por IA (Imagen ou qualquer provider) pra produto\ public-facing (portal de notícias, etc.) **nunca pode ser fotorrealista** — sempre ilustração / estilo não-foto.
-
-- A ferramenta de imagem compartilhada **não expõe modo `"photo"`** — não passar `style: "photo"`.
-- Parear com label visível "gerada por IA".
-
-**Why:** imagem fotorrealista de evento/pessoa real = desinformação + risco de likeness; ilustração sinaliza claramente que é editorial/IA, não foto do evento. Aplica ao cluster-synthesis, geração de capa e tools similares.
+**Why:** if the rule lives only in the front, any other caller (scraper, webhook, future microservice, manual `curl`) bypasses it. Lived with `news_items.source_id` (ADR-002). If a front ticket says "enforce X" / "prevent Y", rewrite it as a backend ticket + a thin UI follow-up.
 
 ---
 
-## 4. Componente de UI ⇄ Storybook (obrigatório, frontend)
+## 2. No technical plumbing exposed in the UI
 
-Em qualquer repo de frontend com Storybook, **componente e story são um pacote só**:
+Do not expose backend plumbing (FK selectors derivable from context) as a form choice in editor screens. **Prefer silent auto-derivation.**
 
-- **Nenhum componente novo sem story.** Criar um componente de UI (átomo, molécula, qualquer reusável em `Components/`) **obriga** entregar, no mesmo PR, o que o Storybook precisa: o `*.stories.jsx` com as variantes representativas (estados/cores/tamanhos relevantes) renderizando com o tema real (decorator `ChakraProvider` + theme tokens). PR de componente sem story = incompleto, não mergeia.
-- **Se já existe no Storybook, use e respeite.** Antes de escrever um componente, **procurar no Storybook/catálogo** se já há um canônico pra aquela intenção. Se houver, **reutilizar** (estender via props/composição) — **proibido clonar** um `XCustom`/`XV2`/cópia-por-domínio que faça o mesmo. Divergir do canônico exige justificativa explícita no PR (e idealmente vira uma variante do canônico, não um novo componente).
-- **Tokens, não hardcode.** Componente em story usa tokens do tema (cor/spacing/tipografia) — zero hex hardcoded. É o que torna a story fiel ao Figma e o whitelabel possível.
-- **Pixel-perfect verificável.** A story é o artefato contra o qual o design/QA confere fidelidade ao Figma (e onde o `visual-tester` da fábrica roda diff perceptual). Sem story, "bate com o Figma" é inverificável.
+When a fix requires populating a relational FK in a form, first ask whether the FK can be **derived** from another field the user already cares about (host from URL, category name, slug). If so, derive it in a watch/effect and hide the FK. Only fall back to a picker when derivation is genuinely ambiguous and the user **must** disambiguate. Document the derivation logic in an ADR — silent untracked inference becomes a ghost.
 
-**Why:** o <front-repo> acumulou ~21 implementações de Button, 17 de Input, 8 de Avatar — cada tela montada sobre átomos não-consolidados, então a mesma intenção aparece visualmente diferente em telas diferentes. Story-por-componente + "reusar o canônico" é o que impede a próxima geração de clones e dá ao designer uma fonte única de verdade. 2026-06-09.
+**Why:** the editor thinks "the original article's URL", not the curated taxonomy table. A picker adds a click that the user's mental model doesn't justify.
+
+---
+
+## 3. AI-generated images: never photorealistic
+
+AI-generated images (Imagen or any provider) for public-facing products (news portals, etc.) **must never be photorealistic** — always illustration / non-photo style.
+
+- The shared image tool **does not expose `"photo"` mode** — do not pass `style: "photo"`.
+- Pair with a visible "AI-generated" label.
+
+**Why:** a photorealistic image of a real event/person = misinformation + likeness risk; illustration clearly signals it's editorial/AI, not a photo of the event. Applies to cluster-synthesis, cover generation, and similar tools.
+
+---
+
+## 4. UI Component ⇄ Storybook (mandatory, frontend)
+
+In any frontend repo with Storybook, **component and story are a single package**:
+
+- **No new component without a story.** Creating a UI component (atom, molecule, any reusable in `Components/`) **requires** delivering, in the same PR, what Storybook needs: the `*.stories.jsx` with representative variants (relevant states/colors/sizes) rendering with the real theme (decorator `ChakraProvider` + theme tokens). PR for a component without a story = incomplete, doesn't merge.
+- **If it already exists in Storybook, use and respect it.** Before writing a component, **search the Storybook/catalog** to see if there's already a canonical one for that intent. If so, **reuse it** (extend via props/composition) — **cloning an `XCustom`/`XV2`/domain-copy that does the same thing is forbidden**. Diverging from the canonical requires explicit justification in the PR (and ideally becomes a variant of the canonical, not a new component).
+- **Tokens, not hardcode.** Component in a story uses theme tokens (color/spacing/typography) — zero hardcoded hex. This is what makes the story faithful to Figma and whitelabeling possible.
+- **Pixel-perfect verifiable.** The story is the artifact against which design/QA checks Figma fidelity (and where the factory's `visual-tester` runs perceptual diff). Without a story, "matches Figma" is unverifiable.
+
+**Why:** the `<front-repo>` accumulated ~21 Button implementations, 17 Input, 8 Avatar — each screen built on non-consolidated atoms, so the same intent appears visually different across screens. Story-per-component + "reuse the canonical" is what prevents the next generation of clones and gives the designer a single source of truth. 2026-06-09.

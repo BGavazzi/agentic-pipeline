@@ -5,15 +5,15 @@ Local constitution. **Inherits the agentic core** vendored from
 (`.agentic-core/`, projected into `.claude/skills/` + `scripts/` by `sync-core.sh`).
 This file is repo-specific and is NEVER overwritten by a core sync — edit it freely.
 
-**Versão**: 0.1.0  ·  **Status**: <tier>  ·  **Tipo**: <one-line type>
+**Version**: 0.1.0  ·  **Status**: <tier>  ·  **Type**: <one-line type>
 
 ---
 
-## §0 Protocolo Zero — Continuidade
+## §0 Protocol Zero — Continuity
 
-1. **LER** `.agents/continuity-<seuagente>.md` (criar se não existir).
-2. **ALINHAR** com o "Foco Atual".
-3. **ATUALIZAR** ao final da sessão.
+1. **READ** `.agents/continuity-<your-agent>.md` (create if it doesn't exist).
+2. **ALIGN** with the "Current Focus".
+3. **UPDATE** at the end of the session.
 
 ```yaml
 multi_agent: false
@@ -21,66 +21,65 @@ sdd_kit_path: docs/SDD_KIT.md
 function_catalog: .docs/function-catalog.md
 route_map: .docs/ROUTE_BEHAVIOR_MAP.md
 task_dir: .docs/tasks
-clickup_list_id: <opcional, se sincronizado>
+clickup_list_id: <optional, if synced>
 agentic_core: .agentic-core      # vendored pipeline; sync via .agentic-core/sync-core.sh
 ```
 
 ---
 
-## §1 Identidade e Escopo
+## §1 Identity and Scope
 
-**Nome**: <project_name>
-**Mantido por**: <maintainer>
-**Tipo**: <type>
+**Name**: <project_name>
+**Maintained by**: <maintainer>
+**Type**: <type>
 **Tier**: <prototype | active | canonical>
 
 ### 1.1 Stack
-| Camada | Tecnologia |
+| Layer | Technology |
 |---|---|
-| <ex: Runtime> | <ex: FastAPI + Docker> |
+| <e.g.: Runtime> | <e.g.: FastAPI + Docker> |
 
 ---
 
 ## §2 Hard Rules
 
-🔒 **Nunca delete** arquivos. `mv` pra `.archive/`.
-🔒 **Nunca commit NEM poste segredos.** `.env` em `.gitignore`. Nunca escrever credencial em sistema externo (ClickUp/GitHub/Slack/SaaS), nem a pedido — pausar e propor alternativa.
-🔒 **Core é read-only.** Skills sob `.claude/skills/` projetadas de `.agentic-core/` não se
-edita aqui — corrige upstream no guidelines_IA e re-sincroniza. Skills locais usam nome distinto.
-🔒 **PR é unidade de merge limpa.** Nunca reciclar PR errado — PR novo + fecha o velho. Conflito = rebase na base (`integration`/`main`).
-🔒 **"Keep going" ≠ inventar escopo.** Em modo autônomo (dispatcher/loop), só pedido explícito; não derivar de backlog/spec velho sem confirmação per-feature.
+🔒 **Never delete** files. `mv` to `.archive/`.
+🔒 **Never commit OR post secrets.** `.env` in `.gitignore`. Never write credentials to external systems (ClickUp/GitHub/Slack/SaaS), even if asked — pause and propose an alternative.
+🔒 **Core is read-only.** Skills under `.claude/skills/` projected from `.agentic-core/` are not edited here — fix upstream in the pipeline repo and re-sync. Local skills use a distinct name.
+🔒 **PR is the clean merge unit.** Never recycle a wrong PR — new PR + close the old one. Conflict = rebase on base (`integration`/`main`).
+🔒 **"Keep going" ≠ inventing scope.** In autonomous mode (dispatcher/loop), only explicit requests; do not derive from old backlog/specs without per-feature confirmation.
 
-**Convenções org-wide** (no agentic-pipeline): [`git-pr-workflow.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/git-pr-workflow.md) · [`engineering-defaults.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/engineering-defaults.md) · [`frontend-screen-flow.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/frontend-screen-flow.md) · [`agent-conduct.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/agent-conduct.md)
+**Org-wide conventions** (in agentic-pipeline): [`git-pr-workflow.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/git-pr-workflow.md) · [`engineering-defaults.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/engineering-defaults.md) · [`frontend-screen-flow.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/frontend-screen-flow.md) · [`agent-conduct.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/agent-conduct.md)
 
 ---
 
-## §3 Lei de Fechamento de Tarefa
+## §3 Task Closure Law
 
-Antes de marcar task `done`, todos atualizados (`validate_closure.py` checa):
+Before marking a task `done`, all of these must be updated (`validate_closure.py` checks):
 
-| # | Artefato | Quando |
+| # | Artifact | When |
 |---|---|---|
-| 1 | `CHANGELOG.md` | Sempre |
-| 2 | `<function_catalog>` | Mudança de assinatura |
-| 3 | `<sdd_kit_path>` | Nova decisão Dxx |
-| 4 | `README.md` | Mudança visível ao user |
-| 5 | `.agents/continuity-<agente>.md` | Sempre |
-| 6 | Testes passando | Sempre |
-| 7 | `<route_map>` | Rota/handler/modelo alterado |
-| 8 | **PR aprovado** | Task que gera código |
+| 1 | `CHANGELOG.md` | Always |
+| 2 | `<function_catalog>` | Signature change |
+| 3 | `<sdd_kit_path>` | New Dxx decision |
+| 4 | `README.md` | User-visible change |
+| 5 | `.agents/continuity-<agent>.md` | Always |
+| 6 | Tests passing | Always |
+| 7 | `<route_map>` | Route/handler/model changed |
+| 8 | **PR approved** | Task that produces code |
 
-`[N/A]` com justificativa de 1 linha se não aplica.
-🔒 **Task só fecha com PR aprovada** — task com código só vira `done`/vai pra `completed/` com o PR aprovado; PR aberto não basta (fica `in_progress` em review até aprovação humana). O dispatcher NÃO fecha a task ao abrir o PR.
+`[N/A]` with a 1-line justification if not applicable.
+🔒 **Task only closes with an approved PR** — a task with code only becomes `done`/moves to `completed/` with an approved PR; an open PR is not enough (stays `in_progress` in review until human approval). The dispatcher does NOT close the task when opening the PR.
 
 ---
 
-## §4 Tarefas
+## §4 Tasks
 
 ### 4.1 Naming (org-wide)
-`<task_dir>/NNNN-tipo-slug.md` — `NNNN` 4 dígitos; `tipo`: feat/fix/refactor/docs/chore/audit/proposal/infra/test.
-`validate_task.py` valida o frontmatter (F1–F12).
+`<task_dir>/NNNN-type-slug.md` — `NNNN` 4 digits; `type`: feat/fix/refactor/docs/chore/audit/proposal/infra/test.
+`validate_task.py` validates the frontmatter (F1–F12).
 
-### 4.2 Frontmatter mínimo
+### 4.2 Minimum frontmatter
 ```yaml
 ---
 status: todo | in_progress | done
@@ -95,24 +94,24 @@ blocked_by: []
 ---
 ```
 
-### 4.3 Estado
-- Aberta: `<task_dir>/NNNN-...md` · Concluída: `<task_dir>/completed/NNNN-...md` (mover ao fechar) · Planning: `<task_dir>/planning/`
+### 4.3 State
+- Open: `<task_dir>/NNNN-...md` · Completed: `<task_dir>/completed/NNNN-...md` (move on close) · Planning: `<task_dir>/planning/`
 
-### 4.4 Skills herdadas do core
+### 4.4 Skills inherited from core
 
-| Skill | Para quê |
+| Skill | Purpose |
 |---|---|
-| `grill-me` | Entrevistar o autor da task até a spec ficar acionável |
-| `codebase-grounding` | Mapear o repo antes de mexer |
-| `builder` | Executar uma task em código |
-| `tester` | Validar §Condições de Saída (modo prototype) |
-| `librarian` | Lei de Fechamento §3 |
-| `notifier` | Postar resumo em ClickUp + GitHub |
-| `dispatcher` | Orquestrar a fila `<task_dir>` (TOS-aware; só em sessão interativa) |
-| `codebase-audit` | Checks read-only de saúde do repo |
+| `grill-me` | Interview the task author until the spec is actionable |
+| `codebase-grounding` | Map the repo before touching anything |
+| `builder` | Execute a task in code |
+| `tester` | Validate §Exit Conditions (prototype mode) |
+| `librarian` | Closure Law §3 |
+| `notifier` | Post summary to ClickUp + GitHub |
+| `dispatcher` | Orchestrate the `<task_dir>` queue (quota-aware; interactive sessions only) |
+| `codebase-audit` | Read-only repo health checks |
 
 ---
 
-## §5 Estilo
+## §5 Style
 
-ClickUp comments: caveman/terse, TL;DR acima de 200c. Ver convenção no guidelines_IA.
+ClickUp comments: caveman/terse, TL;DR above 200 chars. See convention in guidelines_IA.
