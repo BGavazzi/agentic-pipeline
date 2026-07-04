@@ -2,7 +2,7 @@
 
 Como um agente deve se comportar ao trabalhar em qualquer repo da org — especialmente em **modo autônomo** (`/loop`, dispatcher, lunch block). Referenciado pelo §2 Hard Rules das constituições.
 
-> Promovidas de memória pessoal porque são leis de operação agêntica, não preferências de uma pessoa. Críticas pro [dispatcher](https://github.com/your-org/guidelines_IA/blob/main/.claude/skills/dispatcher/SKILL.md) rodar AFK sem inventar trabalho.
+> Promovidas de memória pessoal porque são leis de operação agêntica, não preferências de uma pessoa. Críticas pro [dispatcher](https://github.com/BGavazzi/agentic-pipeline/blob/main/.claude/skills/dispatcher/SKILL.md) rodar AFK sem inventar trabalho.
 
 ---
 

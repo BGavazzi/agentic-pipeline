@@ -1,7 +1,7 @@
 # AGENTS.md — <project_name>
 
 Local constitution. **Inherits the agentic core** vendored from
-[your-org/guidelines_IA](https://github.com/your-org/guidelines_IA)
+[BGavazzi/agentic-pipeline](https://github.com/BGavazzi/agentic-pipeline)
 (`.agentic-core/`, projected into `.claude/skills/` + `scripts/` by `sync-core.sh`).
 This file is repo-specific and is NEVER overwritten by a core sync — edit it freely.
 
@@ -50,7 +50,7 @@ edita aqui — corrige upstream no guidelines_IA e re-sincroniza. Skills locais 
 🔒 **PR é unidade de merge limpa.** Nunca reciclar PR errado — PR novo + fecha o velho. Conflito = rebase na base (`integration`/`main`).
 🔒 **"Keep going" ≠ inventar escopo.** Em modo autônomo (dispatcher/loop), só pedido explícito; não derivar de backlog/spec velho sem confirmação per-feature.
 
-**Convenções org-wide** (no guidelines_IA): [`git-pr-workflow.md`](https://github.com/your-org/guidelines_IA/blob/main/.docs/conventions/git-pr-workflow.md) · [`engineering-defaults.md`](https://github.com/your-org/guidelines_IA/blob/main/.docs/conventions/engineering-defaults.md) · [`frontend-screen-flow.md`](https://github.com/your-org/guidelines_IA/blob/main/.docs/conventions/frontend-screen-flow.md) · [`agent-conduct.md`](https://github.com/your-org/guidelines_IA/blob/main/.docs/conventions/agent-conduct.md)
+**Convenções org-wide** (no agentic-pipeline): [`git-pr-workflow.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/git-pr-workflow.md) · [`engineering-defaults.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/engineering-defaults.md) · [`frontend-screen-flow.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/frontend-screen-flow.md) · [`agent-conduct.md`](https://github.com/BGavazzi/agentic-pipeline/blob/main/.docs/conventions/agent-conduct.md)
 
 ---
 

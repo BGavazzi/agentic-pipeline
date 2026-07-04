@@ -21,7 +21,7 @@ A sigla desdobra assim:
 | **B** | Behavior Driven Development | Desenvolvimento Orientado a Comportamento |
 | **T** | Test Driven Development | Desenvolvimento Orientado a Testes |
 
-> **Nota:** O segundo "D" (DDD Tático) opera em paralelo com o BDD e TDD — ele é o refinamento do domínio em nível micro (Entidades, Agregados, Value Objects) depois que o comportamento esperado já foi definido.
+> **Note:** The second "D" (Tactical DDD) runs in parallel with BDD and TDD — it is the micro-level domain refinement (Entities, Aggregates, Value Objects) once expected behaviour has been defined.
 
 ---
 
@@ -428,4 +428,4 @@ Esta é a **Passagem 1** — mapa do modelo. As passagens seguintes vão aprofun
 
 ---
 
-*Documento gerado por: claude-opus-4-8 | Data: 2026-04-29 | Fonte: `AGENTS.md` (<whatsapp-audio-bot-repo> + <your-bot-repo>)*
+*Part of [BGavazzi/agentic-pipeline](https://github.com/BGavazzi/agentic-pipeline) — the open-source agentic task-processing pipeline for Claude Code.*

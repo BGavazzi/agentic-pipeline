@@ -73,7 +73,7 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 
 ## Skills not included
 
-These are BYO-platform or org-specific and live in the source `guidelines_IA` repo:
+These require platform-specific credentials or infra and are not part of this core repo:
 
 - `clickup-api`, `clickup-grounding`, `clickup-audit` — ClickUp-coupled
 - `figma-api`, `figma-frontend-context`, `implement-figma-task` — Figma-coupled
