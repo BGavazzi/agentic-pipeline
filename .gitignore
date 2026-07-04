@@ -34,6 +34,8 @@ logs/
 .claude/dispatcher-loop-state.json
 .claude/skills/grill-me/state/
 
-# Task queue — numbered tasks are project-specific; keep only the template
-.docs/tasks/[0-9]*.md
+# Task queue — this repo tracks its own pipeline-improvement backlog in
+# .docs/tasks/ (dogfooding). Repos that vendor this core should gitignore
+# their own instance tasks locally instead (they're project-specific, not
+# part of the shared core).
 .docs/test-reports/
