@@ -1,39 +1,39 @@
 ﻿#!/usr/bin/env python3
 """
-validate_closure.py — Lei de Fechamento §3 compliance check for task .md files
+validate_closure.py — Task Closure Law §3 compliance check for task .md files
 
 Purpose: gate before the Librarian skill (or human) marks a task `done`. Catches
-the "0/7 items, demais [N/A]" rubber-stamp anti-pattern — every artefato in Lei
-de Fechamento §3 must be EITHER:
+the "0/7 items, rest [N/A]" rubber-stamp anti-pattern — every artifact in the
+Task Closure Law §3 must be EITHER:
     - [x]      checked
     - [N/A]    with same-line justification (e.g. "[N/A] — repo has no CHANGELOG")
-    - [ ]      with same-line justification OR mentioned in §Pendências Honestas
+    - [ ]      with same-line justification OR mentioned in §Honest Backlog
 
 Usage:
     python scripts/validate_closure.py <task_path>
     python scripts/validate_closure.py .docs/tasks/0021-*.md
 
 Exit codes:
-    0  -- task passes Lei de Fechamento §3 check
+    0  -- task passes Task Closure Law §3 check
     1  -- task has at least one unresolved/unjustified item
     2  -- usage error or task missing the closure section entirely
 
-Canonical 7 items (AGENTS.balanced.md §3):
+Canonical 7 items (AGENTS.md §3):
     1. CHANGELOG.md (or CHANGELOG_BRANCH.md per-branch variant)
     2. function-catalog.md
     3. SDD_KIT.md
     4. README.md
     5. .agents/continuity-<agent>.md
-    6. Testes passando
+    6. Tests passing
     7. ROUTE_BEHAVIOR_MAP.md (omit if no HTTP routes in repo)
 
 Section search (case-insensitive; first match wins):
-    - ## Lei de Fechamento §3
-    - ## Lei de Fechamento
-    - ## Documentação Obrigatória (Lei de Fechamento)
-    - ## Documentação Obrigatória
+    - ## Closure Law §3
+    - ## Closure Law
+    - ## Required Documentation (Closure Law)
+    - ## Required Documentation
 
-Part\ of\ the\ guidelines_IA\ pipeline (Fase 2 F2-2 sibling of validate_task.py).
+Part of the agentic-pipeline core scripts (sibling of validate_task.py).
 """
 from __future__ import annotations
 
@@ -61,10 +61,10 @@ FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 SECTION_PATTERN_TMPL = r"^##\s+{title}\s*$"
 
 CLOSURE_SECTION_TITLES = [
-    "Lei de Fechamento §3",
-    "Lei de Fechamento",
-    "Documentação Obrigatória (Lei de Fechamento)",
-    "Documentação Obrigatória",
+    "Closure Law §3",
+    "Closure Law",
+    "Required Documentation (Closure Law)",
+    "Required Documentation",
 ]
 
 # Each canonical item: (display_name, list of regex aliases to match in text)
@@ -74,7 +74,7 @@ CANONICAL_ITEMS = [
     ("SDD_KIT", [r"sdd[-_]kit(?:\.md)?"]),
     ("README", [r"readme(?:\.md)?"]),
     ("continuity", [r"continuity(?:[-_]\w+)?(?:\.md)?", r"\.agents/continuity"]),
-    ("tests", [r"\btestes?\b", r"\btests? passing\b", r"\bunit\b", r"\be2e\b"]),
+    ("tests", [r"\btests?\b", r"\btests? passing\b", r"\bunit\b", r"\be2e\b"]),
     ("ROUTE_BEHAVIOR_MAP", [r"route[-_]behavior[-_]map(?:\.md)?", r"\broute[-_]map\b"]),
 ]
 
@@ -212,9 +212,9 @@ def validate_closure(task_path: Path) -> ClosureReport:
 
     section_title, closure_text = closure
 
-    # §Pendências Honestas — open items are tolerated if mentioned here
-    pendencias = find_section(body, "Pendências Honestas") or find_section(
-        body, "Pendências"
+    # §Honest Backlog — open items are tolerated if mentioned here
+    pendencias = find_section(body, "Honest Backlog") or find_section(
+        body, "Backlog"
     )
     pendencias_text = ""
     if pendencias:
@@ -263,7 +263,7 @@ def validate_closure(task_path: Path) -> ClosureReport:
                 if strict:
                     report.errors.append(
                         f"§{section_title}: item '{name}' is [ ] without "
-                        "justification (need '— reason' OR §Pendências mention)"
+                        "justification (need '— reason' OR §Honest Backlog mention)"
                     )
 
         if state == "[N/A]":
@@ -287,7 +287,7 @@ def validate_closure(task_path: Path) -> ClosureReport:
             )
         elif checked == 0:
             report.warnings.append(
-                f"§{section_title}: 0/7 [x] — verify Lei de Fechamento was actually "
+                f"§{section_title}: 0/7 [x] — verify Closure Law was actually "
                 "exercised, not just acknowledged"
             )
 

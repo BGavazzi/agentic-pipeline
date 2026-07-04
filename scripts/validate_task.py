@@ -22,13 +22,13 @@ Checks (V1):
     F4  status is one of: todo | in_progress | done
     F5  priority is one of: P0 | P1 | P2
     F6  type is one of: feat | fix | refactor | docs | chore | audit | proposal | infra | test
-    F7  body has ## Contexto section
-    F8  body has ## O Que Fazer section
-    F9  body has ## Condições de Saída section
-    F10 §O Que Fazer contains at least one checkbox (- [ ] or - [x])
-    F11 §Condições de Saída contains at least one checkbox
-    F12 if status == done: ALL checkboxes in O Que Fazer + Condições are [x], [N/A]
-        or listed in §Pendências Honestas
+    F7  body has ## Context section
+    F8  body has ## What To Do section
+    F9  body has ## Exit Conditions section
+    F10 §What To Do contains at least one checkbox (- [ ] or - [x])
+    F11 §Exit Conditions contains at least one checkbox
+    F12 if status == done: ALL checkboxes in What To Do + Exit Conditions are [x], [N/A]
+        or listed in §Honest Backlog
 
 This script does NOT:
     - Verify that referenced files in §Arquivos Afetados exist (covered by
@@ -37,7 +37,7 @@ This script does NOT:
       validator; that's grill-me / human review territory)
     - Run any code, network calls, or file edits
 
-Part\ of\ the\ guidelines_IA\ pipeline (Fase 2 F2-2, ClickUp 86ahfq031 family).
+Part of the agentic-pipeline core scripts (sibling of validate_closure.py).
 """
 from __future__ import annotations
 
@@ -185,17 +185,17 @@ def validate(task_path: Path) -> ValidationReport:
     body = text[fm_match.end() :]
 
     # F7-F9: required sections
-    contexto = find_section(body, "Contexto")
+    contexto = find_section(body, "Context")
     if contexto is None:
-        report.errors.append("F7 ## Contexto section missing")
+        report.errors.append("F7 ## Context section missing")
 
-    oque = find_section(body, "O Que Fazer")
+    oque = find_section(body, "What To Do")
     if oque is None:
-        report.errors.append("F8 ## O Que Fazer section missing")
+        report.errors.append("F8 ## What To Do section missing")
 
-    cond = find_section(body, "Condições de Saída")
+    cond = find_section(body, "Exit Conditions")
     if cond is None:
-        report.errors.append("F9 ## Condições de Saída section missing")
+        report.errors.append("F9 ## Exit Conditions section missing")
 
     # F10-F11: checkboxes in sections
     oque_boxes: list[tuple[str, str]] = []
@@ -203,7 +203,7 @@ def validate(task_path: Path) -> ValidationReport:
         start, end = oque
         oque_boxes = extract_checkboxes(body[start:end])
         if not oque_boxes:
-            report.errors.append("F10 §O Que Fazer has no checkboxes (- [ ] or - [x])")
+            report.errors.append("F10 §What To Do has no checkboxes (- [ ] or - [x])")
 
     cond_boxes: list[tuple[str, str]] = []
     if cond is not None:
@@ -211,7 +211,7 @@ def validate(task_path: Path) -> ValidationReport:
         cond_boxes = extract_checkboxes(body[start:end])
         if not cond_boxes:
             report.errors.append(
-                "F11 §Condições de Saída has no checkboxes"
+                "F11 §Exit Conditions has no checkboxes"
             )
 
     # F12: status==done requires all checkboxes resolved
@@ -222,8 +222,8 @@ def validate(task_path: Path) -> ValidationReport:
         unresolved_cond = [
             label for (state, label) in cond_boxes if state.strip() == ""
         ]
-        # Check if §Pendências Honestas exists — open boxes are tolerated there
-        pendencias_section = find_section(body, "Pendências Honestas")
+        # Check if §Honest Backlog exists — open boxes are tolerated there
+        pendencias_section = find_section(body, "Honest Backlog")
         pendencias_text = ""
         if pendencias_section is not None:
             s, e = pendencias_section
@@ -237,16 +237,16 @@ def validate(task_path: Path) -> ValidationReport:
             if not mentioned:
                 report.errors.append(
                     f"F12 status=done but checkbox unresolved: '{label[:60]}...' "
-                    "(neither [x]/[N/A] nor in §Pendências Honestas)"
+                    "(neither [x]/[N/A] nor in §Honest Backlog)"
                 )
 
     # Warnings (non-fatal)
     if "clickup_id" not in frontmatter:
         report.warnings.append("clickup_id key absent — task has no ClickUp mirror")
-    if "arquivos_afetados" in frontmatter:
-        affected = frontmatter["arquivos_afetados"]
+    if "files_affected" in frontmatter:
+        affected = frontmatter["files_affected"]
         if not affected or (isinstance(affected, list) and len(affected) == 0):
-            report.warnings.append("arquivos_afetados is empty")
+            report.warnings.append("files_affected is empty")
 
     return report
 
