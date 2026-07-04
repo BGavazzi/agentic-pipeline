@@ -39,3 +39,4 @@ logs/
 # their own instance tasks locally instead (they're project-specific, not
 # part of the shared core).
 .docs/test-reports/
+.docs/blast-reports/

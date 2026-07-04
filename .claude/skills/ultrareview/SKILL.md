@@ -22,7 +22,9 @@ tools: Bash, Read, Glob, Grep, Agent
 - `branch`: branch with the commits to review
 - `repo_path`: working tree
 - `test_report`: path to tester artifact (`.docs/test-reports/<NNNN>.xml` / `.json`) — may be absent (that's exactly what's being checked)
-- `risk_level`: `normal` (default) | `high` (enables adversarial majority — schema/RBAC/migration/contract/data)
+- `blast_report`: path to `.docs/blast-reports/<NNNN>.json` (emitted by [[dispatcher]] §4 step 5b via `blast_radius.py`) — the single source of truth for `risk_level`. Ultrareview reads it, does not recompute risk inline.
+  - `risk_level: high` triggers the adversarial majority (§6) — set when the diff touches auth/RBAC, migrations, payments/billing, or infra manifests (Ansible/Helm/Fleet/Terraform/Rancher/Nexus paths), or when blast radius is unusually wide (see `blast_radius.py`'s `HIGH_RISK_PATH_PATTERNS` / `WIDE_BLAST_RADIUS_THRESHOLD` for the exact triggers — do not duplicate that list here, read the artifact)
+  - `blast_report` absent (older task, or `blast_radius.py` not wired into this repo's dispatcher yet) → degrade to `risk_level: normal`, single-pass verdict, and note the degradation in §7's report
 
 ## 3. Proof-of-execution gate (first, cheap)
 
@@ -121,6 +123,7 @@ Branch: feat/NNNN-slug @ <git-rev>   Risk: normal|high   Independent: yes (own s
 | Runner without JUnit reporter | Use exit code + stdout count; record the limitation. |
 | Giant diff (>2k lines) | Focus on test files + §Condition claims; sample the rest + log what was left out (no silent cap). |
 | Agent tool unavailable (high risk) | Degrade to single skeptic pass + WARN "adversarial majority did not run". |
+| `blast_report` absent | Degrade to `risk_level: normal` (single-pass verdict); WARN "blast-radius classifier not wired for this task". |
 
 ## 10. Anti-patterns
 
@@ -133,7 +136,7 @@ Branch: feat/NNNN-slug @ <git-rev>   Risk: normal|high   Independent: yes (own s
 
 ## 11. Skills consumed / produced
 
-- Upstream: [[tester]] (proof-of-execution artifact) + [[builder]] (branch).
+- Upstream: [[tester]] (proof-of-execution artifact) + [[builder]] (branch) + `blast_radius.py` (risk_level, via [[dispatcher]] §4 step 5b).
 - Downstream: [[librarian]] (if PASS) or [[builder]] (if BLOCK).
 - Reuses: [[visual-tester]] (visual evidence for UI claims), Agent tool (skeptics), repo AST for reachability.
 - Gated by: [[dispatcher]] — which trusts the ARTIFACT + ultrareview verdict, not the tester's prose.
