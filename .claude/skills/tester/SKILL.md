@@ -17,6 +17,11 @@ V1 scope = **`prototype` mode runnable** (boots + type-check + happy path). `pro
 - `repo_path`: working tree
 - `mode`: `prototype` (V1 default) | `production` (V2 — explicit feature flag)
 - `fe_real`: bool opt-in (default false). When true and the repo is frontend, the boots-and-responds step goes beyond `build`+`lint`: starts/uses the dev server, drives the browser via Playwright CDP, and asserts DOM. Requires a logged-in debug Chrome (see [[visual-tester]] / PLAYWRIGHT.md). Without the prerequisite → degrades to build+lint + warn (does not invent green).
+- `blast_report`: path to `.docs/blast-reports/<NNNN>.json` (emitted by [[dispatcher]] §4 step 5b via `blast_radius.py`), read before step 5:
+  - `required_gates` includes `"integration"` → step 5 (Suite regression) is mandatory, not skippable on timeout without a logged reason
+  - `required_gates` is `["unit"]` only (risk_level low, isolated/leaf change) → step 5 MAY be skipped for time, since the change has no detected consumers; still run steps 1-4
+  - absent (older task, or `blast_radius.py` not wired into this repo's dispatcher yet) → default to existing V1 behavior (always attempt step 5)
+  - `required_gates` naming `"sast"`/`"sca"` are hooks for the scanners in `.docs/tasks/0001-feat-oss-static-analysis-gate.md` (not yet implemented) — tester notes them as `[N/A] — scan_gate.py not yet built` rather than silently ignoring them
 
 ## 2. Mode detection (V1 default)
 

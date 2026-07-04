@@ -81,18 +81,27 @@ python "$SCRIPTS_DIR/validate_task.py" "$task"
    → result: context + constitution loaded
 5. Invoke Skill(builder) with task_path + brief from grounding
    → result: commits on branch, task checkboxes marked
-6. Invoke Skill(tester) with task_path + branch + mode='prototype'
+5b. Run `python "$SCRIPTS_DIR/blast_radius.py" <NNNN> --base "$BASE" --branch feat/<NNNN>-<slug>`
+    → deterministic artifact: .docs/blast-reports/<NNNN>.json
+      {changed_files, affected_modules, risk_level, risk_triggers, required_gates}
+    - risk_level and required_gates are computed HERE — single source of truth.
+      Tester (§6) and ultrareview (§6b) read this artifact instead of guessing
+      scope or having dispatcher assign risk_level inline.
+    - Script errors (not a repo / git failure) → STOP, log fatal (same severity
+      as a validate_task.py exit 2 — this is a deterministic gate, not optional)
+6. Invoke Skill(tester) with task_path + branch + mode='prototype' + blast_report_path
    → result: prose report + ARTIFACT .docs/test-reports/<NNNN>.{xml,json}
    - GATE ON ARTIFACT, not prose (anti-AI-pitfall): read the .json and require
      exists? · git_rev == branch HEAD? · all steps exit 0? · coverage ≥ threshold (if §Condition requires)?
    - Any one fails/absent:
      → append §Honest Backlog in task with link to report
      → SKIP downstream; jump to §5 (continue queue)
-6b. Invoke Skill(ultrareview) with task_path + branch + test_report + risk_level
+6b. Invoke Skill(ultrareview) with task_path + branch + test_report + blast_report_path
     (INDEPENDENT subagent — does not inherit the tester's "passed")
-    → re-runs the suite + fake-green scan + (high risk) adversarial majority
+    → re-runs the suite + fake-green scan + (risk_level: high) adversarial majority
     → result: .docs/review-reports/<NNNN>-<ts>.md with verdict PASS|BLOCK
-    - risk_level: 'high' if task touches schema/RBAC/migration/contract; else 'normal'
+    - risk_level read from .docs/blast-reports/<NNNN>.json (§5b) — ultrareview
+      does not recompute it inline
     - BLOCK → append §Backlog + link; SKIP downstream; jump §5
 7. Invoke Skill(librarian) with task_path + branch + tester_report_path
    → librarian runs validate_closure.py internally (already wired)
@@ -224,6 +233,7 @@ Downstream (orchestrated by this skill):
 
 Validators / gates (in `$PIPELINE_SCRIPTS_DIR`, default `<repo>/scripts/`):
 - `validate_task.py` (before builder)
+- `blast_radius.py` (after builder, before tester — §4 step 5b; computes risk_level/required_gates consumed by tester + ultrareview)
 - `validate_closure.py` (inside librarian)
 - `quota_gate.py` (end of each task in loop mode — decides ScheduleWakeup)
 

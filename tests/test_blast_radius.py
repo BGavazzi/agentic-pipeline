@@ -1,0 +1,149 @@
+"""
+Unit tests for scripts/blast_radius.py.
+
+Plain pytest against a throwaway local git sandbox — deliberately NOT a
+meta-test fixture (meta-test spawns an Agent subagent to exercise a SKILL.md's
+LLM-driven behavior; blast_radius.py is a deterministic script with no LLM
+reasoning involved, so a direct unit test is the right-sized tool here, same
+as validate_task.py/validate_closure.py which also have no meta-test fixture).
+
+Run: pytest tests/test_blast_radius.py -v
+"""
+from __future__ import annotations
+
+import importlib.util
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "blast_radius.py"
+
+spec = importlib.util.spec_from_file_location("blast_radius", SCRIPT_PATH)
+blast_radius = importlib.util.module_from_spec(spec)
+sys.modules["blast_radius"] = blast_radius
+spec.loader.exec_module(blast_radius)
+
+
+def git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-c", "user.email=test@test.local", "-c", "user.name=test",
+         "-C", str(repo), *args],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    assert result.returncode == 0, f"git {args} failed: {result.stderr}"
+    return result.stdout
+
+
+def write(repo: Path, relpath: str, content: str) -> None:
+    p = repo / relpath
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding="utf-8")
+
+
+@pytest.fixture
+def sandbox(tmp_path: Path) -> Path:
+    repo = tmp_path / "sandbox"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "master")
+    write(repo, "README.md", "seed\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "seed")
+    return repo
+
+
+def test_low_risk_isolated_change(sandbox: Path):
+    write(sandbox, "docs/isolated.md", "leaf doc, no consumers\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "add isolated doc")
+    git(sandbox, "checkout", "-q", "-b", "feat/x")
+    write(sandbox, "docs/isolated.md", "changed\n")
+    git(sandbox, "commit", "-q", "-am", "edit isolated doc")
+
+    result = blast_radius.classify(sandbox, "0099", base="master", branch="feat/x")
+
+    assert result["changed_files"] == ["docs/isolated.md"]
+    assert result["risk_level"] == "low"
+    assert result["required_gates"] == ["unit"]
+
+
+def test_medium_risk_via_ownership_map(sandbox: Path):
+    write(
+        sandbox,
+        ".docs/module-owners.md",
+        "| Path prefix | Owner tag | Consumers (path prefixes) |\n"
+        "|---|---|---|\n"
+        "| lib/shared.py | shared-lib | app/service_a.py, app/service_b.py |\n",
+    )
+    write(sandbox, "lib/shared.py", "def f(): pass\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed shared lib + ownership map")
+    git(sandbox, "checkout", "-q", "-b", "feat/y")
+    write(sandbox, "lib/shared.py", "def f(): return 1\n")
+    git(sandbox, "commit", "-q", "-am", "change shared lib")
+
+    result = blast_radius.classify(sandbox, "0100", base="master", branch="feat/y")
+
+    assert "app/service_a.py" in result["affected_modules"]
+    assert "app/service_b.py" in result["affected_modules"]
+    assert result["risk_level"] == "medium"
+    assert "sast" in result["required_gates"]
+
+
+def test_high_risk_infra_path(sandbox: Path):
+    write(sandbox, "ansible/playbook.yml", "- hosts: all\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed playbook")
+    git(sandbox, "checkout", "-q", "-b", "feat/z")
+    write(sandbox, "ansible/playbook.yml", "- hosts: all\n  tasks: []\n")
+    git(sandbox, "commit", "-q", "-am", "edit playbook")
+
+    result = blast_radius.classify(sandbox, "0101", base="master", branch="feat/z")
+
+    assert result["risk_level"] == "high"
+    assert "ansible" in result["risk_triggers"]
+    assert "infra-dry-run" in result["required_gates"]
+    assert "ultrareview" in result["required_gates"]
+
+
+def test_high_risk_auth_path(sandbox: Path):
+    write(sandbox, "src/auth/login.py", "def login(): pass\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed auth")
+    git(sandbox, "checkout", "-q", "-b", "feat/w")
+    write(sandbox, "src/auth/login.py", "def login(): return True\n")
+    git(sandbox, "commit", "-q", "-am", "change auth")
+
+    result = blast_radius.classify(sandbox, "0102", base="master", branch="feat/w")
+
+    assert result["risk_level"] == "high"
+    assert "auth" in result["risk_triggers"]
+    # No infra pattern matched -> infra-dry-run should not be required
+    assert "infra-dry-run" not in result["required_gates"]
+
+
+def test_cochange_signal_surfaces_coupled_file(sandbox: Path):
+    # Couple config.py and worker.py across 2 prior commits (meets
+    # COCHANGE_MIN_COUNT) on master, before any feature branch exists.
+    for i in range(2):
+        write(sandbox, "app/config.py", f"VALUE = {i}\n")
+        write(sandbox, "app/worker.py", f"# rev {i}\n")
+        git(sandbox, "add", "-A")
+        git(sandbox, "commit", "-q", "-m", f"co-change round {i}")
+
+    git(sandbox, "checkout", "-q", "-b", "feat/v")
+    write(sandbox, "app/config.py", "VALUE = 99\n")
+    git(sandbox, "commit", "-q", "-am", "change config only")
+
+    result = blast_radius.classify(sandbox, "0103", base="master", branch="feat/v")
+
+    assert result["changed_files"] == ["app/config.py"]
+    assert "app/worker.py" in result["affected_modules"]
+
+
+def test_no_origin_remote_does_not_crash(sandbox: Path):
+    # Regression guard: detect_base must not blow up when there's no origin
+    # remote configured (plain local sandbox, no push yet).
+    result = blast_radius.classify(sandbox, "0104", base=None, branch="master")
+    assert result["base"] in ("integration", "main", "master")
