@@ -2,6 +2,19 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-07-04] - Resolve task 0001's infra blocker (scanner images verified working)
+### Changed
+- `.docs/tasks/0001-feat-oss-static-analysis-gate.md` — the four scanners
+  (Trivy, Semgrep, OWASP Dependency-Check, gitleaks) are confirmed running
+  as Docker images with real smoke tests (Trivy: 5 CVEs found in a
+  deliberately outdated `requirements.txt`; Semgrep: caught
+  `subprocess.call(shell=True)`). Documents that `scan_gate.py` should shell
+  out via `docker run`, not assume native binaries on PATH — smaller BYO
+  footprint (needs Docker, not four package-manager installs). OWASP
+  Dependency-Check's NVD database sync intentionally not run yet (needs an
+  NVD API key to avoid a very slow first sync).
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-07-04] - Tighten blast_radius.py import/grep signal (found via dogfooding)
 ### Fixed
 - `import_grep_signal` matched on generic filename stems (e.g. `SKILL`, from
