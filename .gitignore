@@ -1,0 +1,42 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*-credentials.json
+service-account*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Logs / state
+*.log
+logs/
+.cache/
+
+# Dispatcher runtime state
+.claude/quota-state.json
+.claude/quota-state.json.tmp
+.claude/dispatcher-loop-state.json
+.claude/skills/grill-me/state/
+
+# Task queue — this repo tracks its own pipeline-improvement backlog in
+# .docs/tasks/ (dogfooding). Repos that vendor this core should gitignore
+# their own instance tasks locally instead (they're project-specific, not
+# part of the shared core).
+.docs/test-reports/
+.docs/blast-reports/
