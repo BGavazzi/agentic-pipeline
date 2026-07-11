@@ -20,6 +20,15 @@ Pick up tasks from `.docs/tasks/`, run them through the Triple-Diamond pipeline 
   grill-me/              ← relentless plan/design interview (gate before build)
   codebase-audit/        ← read-only audit of repo against its own rules
   meta-test/             ← design spec for fixture-based skill tests (not yet implemented — see SKILL.md)
+  clickup-api/           ← generic ClickUp API v2 reference (auth, rate limit, discovery) — BYO credentials
+  clickup-grounding/     ← enriches a single ClickUp task with its own list/comment/blocker context
+  clickup-audit/         ← read-only audit of a ClickUp workspace against its own conventions
+  figma-api/             ← generic Figma REST API reference (auth, node fetch, image export) — BYO credentials
+  figma-frontend-context/← turns a Figma frame/sticky into a structured implementation brief
+  implement-figma-task/  ← builder specialization: writes the diff for a Figma-sourced brief
+  visual-tester/         ← CDP screenshot + pixel diff vs. a reference image (design or baseline)
+  zap-comms/             ← generic WhatsApp messaging over a self-hosted Evolution API instance — BYO instance
+  whatsapp-clickup/      ← inbound WhatsApp message → ClickUp task, composed from zap-comms + clickup-api
 
 scripts/
   quota_gate.py          ← daily/weekly token budget enforcement for /loop
@@ -87,15 +96,18 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 | `notifier` | GitHub token (`GITHUB_TOKEN`) for PR comments; ClickUp token optional |
 | `grill-me` | ClickUp API key (`CLICKUP_API_KEY`) for poll/per-task modes; interactive mode works without |
 | `quota_gate.py` | No external deps — reads/writes `.claude/quota-state.json` (see `/loop` row above for how that file gets populated) |
+| `clickup-api`, `clickup-grounding`, `clickup-audit` | `CLICKUP_API_KEY` (+ `CLICKUP_WORKSPACE_ID`/`CLICKUP_SPACE_ID` for grounding/audit) — no org, workspace, or bot persona baked in |
+| `figma-api`, `figma-frontend-context`, `implement-figma-task` | `FIGMA_API_KEY` — no team/project/file baked in |
+| `visual-tester` | A Chrome instance reachable via CDP (`--remote-debugging-port`), already logged into whatever the app under test requires; the CDP-attach + diff scripts (`live_shot.mjs`/`figma_export.mjs`/`diff.mjs`) are BYO, wired per repo |
+| `zap-comms`, `whatsapp-clickup` | A self-hosted [Evolution API](https://github.com/EvolutionAPI/evolution-api) instance (`EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE_NAME`); `whatsapp-clickup` additionally needs `clickup-api`'s vars |
 
-## Skills not included
-
-These require platform-specific credentials or infra and are not part of this core repo:
-
-- `clickup-api`, `clickup-grounding`, `clickup-audit` — ClickUp-coupled
-- `figma-api`, `figma-frontend-context`, `implement-figma-task` — Figma-coupled
-- `visual-tester` — Playwright CDP + screenshot infra required
-- `whatsapp-clickup`, `zap-comms` — WhatsApp / Evolution API
+All nine live in **this repo**, under the same `.claude/skills/` as every
+other skill above — they are not a separate package or a vendored external
+repo, and there's nothing extra to clone or sync to use them. They're
+generic reference/adapter skills: no company, team, or bot persona is
+encoded in them, and they sit idle (and cost nothing) until their env vars
+are set. Each `SKILL.md` documents its own precondition check and prints
+setup instructions rather than guessing when a credential is missing.
 
 ## License
 
