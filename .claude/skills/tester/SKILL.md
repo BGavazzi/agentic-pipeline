@@ -21,7 +21,8 @@ V1 scope = **`prototype` mode runnable** (boots + type-check + happy path). `pro
   - `required_gates` includes `"integration"` → step 5 (Suite regression) is mandatory, not skippable on timeout without a logged reason
   - `required_gates` is `["unit"]` only (risk_level low, isolated/leaf change) → step 5 MAY be skipped for time, since the change has no detected consumers; still run steps 1-4
   - absent (older task, or `blast_radius.py` not wired into this repo's dispatcher yet) → default to existing V1 behavior (always attempt step 5)
-  - `required_gates` naming `"sast"`/`"sca"` are hooks for the scanners in `.docs/tasks/0001-feat-oss-static-analysis-gate.md` (not yet implemented) — tester notes them as `[N/A] — scan_gate.py not yet built` rather than silently ignoring them
+  - `required_gates` includes `"sast"` or `"sca"` → run step 4b (`scan_gate.py`) as a required step, not optional (`blast_radius.py` already emits these for every `medium`/`high` risk_level diff)
+  - `required_gates` is `["unit"]` only (risk_level low) → step 4b MAY still run (it's cheap and Docker-based, not test-suite-based) but a skip is acceptable; note it in §Honest Backlog rather than silently omitting
 
 ## 2. Mode detection (V1 default)
 
@@ -91,6 +92,14 @@ Capture `test_stack: { runner, type_check, lint }` for the report.
      d. (optional) visual axis: if §Condition cites Figma, chain `figma_export`+`diff` from [[visual-tester]] (figma-mode, directional) and attach diff.png — don't reject solely on %.
      - Prerequisite absent (no Chrome CDP / dev server) → degrade to build+lint + §Honest Backlog. **Never** mark FE-real pass without having driven the browser.
    - Bot/script: run once with minimal input → exit code 0 + non-empty stdout.
+
+4b. scan_gate (SAST/SCA/secret-scan — required when `required_gates` includes `"sast"`/`"sca"`, §1)
+   - Bash: `python "${PIPELINE_SCRIPTS_DIR:-<repo>/scripts}/scan_gate.py" <NNNN> --base <base> --branch <branch>`
+   - Reads exit code + `.docs/scan-reports/<NNNN>.json`, same artifact-gate pattern as §5b (never trust prose over the file).
+   - `verdict: "block"` → BLOCK report, cite `blocking_findings` from the JSON (tool, rule_id, file, line) verbatim — don't paraphrase a CVE ID or rule ID.
+   - `verdict: "degraded"` (Docker/scanners unavailable in this environment) → **do not invent a pass**. Record in §Honest Backlog: "scan_gate degraded — no scanner ran (docker unavailable)". This is the same "prerequisite absent → degrade, don't fabricate green" rule as the `fe_real` axis above.
+   - `verdict: "pass"` → proceed; note `findings_by_severity` counts in the report for visibility even though only `critical`/`high` on changed files gate the build (V1 severity policy — see `scan_gate.py`'s own docstring for the introduced-vs-pre-existing approximation it makes).
+   - Missing `scan_gate.py` in `$PIPELINE_SCRIPTS_DIR` (older vendored copy) → `[N/A — scan_gate.py not present in this repo's scripts/ copy]`, don't block on an artifact that can't exist yet.
 
 5. Suite regression (lite — only to catch obvious breakage)
    - Run full suite WITH timeout (5min cap).
@@ -210,6 +219,8 @@ Next: invoke [[librarian]] to close Closure Law §3.
 | New test breaks pre-existing suite | DO NOT suppress pre-existing test. Investigate — may be a real regression. STOP. |
 | Branch has pending merge commits from main | Signal — may break baseline diff. Rebase recommended, not mandatory. |
 | `mode: production` in `prototype-*` repo | Warn overkill, ask caller if they want to keep it. |
+| `scan_gate.py` reports `degraded` (no Docker) | §Honest Backlog note, do not block on it — same treatment as `fe_real`'s missing-Chrome-CDP case. |
+| `scan_gate.py` reports `block` | BLOCK report, cite the exact `blocking_findings` entries (tool/rule_id/file/line) from the JSON artifact. |
 
 ## 11. Anti-patterns
 
@@ -220,12 +231,13 @@ Next: invoke [[librarian]] to close Closure Law §3.
 - ❌ Silent production mode in prototype code.
 - ❌ Suppressing a pre-existing test that broke.
 - ❌ Rewriting .docs/tasks/<NNNN>.md — only update §Conditions/status, not other sections.
+- ❌ Treating `scan_gate.py`'s `degraded` verdict as `pass` in the report — they're distinct states; a degraded run proves nothing about the code's security posture.
 
 ## 12. Skills consumed / produced
 
 - Upstream: [[builder]] (input: branch with commits)
 - Downstream: [[librarian]] (handoff if pass) OR [[builder]] (handoff if fail)
-- Reuses: [[visual-tester]] in `fe_real` mode (scripts `live_shot.mjs`/`figma_export.mjs`/`diff.mjs`); outside that, only Bash + Read + LLM reasoning.
+- Reuses: [[visual-tester]] in `fe_real` mode (scripts `live_shot.mjs`/`figma_export.mjs`/`diff.mjs`); `scan_gate.py` (SAST/SCA/secret-scan, `scripts/scan_gate.py`) in step 4b; outside that, only Bash + Read + LLM reasoning.
 
 ## 13. V2 backlog (production mode + sandbox)
 
@@ -233,4 +245,6 @@ Next: invoke [[librarian]] to close Closure Law §3.
 - Coverage instrumentation (istanbul, coverage.py)
 - Cross-service contract tests (Pact, OpenAPI diff)
 - ~~Playwright real smoke (not just `npm run build`)~~ → **partial via `fe_real`** (CDP-attach, DOM assert). Missing: multi-step interactions (clicks/forms) and e2e with seeded DB.
+- `scan_gate.py`'s live scanner invocation (Docker `docker run` commands for Semgrep/Trivy/gitleaks/OWASP-DC) has real unit tests for its normalization/severity logic but has not been exercised against an actual Docker daemon in this pipeline yet (see `tests/test_scan_gate.py`'s module docstring) — confirming that end-to-end is still open.
+- `scan_gate.py`'s introduced-vs-pre-existing check is file-membership-in-diff, not a true base-vs-branch differential re-scan (see the script's own docstring) — a V2 pass could scan the base ref too and diff finding sets precisely.
 - CI integration: PR check runs prototype mode; main merge runs production mode

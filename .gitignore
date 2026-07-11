@@ -40,3 +40,4 @@ logs/
 # part of the shared core).
 .docs/test-reports/
 .docs/blast-reports/
+.docs/scan-reports/
