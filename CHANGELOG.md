@@ -2,6 +2,67 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-07-11] - Implement scan_gate.py: SAST/SCA/secret-scan gate (task 0001)
+### Added
+- `scripts/scan_gate.py` — runs Semgrep, Trivy, and gitleaks as Docker
+  images against a diff's changed files, normalizes findings to SARIF +
+  a verdict JSON (`.docs/scan-reports/<NNNN>.{sarif,json}`). OWASP
+  Dependency-Check is wired but opt-in only (`--enable-dependency-check`),
+  per this repo's own note that its NVD database isn't synced yet.
+  Severity policy: a `critical`/`high` finding on a changed file blocks
+  (exit 1); missing Docker/scanners degrades honestly (no fabricated pass).
+- `tests/test_scan_gate.py` — 17 unit tests against canned real-shaped tool
+  output (Semgrep/Trivy/gitleaks/OWASP-DC JSON), the classify/degrade logic,
+  and SARIF assembly. Does NOT cover a live `docker run` invocation — no
+  environment this was built in had a reachable Docker daemon; see the
+  test file's own module docstring and task 0001's Honest Backlog.
+- `.claude/skills/tester/SKILL.md` — new step 4b wiring `scan_gate.py` in as
+  a required step when `blast_radius.py` marks a diff `sast`/`sca`, with the
+  same degrade-don't-fabricate rule already used for the `fe_real` axis.
+### Changed
+- `README.md` — added `scan_gate.py` to the gates section and BYO table.
+- `.gitignore` — added `.docs/scan-reports/` (same treatment as
+  test-reports/blast-reports).
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
+## [2026-07-11] - Backlog closure pass: task 0004 tracking, repo-tiering.md, continuity ledger
+### Added
+- `.docs/tasks/0004-feat-generic-clickup-figma-whatsapp-skills.md` — filed
+  retroactively for the previous entry's PR #4, closing the gap between
+  "this repo enforces Closure Law on every task" and that PR having shipped
+  without one.
+- `.docs/conventions/repo-tiering.md` — the `prototype`/`active`/`canonical`
+  vocabulary `tester`'s `SKILL.md` has referenced since it was first
+  specified, but which never actually existed; every vendoring repo was
+  silently falling back to `tester`'s conservative `prototype` default.
+- `.agents/continuity-claude-code.md` — bootstrapped the continuity ledger
+  `AGENTS.md` §0 has mandated since this repo's constitution was written;
+  no prior agent pass (including this same agent's earlier work on tasks
+  0001-0003) had actually initialized it.
+### Fixed
+- Task 0003's last open exit condition (validator spot-check) closed: re-ran
+  `validate_task.py`/`validate_closure.py` against every task file,
+  file-by-file and in CI's directory-mode invocation — all PASS.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
+## [2026-07-11] - Generic ClickUp/Figma/WhatsApp skills + README deepening (task 0004)
+### Added
+- 9 new skills under `.claude/skills/`: `clickup-api`, `clickup-grounding`,
+  `clickup-audit`, `figma-api`, `figma-frontend-context`,
+  `implement-figma-task`, `visual-tester`, `zap-comms`, `whatsapp-clickup`.
+  All BYO-credential-gated (env var precondition, no hardcoded org/workspace/
+  bot persona), replacing the previous "Skills not included" README section.
+### Changed
+- `README.md` rewritten: pipeline-flow diagram, a concepts glossary (Closure
+  Law §3, Dxx decisions, blast radius, proof-of-execution artifact,
+  fake-green, grounding-vs-audit, prototype-vs-production mode, loop mode,
+  quota gate, BYO pattern), per-group skill tables, a gates section, and a
+  conventions section, replacing the previous one-liner-per-skill list.
+### Fixed
+- README referenced `migration-timestamp-ms.md`; the actual file is
+  `migration-timestamp.md` — corrected the reference.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-07-04] - Resolve task 0001's infra blocker (scanner images verified working)
 ### Changed
 - `.docs/tasks/0001-feat-oss-static-analysis-gate.md` — the four scanners

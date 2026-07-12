@@ -3,7 +3,7 @@ status: in_progress
 priority: P0
 type: fix
 created: 2026-07-04
-updated: 2026-07-04
+updated: 2026-07-11
 clickup_id: null
 parent: null
 blocks: []
@@ -58,8 +58,12 @@ pipeline-improvement backlog.
 ## Exit Conditions
 - [x] `python scripts/validate_task.py .docs/tasks/000-template.md` no longer
   reports F7/F8/F9 (template uses English headers by construction)
-- [ ] Manual spot-check: run both validators against `0001-*.md` and
-  `0002-*.md` in this same batch and confirm PASS
+- [x] Manual spot-check (2026-07-11): ran both validators against
+  `0001-*.md`, `0002-*.md`, `0003-*.md` (this file), `0004-*.md`, both
+  file-by-file and in CI's directory-mode invocation
+  (`python scripts/validate_task.py .docs/tasks` /
+  `python scripts/validate_closure.py .docs/tasks`) — all PASS,
+  `validate_closure.py` reports 7/7 items resolved on every task
 - [ ] `pytest`/equivalent — [N/A] no automated test suite for these scripts
   yet; covered by manual invocation above (tracked as debt, not blocking)
 
