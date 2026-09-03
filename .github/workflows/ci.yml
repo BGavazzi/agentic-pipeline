@@ -19,8 +19,11 @@ jobs:
   # GitHub-hosted runners. Everything else (pushes, same-repo PRs) goes to the
   # homelab pool via the `homelab-pool` label.
   #
-  # If the pool is offline the downstream jobs queue rather than fail; the
-  # 20-minute job timeout bounds that.
+  # The pool is opt-in via the repo variable USE_HOMELAB_POOL. A job pinned to a
+  # label with no registered runner queues until it times out rather than
+  # failing fast, so the default stays GitHub-hosted; set the variable to
+  # 'true' (gh variable set USE_HOMELAB_POOL --body true) only once the pool
+  # workers are actually online. See .docs/runbooks/homelab-runner-pool.md.
   # ---------------------------------------------------------------------------
   route:
     runs-on: ubuntu-latest
@@ -32,9 +35,12 @@ jobs:
           if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
             echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
             echo "Fork PR -> GitHub-hosted runner (untrusted code)."
-          else
+          elif [ "${{ vars.USE_HOMELAB_POOL }}" = "true" ]; then
             echo 'runner=["self-hosted","linux","x64","homelab-pool"]' >> "$GITHUB_OUTPUT"
-            echo "Trusted event -> homelab pool."
+            echo "Trusted event + pool enabled -> homelab pool."
+          else
+            echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+            echo "Pool disabled (USE_HOMELAB_POOL != true) -> GitHub-hosted."
           fi
 
   test:
