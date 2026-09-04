@@ -113,6 +113,20 @@ jobs:
             --base "origin/$BASE_REF" \
             --branch HEAD
 
+      # trivy re-downloads its vulnerability DB on every `docker run --rm`
+      # unless this cache dir already has one — task 0007's leading
+      # hypothesis for a run that produced empty stdout on its first-ever
+      # live invocation. `key` includes run_id so every run saves a fresh
+      # cache entry (the DB updates ~daily upstream); `restore-keys` always
+      # falls back to the most recent prior entry instead of a cold pull.
+      - name: Cache trivy vulnerability DB
+        uses: actions/cache@v4
+        with:
+          path: .trivy-cache
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: |
+            trivy-db-
+
       - name: Static analysis / secret scan gate
         env:
           BASE_REF: ${{ github.base_ref }}
