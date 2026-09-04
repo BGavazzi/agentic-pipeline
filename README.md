@@ -250,15 +250,33 @@ A second migration pass pulled over the rest of the portable content from the pr
 
 ## Quick start
 
-### 1. Copy the core into your target repo
-`.claude/skills/`, `scripts/`, and `.docs/conventions/` are meant to be
+### 1. Sync the core into your target repo
+`.claude/skills/`, the gate scripts, and `.docs/conventions/` are meant to be
 vendored into the repo you're actually building — this repo is the source,
-not the workspace. Either copy `scripts/` in directly, or set
-`PIPELINE_SCRIPTS_DIR` to point at wherever you placed it (`dispatcher` and
-`librarian` both read this env var; default is `<repo>/scripts/`).
+not the workspace.
 
-### 2. Copy constitution
-Edit `AGENTS.md` — fill in your repo name, stack, and any project-specific rules.
+```
+python scripts/core_sync.py /path/to/your-repo
+```
+
+This copies `.claude/skills/` (or a `--skills a,b,c` subset), the gate
+scripts (`validate_task.py`, `validate_closure.py`, `blast_radius.py`,
+`scan_gate.py`, `quota_gate.py`) into `<target>/scripts/`, and
+`.docs/conventions/*.md` — and seeds `AGENTS.md` from a generic template
+**only if the target has none yet** (an existing `AGENTS.md` is repo-specific
+and is never overwritten). Use `--dry-run` to preview first. Re-run it any
+time the core changes to re-sync; skills and gate scripts are meant to be
+overwritten on each sync (that's what "core is read-only" means locally —
+fix upstream here, then re-sync).
+
+Alternatively, set `PIPELINE_SCRIPTS_DIR` to point at wherever you placed the
+scripts instead of copying them in (`dispatcher` and `librarian` both read
+this env var; default is `<repo>/scripts/`).
+
+### 2. Fill in your constitution
+If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
+repo name, stack, and any project-specific rules. (If you already had one, it
+was left untouched.)
 
 ### 3. Create a task
 ```
