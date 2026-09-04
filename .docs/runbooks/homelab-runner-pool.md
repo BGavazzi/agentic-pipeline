@@ -110,5 +110,10 @@ Mitigations, in order of importance:
    `myoung34/docker-github-actions-runner` with `EPHEMERAL=1`), which needs a stored
    PAT on the box to re-register after each job — a credential-vs-isolation
    trade-off worth making before the pool serves more public repos.
-4. **`pr-dashboard` is public and already has a persistent runner** whose workflow
-   has no fork guard. That predates this runbook and should be fixed the same way.
+4. **`pr-dashboard` is public and already has a persistent runner — checked, not
+   actually at risk.** Its only workflow (`deploy-kindle.yml`) triggers on
+   `push: [master]` and `workflow_dispatch` only, no `pull_request` trigger, so a
+   fork PR cannot execute code on it pre-merge (verified 2026-09-04: `grep -rn
+   pull_request .github/workflows/` in that repo returns nothing). An earlier draft
+   of this runbook flagged it as unguarded without checking the trigger type — that
+   was wrong. Re-check this if that workflow ever grows a `pull_request` trigger.
