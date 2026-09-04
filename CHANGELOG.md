@@ -2,6 +2,20 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-04] - File task 0007: trivy "unparseable output" on scan_gate.py's first live run
+### Added
+- `.docs/tasks/0007-fix-trivy-unparseable-output.md` — backlog task for the
+  trivy scanner error PR #6 surfaced on `scan_gate.py`'s first invocation
+  against a real Docker daemon in CI (noted in commit `c62678b` as a
+  follow-up rather than fixed inline). Diagnosis: `json.loads("")` on empty
+  stdout is the exact error text seen, and `_docker_run()` currently
+  discards `stderr` even on the error path — so the likely root cause (no
+  persistent volume for trivy's vulnerability DB, downloaded fresh on every
+  CI job) can't be confirmed from the gate's own error message today. Filed
+  as `todo`, not fixed — item 5 of the user-ordered remediation list was
+  "file a task," not "fix it."
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-07-11] - Implement scan_gate.py: SAST/SCA/secret-scan gate (task 0001)
 ### Added
 - `scripts/scan_gate.py` — runs Semgrep, Trivy, and gitleaks as Docker
