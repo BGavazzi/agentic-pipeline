@@ -93,22 +93,32 @@ jobs:
 
       - name: Derive task id from branch
         id: task
+        # HEAD_REF is an attacker-controlled string on a fork PR (it's just the
+        # branch name) — piping ${{ github.head_ref }} straight into `run:`
+        # would let a crafted branch name execute shell in this job. Route it
+        # through env: instead so it's data, never script text.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           # Branch convention: <type>/<NNNN>-<slug>. Fall back to 0000 when the
           # branch carries no task number — the gates are still informative.
-          id=$(echo "${{ github.head_ref }}" | grep -oE '[0-9]{4}' | head -1)
+          id=$(echo "$HEAD_REF" | grep -oE '[0-9]{4}' | head -1)
           echo "id=${id:-0000}" >> "$GITHUB_OUTPUT"
 
       - name: Blast-radius + risk-tier classifier
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           python scripts/blast_radius.py "${{ steps.task.outputs.id }}" \
-            --base "origin/${{ github.base_ref }}" \
+            --base "origin/$BASE_REF" \
             --branch HEAD
 
       - name: Static analysis / secret scan gate
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           python scripts/scan_gate.py "${{ steps.task.outputs.id }}" \
-            --base "origin/${{ github.base_ref }}" \
+            --base "origin/$BASE_REF" \
             --branch HEAD
 
       - name: Upload gate artifacts
