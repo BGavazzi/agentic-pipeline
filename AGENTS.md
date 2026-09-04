@@ -1,12 +1,12 @@
-# AGENTS.md — <project_name>
+# AGENTS.md — agentic-pipeline
 
-Local constitution. **Inherits the agentic core** vendored from
-[BGavazzi/agentic-pipeline](https://github.com/BGavazzi/agentic-pipeline)
-(`.claude/skills/` + `scripts/` copied in directly, or pointed at via
-`PIPELINE_SCRIPTS_DIR` — see that repo's README Quick Start).
+Local constitution. **This repo IS the agentic core** — every other repo's
+`AGENTS.md` (this file, copied) inherits from here, so there is no upstream to
+point at. `.claude/skills/` and `scripts/` in this checkout are the source of
+truth, not a vendored copy; edit them directly, then let other repos re-sync.
 This file is repo-specific and is NEVER overwritten by a core sync — edit it freely.
 
-**Version**: 0.1.0  ·  **Status**: <tier>  ·  **Type**: <one-line type>
+**Version**: 0.1.0  ·  **Status**: canonical  ·  **Type**: pipeline coordination repo (doctrine + gates, no product code)
 
 ---
 
@@ -18,27 +18,31 @@ This file is repo-specific and is NEVER overwritten by a core sync — edit it f
 
 ```yaml
 multi_agent: false
-sdd_kit_path: docs/SDD_KIT.md
-function_catalog: .docs/function-catalog.md
-route_map: .docs/ROUTE_BEHAVIOR_MAP.md
+sdd_kit_path: N/A                          # no architecture-decision doc yet; this repo's decisions live in GDFRSBT.md + task files' own rationale
+function_catalog: .docs/function-catalog.md # not yet created — scripts/ docstrings are the interim source; create this file the next time a script's public signature changes
+route_map: N/A                             # no web routes — this is a CLI/CI-gate repo
 task_dir: .docs/tasks
-clickup_list_id: <optional, if synced>
-pipeline_scripts_dir: <optional, defaults to ./scripts/>   # see PIPELINE_SCRIPTS_DIR in agentic-pipeline's README
+clickup_list_id: null                      # repo (not ClickUp) is canonical source of truth for tasks — see README "Conventions" / guidelines_IA's old cutover history
+pipeline_scripts_dir: ./scripts/           # this repo IS the source, not a copy pointed elsewhere
 ```
 
 ---
 
 ## §1 Identity and Scope
 
-**Name**: <project_name>
-**Maintained by**: <maintainer>
-**Type**: <type>
-**Tier**: <prototype | active | canonical>
+**Name**: agentic-pipeline
+**Maintained by**: BGavazzi
+**Type**: coordination/doctrine repo — the constitution, task schema, and deterministic gates every other repo in the org copies from
+**Tier**: canonical (successor to the archived `guidelines_IA`, which is a tombstone as of 2026-07-04)
 
 ### 1.1 Stack
 | Layer | Technology |
 |---|---|
-| <e.g.: Runtime> | <e.g.: FastAPI + Docker> |
+| Gates / scripts | Python 3.12, plain stdlib + `pyyaml` |
+| Static-analysis gate | Docker-run Semgrep / Trivy / gitleaks (`scan_gate.py`), OWASP Dependency-Check opt-in |
+| CI | GitHub Actions (`.github/workflows/ci.yml`); homelab self-hosted runner pool opt-in via `USE_HOMELAB_POOL` repo var — see `.docs/runbooks/homelab-runner-pool.md` |
+| Agent skills | Claude Code skills under `.claude/skills/` (grill-me, builder, tester, librarian, notifier, dispatcher, codebase-audit, codebase-grounding, + ClickUp/Figma/WhatsApp adapters) |
+| Test suite | `pytest` (`tests/`) |
 
 ---
 
@@ -46,7 +50,7 @@ pipeline_scripts_dir: <optional, defaults to ./scripts/>   # see PIPELINE_SCRIPT
 
 🔒 **Never delete** files. `mv` to `.archive/`.
 🔒 **Never commit OR post secrets.** `.env` in `.gitignore`. Never write credentials to external systems (ClickUp/GitHub/Slack/SaaS), even if asked — pause and propose an alternative.
-🔒 **Core is read-only.** Skills under `.claude/skills/` vendored from agentic-pipeline are not edited here — fix upstream in the pipeline repo and re-copy. Local skills use a distinct name.
+🔒 **This repo IS the core — edit it here, not "core is read-only."** That rule is for the *copies* of `.claude/skills/` and `scripts/` vendored into every other repo (never edit a vendored copy there; fix it upstream, i.e. here, and re-sync). In this repo, `.claude/skills/` and `scripts/` are the thing being authored.
 🔒 **PR is the clean merge unit.** Never recycle a wrong PR — new PR + close the old one. Conflict = rebase on base (`integration`/`main`).
 🔒 **"Keep going" ≠ inventing scope.** In autonomous mode (dispatcher/loop), only explicit requests; do not derive from old backlog/specs without per-feature confirmation.
 
@@ -115,4 +119,6 @@ blocked_by: []
 
 ## §5 Style
 
-ClickUp comments: caveman/terse, TL;DR above 200 chars. See convention in <org-scripts-repo>.
+ClickUp comments: caveman/terse, TL;DR above 200 chars.
+No `<org-scripts-repo>` with a more detailed convention exists yet — this line
+is the whole rule until one is written.

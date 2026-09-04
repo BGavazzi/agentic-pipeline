@@ -164,3 +164,52 @@ def test_no_origin_remote_does_not_crash(sandbox: Path):
     # remote configured (plain local sandbox, no push yet).
     result = blast_radius.classify(sandbox, "0104", base=None, branch="master")
     assert result["base"] in ("integration", "main", "master")
+
+
+def test_high_risk_ci_workflow_path(sandbox: Path):
+    """A diff touching the CI workflow can disable every other gate, so it must
+    classify high — otherwise a PR that deletes its own gates rides through on
+    unit tests alone."""
+    write(sandbox, ".github/workflows/ci.yml", "name: CI\non: [push]\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed ci")
+    git(sandbox, "checkout", "-q", "-b", "feat/ci")
+    write(sandbox, ".github/workflows/ci.yml", "name: CI\non: [push]\njobs: {}\n")
+    git(sandbox, "commit", "-q", "-am", "edit ci")
+
+    result = blast_radius.classify(sandbox, "0103", base="master", branch="feat/ci")
+
+    assert result["risk_level"] == "high"
+    assert "ci-workflow" in result["risk_triggers"]
+    assert "ultrareview" in result["required_gates"]
+
+
+def test_high_risk_gate_script_path(sandbox: Path):
+    """Same reasoning for the gate scripts themselves."""
+    write(sandbox, "scripts/validate_closure.py", "def main(): pass\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed gate")
+    git(sandbox, "checkout", "-q", "-b", "feat/gate")
+    write(sandbox, "scripts/validate_closure.py", "def main(): return 0\n")
+    git(sandbox, "commit", "-q", "-am", "edit gate")
+
+    result = blast_radius.classify(sandbox, "0104", base="master", branch="feat/gate")
+
+    assert result["risk_level"] == "high"
+    assert "gate-script" in result["risk_triggers"]
+
+
+def test_ordinary_source_change_not_flagged_as_gate(sandbox: Path):
+    """Guard against the new patterns over-matching: a normal script outside the
+    gate set must not inherit gate-script risk."""
+    write(sandbox, "scripts/helper.py", "def helper(): pass\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed helper")
+    git(sandbox, "checkout", "-q", "-b", "feat/helper")
+    write(sandbox, "scripts/helper.py", "def helper(): return 1\n")
+    git(sandbox, "commit", "-q", "-am", "edit helper")
+
+    result = blast_radius.classify(sandbox, "0105", base="master", branch="feat/helper")
+
+    assert "gate-script" not in result["risk_triggers"]
+    assert "ci-workflow" not in result["risk_triggers"]
