@@ -5,9 +5,48 @@ on:
     branches: [master, main]
   pull_request:
 
+# Least privilege: the gates only read the tree and the diff.
+permissions:
+  contents: read
+
 jobs:
-  test:
+  # ---------------------------------------------------------------------------
+  # Runner routing.
+  #
+  # This repo is PUBLIC. A self-hosted runner executing a fork PR would run
+  # untrusted code on the homelab box (which also hosts WhatsApp/Evolution
+  # credentials and the clawdinha stack), so fork PRs are pinned to
+  # GitHub-hosted runners. Everything else (pushes, same-repo PRs) goes to the
+  # homelab pool via the `homelab-pool` label.
+  #
+  # The pool is opt-in via the repo variable USE_HOMELAB_POOL. A job pinned to a
+  # label with no registered runner queues until it times out rather than
+  # failing fast, so the default stays GitHub-hosted; set the variable to
+  # 'true' (gh variable set USE_HOMELAB_POOL --body true) only once the pool
+  # workers are actually online. See .docs/runbooks/homelab-runner-pool.md.
+  # ---------------------------------------------------------------------------
+  route:
     runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
+            echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+            echo "Fork PR -> GitHub-hosted runner (untrusted code)."
+          elif [ "${{ vars.USE_HOMELAB_POOL }}" = "true" ]; then
+            echo 'runner=["self-hosted","linux","x64","homelab-pool"]' >> "$GITHUB_OUTPUT"
+            echo "Trusted event + pool enabled -> homelab pool."
+          else
+            echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+            echo "Pool disabled (USE_HOMELAB_POOL != true) -> GitHub-hosted."
+          fi
+
+  test:
+    needs: route
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -26,3 +65,77 @@ jobs:
 
       - name: Validate closure law compliance (dogfood)
         run: python scripts/validate_closure.py .docs/tasks
+
+  # ---------------------------------------------------------------------------
+  # Diff-scoped gates. These need the full history to compute a base..head diff,
+  # hence fetch-depth: 0. They run on PRs only — on a push to master there is no
+  # meaningful "proposed change" to classify.
+  # ---------------------------------------------------------------------------
+  gates:
+    needs: route
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pytest pyyaml
+
+      - name: Derive task id from branch
+        id: task
+        # HEAD_REF is an attacker-controlled string on a fork PR (it's just the
+        # branch name) — piping ${{ github.head_ref }} straight into `run:`
+        # would let a crafted branch name execute shell in this job. Route it
+        # through env: instead so it's data, never script text.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          # Branch convention: <type>/<NNNN>-<slug>. Fall back to 0000 when the
+          # branch carries no task number — the gates are still informative.
+          id=$(echo "$HEAD_REF" | grep -oE '[0-9]{4}' | head -1)
+          echo "id=${id:-0000}" >> "$GITHUB_OUTPUT"
+
+      - name: Blast-radius + risk-tier classifier
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          python scripts/blast_radius.py "${{ steps.task.outputs.id }}" \
+            --base "origin/$BASE_REF" \
+            --branch HEAD
+
+      - name: Static analysis / secret scan gate
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          python scripts/scan_gate.py "${{ steps.task.outputs.id }}" \
+            --base "origin/$BASE_REF" \
+            --branch HEAD
+
+      - name: Upload gate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts-${{ steps.task.outputs.id }}
+          path: |
+            .docs/blast-reports/
+            .docs/scan-reports/
+          if-no-files-found: ignore
+
+      # scan_gate emits SARIF 2.1.0 — feed it to GitHub code scanning so
+      # findings surface as annotations on the PR instead of only in a log.
+      - name: Upload SARIF to code scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .docs/scan-reports/${{ steps.task.outputs.id }}.sarif
