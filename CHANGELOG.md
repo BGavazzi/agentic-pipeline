@@ -2,6 +2,31 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-04] - Finish the guidelines_IA migration: model-selection + AGENTS variants (task 0006)
+### Added
+- `MODEL-SELECTION.guidelines.md`, `AGENTS.balanced.md`, `AGENTS.minimal.md`,
+  `AGENTS.opus48.balanced.md`, `AGENTS.assessment.md`,
+  `AGENTS.usage-guidelines.md` — migrated from `guidelines_IA`, the repo this
+  one superseded. Flagged by the portfolio completeness benchmark as content
+  a tombstoned repo was still load-bearing for. Model references updated to
+  the current generation in the two live-reference docs
+  (`MODEL-SELECTION.guidelines.md`, `AGENTS.usage-guidelines.md`); the two
+  explicitly historical/versioned files (`AGENTS.opus48.balanced.md`,
+  `AGENTS.assessment.md`) got a provenance note instead of a rewrite.
+- `.docs/tasks/0006-docs-migrate-guidelines-ia.md`.
+### Changed
+- `README.md` — new "Choosing a model and an AGENTS.md variant" section
+  linking all 6 migrated files.
+### Not migrated (see task 0006's Honest Backlog for why)
+- `.docs/analysis/`, `.docs/strategy/`, `.docs/admin/`, `.docs/tasks/`
+  (FIS-specific project history, not portfolio-wide doctrine).
+- `.docs/skills/*.md` (stale — missing 8 skills this repo already
+  implements; migrating would be a regression).
+- `infra/`, `.template/`, `publish-core.sh` (FIS-specific infra, a
+  superseded scaffold kit, and a publish mechanism superseded by
+  `core_sync.py` respectively).
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-07-11] - Implement scan_gate.py: SAST/SCA/secret-scan gate (task 0001)
 ### Added
 - `scripts/scan_gate.py` — runs Semgrep, Trivy, and gitleaks as Docker

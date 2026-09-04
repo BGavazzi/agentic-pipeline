@@ -220,6 +220,19 @@ Shared rules referenced by §2 Hard Rules of any repo's `AGENTS.md` — promoted
 
 ---
 
+## Choosing a model and an `AGENTS.md` variant
+
+Migrated from this repo's predecessor (`guidelines_IA`, now archived) — not vendored by `core_sync.py` (they're choices a repo/team makes once, not files every consumer needs copied in), but linked here since they're what a repo most needs when first adopting this doctrine:
+
+- **[`MODEL-SELECTION.guidelines.md`](MODEL-SELECTION.guidelines.md)** — which Claude model fits which kind of task (planning/review vs. implementation vs. mundane lookups), plus token-economics heuristics (output costs ~5x input, cache reads cost ~10% of input, don't switch models mid-task).
+- **[`AGENTS.balanced.md`](AGENTS.balanced.md)** / **[`AGENTS.minimal.md`](AGENTS.minimal.md)** / **[`AGENTS.opus48.balanced.md`](AGENTS.opus48.balanced.md)** — three sizes of the same constitution: full, lean (hard rules + pointers), and harness-trimmed (drops what Claude Code already enforces natively — see the provenance note at the top of that file before using it as-is on a current model generation).
+- **[`AGENTS.usage-guidelines.md`](AGENTS.usage-guidelines.md)** — which variant to hand which role (fullstack/frontend/vibe-coder/UX), and the warning signs you picked the wrong size (agent forgets §0 Continuity twice → go bigger; agent just rephrases rules instead of acting → go smaller).
+- **[`AGENTS.assessment.md`](AGENTS.assessment.md)** — the retrospective on why the old six model-specific variants collapsed into size-based ones; kept for the reasoning pattern, not the specific model names.
+
+All five are in Portuguese, unlike the rest of this repo's English-language docs — left untranslated on migration rather than risk losing nuance in a rewrite; translate on demand if a non-Portuguese-speaking consumer needs one.
+
+---
+
 ## Quick start
 
 ### 1. Copy the core into your target repo
