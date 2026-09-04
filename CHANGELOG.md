@@ -22,6 +22,39 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   directly" instructions with `python scripts/core_sync.py <target>`.
 **Author**: Claude (agent), reviewed by Bernardo Gavazzi
 
+## [2026-09-03] - Enforce the gates in CI; benchmark the portfolio (task 0005)
+### Added
+- `.github/workflows/ci.yml` gains a `gates` job (PRs only, `fetch-depth: 0`)
+  running `blast_radius.py` and `scan_gate.py` against the PR diff, uploading
+  `.docs/blast-reports/` + `.docs/scan-reports/` and feeding scan_gate's SARIF
+  to GitHub code scanning. Both scripts shipped with tests in July but were
+  never actually invoked by CI — they were artifacts, not enforcement.
+- `route` job selecting the runner per event. Fork PRs are pinned to
+  GitHub-hosted runners: this repo is public and a self-hosted runner would
+  execute untrusted fork code on the homelab box, which also holds the
+  Evolution/WhatsApp credentials and the clawdinha stack. Pool routing is
+  opt-in behind the `USE_HOMELAB_POOL` repo variable, because a job pinned to
+  a label with no registered runner queues until timeout rather than failing.
+- `.docs/runbooks/homelab-runner-pool.md` — registration steps, the
+  User-vs-Organization constraint (user accounts cannot have org-level runner
+  groups, so the pool is emulated with a uniform `homelab-pool` label), and
+  the fork-PR security posture.
+- `.docs/analysis/COMPLETENESS-RUBRIC.md` + `completeness-benchmark-2026-09.md`
+  — 12-criterion conformance rubric and a scored benchmark of all 28 first-party
+  repos, worktree-collapsed (30 dirs -> 6 canonical repos).
+
+### Fixed
+- `blast_radius.py` classified changes to the gate definitions themselves as
+  `risk=low, gates=['unit']`. A PR deleting the entire `gates` job would have
+  been waved through on unit tests alone. Adds `ci-workflow`, `gate-script`
+  and `pre-commit-config` high-risk patterns, with an over-match guard test.
+  Verified on this branch's own diff: now `risk=high`, requiring
+  `sast`/`sca`/`ultrareview`.
+
+### Notes
+- Least-privilege `permissions:` and job timeouts added to all jobs.
+- Test suite: 24 -> 27 passing.
+
 ## [2026-07-11] - Implement scan_gate.py: SAST/SCA/secret-scan gate (task 0001)
 ### Added
 - `scripts/scan_gate.py` — runs Semgrep, Trivy, and gitleaks as Docker

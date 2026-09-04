@@ -73,6 +73,14 @@ HIGH_RISK_PATH_PATTERNS = [
     (r"(^|/)fleet[/_.-].*\.ya?ml$", "fleet"),
     (r"(^|/)(terraform|\.tf)$", "terraform"),
     (r"(^|/)(rancher|nexus)[/_.-]", "rancher-or-nexus"),
+    # The gate definitions themselves. A diff that edits CI workflows, the gate
+    # scripts, or the pre-commit config can disable every other check in this
+    # file — so it is the highest-leverage change in the repo, not the lowest.
+    # Without this, a PR deleting the whole `gates` job classifies as `low` and
+    # is waved through on unit tests alone.
+    (r"^\.github/workflows/.*\.ya?ml$", "ci-workflow"),
+    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate)\.py$", "gate-script"),
+    (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
 ]
 
 
