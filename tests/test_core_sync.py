@@ -57,9 +57,13 @@ def target(tmp_path: Path) -> Path:
 # --- sync_skills ---------------------------------------------------------
 
 def test_sync_skills_copies_all_by_default(source: Path, target: Path):
-    synced = core_sync.sync_skills(source, target, allowlist=None, dry_run=False)
+    result = core_sync.sync_skills(source, target, allowlist=None, dry_run=False)
 
-    assert sorted(synced) == [".claude/skills/builder/", ".claude/skills/tester/"]
+    assert sorted(result.synced) == [
+        ".claude/skills/builder/SKILL.md",
+        ".claude/skills/tester/SKILL.md",
+    ]
+    assert result.drifted == []
     assert (target / ".claude/skills/builder/SKILL.md").read_text() == "builder skill\n"
     assert (target / ".claude/skills/tester/SKILL.md").read_text() == "tester skill\n"
 
@@ -71,21 +75,26 @@ def test_sync_skills_excludes_pycache(source: Path, target: Path):
 
 
 def test_sync_skills_respects_allowlist(source: Path, target: Path):
-    synced = core_sync.sync_skills(source, target, allowlist={"tester"}, dry_run=False)
+    result = core_sync.sync_skills(source, target, allowlist={"tester"}, dry_run=False)
 
-    assert synced == [".claude/skills/tester/"]
+    assert result.synced == [".claude/skills/tester/SKILL.md"]
     assert not (target / ".claude/skills/builder").exists()
     assert (target / ".claude/skills/tester/SKILL.md").exists()
 
 
 def test_sync_skills_dry_run_makes_no_changes(source: Path, target: Path):
-    synced = core_sync.sync_skills(source, target, allowlist=None, dry_run=True)
+    result = core_sync.sync_skills(source, target, allowlist=None, dry_run=True)
 
-    assert sorted(synced) == [".claude/skills/builder/", ".claude/skills/tester/"]
+    assert sorted(result.synced) == [
+        ".claude/skills/builder/SKILL.md",
+        ".claude/skills/tester/SKILL.md",
+    ]
     assert not (target / ".claude").exists()
 
 
 def test_sync_skills_overwrites_existing_by_name(source: Path, target: Path):
+    # No manifest entry for this file yet, so it's a pre-existing file, not a
+    # tracked-and-then-drifted one — first sync always wins (see module docstring).
     write(target, ".claude/skills/builder/SKILL.md", "stale local edit\n")
 
     core_sync.sync_skills(source, target, allowlist=None, dry_run=False)
@@ -93,22 +102,69 @@ def test_sync_skills_overwrites_existing_by_name(source: Path, target: Path):
     assert (target / ".claude/skills/builder/SKILL.md").read_text() == "builder skill\n"
 
 
+# --- sync_skills: drift detection ------------------------------------------
+
+def test_sync_skills_skips_drifted_skill_and_records_new_manifest_hashes(source: Path, target: Path):
+    manifest = {}
+    core_sync.sync_skills(source, target, allowlist=None, dry_run=False, manifest=manifest)
+    assert manifest[".claude/skills/builder/SKILL.md"] == core_sync._sha256(
+        source / ".claude/skills/builder/SKILL.md"
+    )
+
+    # Someone hand-edits the vendored copy after the first sync.
+    write(target, ".claude/skills/builder/SKILL.md", "hand-edited after sync\n")
+
+    result = core_sync.sync_skills(source, target, allowlist=None, dry_run=False, manifest=manifest)
+
+    assert result.drifted == [".claude/skills/builder/SKILL.md"]
+    assert result.synced == [".claude/skills/tester/SKILL.md"]  # unaffected skill still syncs
+    assert (target / ".claude/skills/builder/SKILL.md").read_text() == "hand-edited after sync\n"
+
+
+def test_sync_skills_force_overwrites_drifted_skill(source: Path, target: Path):
+    manifest = {}
+    core_sync.sync_skills(source, target, allowlist=None, dry_run=False, manifest=manifest)
+    write(target, ".claude/skills/builder/SKILL.md", "hand-edited after sync\n")
+
+    result = core_sync.sync_skills(
+        source, target, allowlist=None, dry_run=False, manifest=manifest, force=True,
+    )
+
+    assert result.drifted == []
+    assert ".claude/skills/builder/SKILL.md" in result.synced
+    assert (target / ".claude/skills/builder/SKILL.md").read_text() == "builder skill\n"
+
+
+def test_sync_skills_one_drifted_file_blocks_the_whole_skill_directory(source: Path, target: Path):
+    write(source, ".claude/skills/builder/notes.md", "extra file\n")
+    manifest = {}
+    core_sync.sync_skills(source, target, allowlist=None, dry_run=False, manifest=manifest)
+    write(target, ".claude/skills/builder/SKILL.md", "hand-edited after sync\n")
+
+    result = core_sync.sync_skills(source, target, allowlist=None, dry_run=False, manifest=manifest)
+
+    # notes.md itself didn't drift, but it's in the same directory as the
+    # file that did — the whole skill is gated, not just the touched file.
+    assert ".claude/skills/builder/notes.md" not in result.synced
+    assert (target / ".claude/skills/builder/notes.md").read_text() == "extra file\n"  # untouched, from first sync
+
+
 # --- sync_gate_scripts -----------------------------------------------------
 
 def test_sync_gate_scripts_whitelist_only(source: Path, target: Path):
-    synced = core_sync.sync_gate_scripts(source, target, dry_run=False)
+    result = core_sync.sync_gate_scripts(source, target, dry_run=False)
 
-    assert sorted(synced) == ["scripts/blast_radius.py", "scripts/validate_task.py"]
+    assert sorted(result.synced) == ["scripts/blast_radius.py", "scripts/validate_task.py"]
     assert (target / "scripts/validate_task.py").exists()
     assert not (target / "scripts/some_unrelated_helper.py").exists()
 
 
 def test_sync_gate_scripts_skips_missing_source_file(source: Path, target: Path):
     # scan_gate.py and quota_gate.py aren't in the fixture source tree at all.
-    synced = core_sync.sync_gate_scripts(source, target, dry_run=False)
+    result = core_sync.sync_gate_scripts(source, target, dry_run=False)
 
-    assert "scripts/scan_gate.py" not in synced
-    assert "scripts/quota_gate.py" not in synced
+    assert "scripts/scan_gate.py" not in result.synced
+    assert "scripts/quota_gate.py" not in result.synced
 
 
 def test_sync_gate_scripts_dry_run_makes_no_changes(source: Path, target: Path):
@@ -117,16 +173,88 @@ def test_sync_gate_scripts_dry_run_makes_no_changes(source: Path, target: Path):
     assert not (target / "scripts").exists()
 
 
+def test_sync_gate_scripts_skips_drifted_file(source: Path, target: Path):
+    manifest = {}
+    core_sync.sync_gate_scripts(source, target, dry_run=False, manifest=manifest)
+    write(target, "scripts/validate_task.py", "# hand-patched locally\n")
+
+    result = core_sync.sync_gate_scripts(source, target, dry_run=False, manifest=manifest)
+
+    assert result.drifted == ["scripts/validate_task.py"]
+    assert result.synced == ["scripts/blast_radius.py"]
+    assert (target / "scripts/validate_task.py").read_text() == "# hand-patched locally\n"
+
+
+def test_sync_gate_scripts_force_overwrites_drifted_file(source: Path, target: Path):
+    manifest = {}
+    core_sync.sync_gate_scripts(source, target, dry_run=False, manifest=manifest)
+    write(target, "scripts/validate_task.py", "# hand-patched locally\n")
+
+    result = core_sync.sync_gate_scripts(source, target, dry_run=False, manifest=manifest, force=True)
+
+    assert result.drifted == []
+    assert (target / "scripts/validate_task.py").read_text() == "# validate_task\n"
+
+
 # --- sync_conventions -------------------------------------------------------
 
 def test_sync_conventions_copies_only_markdown(source: Path, target: Path):
-    synced = core_sync.sync_conventions(source, target, dry_run=False)
+    result = core_sync.sync_conventions(source, target, dry_run=False)
 
-    assert sorted(synced) == [
+    assert sorted(result.synced) == [
         ".docs/conventions/engineering-defaults.md",
         ".docs/conventions/git-pr-workflow.md",
     ]
     assert not (target / ".docs/conventions/not-markdown.txt").exists()
+
+
+def test_sync_conventions_skips_drifted_file(source: Path, target: Path):
+    manifest = {}
+    core_sync.sync_conventions(source, target, dry_run=False, manifest=manifest)
+    write(target, ".docs/conventions/git-pr-workflow.md", "hand-edited\n")
+
+    result = core_sync.sync_conventions(source, target, dry_run=False, manifest=manifest)
+
+    assert result.drifted == [".docs/conventions/git-pr-workflow.md"]
+    assert (target / ".docs/conventions/git-pr-workflow.md").read_text() == "hand-edited\n"
+
+
+# --- manifest persistence + _is_drifted -------------------------------------
+
+def test_load_manifest_returns_empty_dict_when_absent(target: Path):
+    assert core_sync.load_manifest(target) == {}
+
+
+def test_load_manifest_returns_empty_dict_when_corrupt(target: Path):
+    write(target, ".claude/.core-sync-manifest.json", "{not valid json")
+    assert core_sync.load_manifest(target) == {}
+
+
+def test_save_and_load_manifest_roundtrips(target: Path):
+    core_sync.save_manifest(target, {"scripts/foo.py": "abc123"}, dry_run=False)
+    assert core_sync.load_manifest(target) == {"scripts/foo.py": "abc123"}
+
+
+def test_save_manifest_dry_run_writes_nothing(target: Path):
+    core_sync.save_manifest(target, {"scripts/foo.py": "abc123"}, dry_run=True)
+    assert not (target / ".claude" / ".core-sync-manifest.json").exists()
+
+
+def test_is_drifted_false_when_no_manifest_entry(target: Path):
+    write(target, "scripts/foo.py", "content\n")
+    assert core_sync._is_drifted(target, {}, "scripts/foo.py") is False
+
+
+def test_is_drifted_false_when_file_missing(target: Path):
+    manifest = {"scripts/foo.py": "somehash"}
+    assert core_sync._is_drifted(target, manifest, "scripts/foo.py") is False
+
+
+def test_is_drifted_true_when_content_no_longer_matches(target: Path):
+    write(target, "scripts/foo.py", "content\n")
+    manifest = {"scripts/foo.py": core_sync._sha256(target / "scripts/foo.py")}
+    write(target, "scripts/foo.py", "different content\n")
+    assert core_sync._is_drifted(target, manifest, "scripts/foo.py") is True
 
 
 # --- seed_agents_md ----------------------------------------------------------
@@ -197,3 +325,43 @@ def test_main_second_run_never_overwrites_target_agents_md(monkeypatch, target: 
     assert core_sync.main() == 0
 
     assert (target / "AGENTS.md").read_text() == "edited after first sync\n"
+
+
+def test_main_writes_a_manifest_after_a_real_run(monkeypatch, target: Path):
+    monkeypatch.setattr(sys, "argv", ["core_sync.py", str(target)])
+    assert core_sync.main() == 0
+
+    manifest_path = target / ".claude" / ".core-sync-manifest.json"
+    assert manifest_path.exists()
+    manifest = core_sync.load_manifest(target)
+    assert "scripts/validate_task.py" in manifest
+
+
+def test_main_dry_run_writes_no_manifest(monkeypatch, target: Path):
+    monkeypatch.setattr(sys, "argv", ["core_sync.py", str(target), "--dry-run"])
+    assert core_sync.main() == 0
+    assert not (target / ".claude" / ".core-sync-manifest.json").exists()
+
+
+def test_main_returns_1_and_skips_a_hand_edited_gate_script(monkeypatch, target: Path):
+    monkeypatch.setattr(sys, "argv", ["core_sync.py", str(target)])
+    assert core_sync.main() == 0
+    write(target, "scripts/validate_task.py", "# hand-patched after the first sync\n")
+
+    monkeypatch.setattr(sys, "argv", ["core_sync.py", str(target)])
+    assert core_sync.main() == 1  # drift detected, not a clean sync
+
+    assert (target / "scripts/validate_task.py").read_text() == "# hand-patched after the first sync\n"
+
+
+def test_main_force_overwrites_the_hand_edited_gate_script(monkeypatch, target: Path):
+    monkeypatch.setattr(sys, "argv", ["core_sync.py", str(target)])
+    assert core_sync.main() == 0
+    write(target, "scripts/validate_task.py", "# hand-patched after the first sync\n")
+
+    monkeypatch.setattr(sys, "argv", ["core_sync.py", str(target), "--force"])
+    assert core_sync.main() == 0  # forced, so it's a clean sync again
+
+    real_source = core_sync.find_repo_root()
+    assert (target / "scripts/validate_task.py").read_text() == \
+        (real_source / "scripts/validate_task.py").read_text()
