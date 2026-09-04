@@ -2,6 +2,26 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-04] - core_sync.py: automate vendoring the core into satellite repos (task 0005)
+### Added
+- `scripts/core_sync.py` — vendors `.claude/skills/` (optionally filtered via
+  `--skills`), the whitelisted gate scripts, and `.docs/conventions/*.md`
+  into a target repo, and seeds `AGENTS.md` from a generic template only
+  when the target has none yet (never overwrites an existing one).
+  `--dry-run` previews with zero filesystem changes. Directly targets the
+  root cause found by the portfolio completeness benchmark
+  (`.docs/analysis/completeness-benchmark-2026-09.md`): the doctrine's
+  median score was 20/24 on the repos it was built for and 6/24 everywhere
+  else, because adoption was manual copy-paste nobody actually did.
+- `tests/test_core_sync.py` — 17 unit tests against fixture source/target
+  trees plus integration-style tests against this repo's own real source
+  tree (dry-run no-op, full sync, second-run never overwrites `AGENTS.md`).
+- `.docs/tasks/0005-feat-core-sync-script.md`.
+### Changed
+- `README.md` Quick Start §1 — replaced the manual "copy `scripts/` in
+  directly" instructions with `python scripts/core_sync.py <target>`.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-09-03] - Enforce the gates in CI; benchmark the portfolio (task 0005)
 ### Added
 - `.github/workflows/ci.yml` gains a `gates` job (PRs only, `fetch-depth: 0`)
