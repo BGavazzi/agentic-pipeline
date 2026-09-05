@@ -273,6 +273,12 @@ Alternatively, set `PIPELINE_SCRIPTS_DIR` to point at wherever you placed the
 scripts instead of copying them in (`dispatcher` and `librarian` both read
 this env var; default is `<repo>/scripts/`).
 
+Every synced file is fingerprinted in `<target>/.claude/.core-sync-manifest.json`
+— **commit that file** in the target repo. If a vendored file's content no
+longer matches its recorded hash (someone hand-edited it locally, violating
+"core is read-only"), the next sync skips it and exits `1` instead of
+silently clobbering the edit; `--force` overwrites it anyway.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it

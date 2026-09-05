@@ -100,6 +100,37 @@ Honest Backlog.
   `core_sync.py` respectively).
 **Author**: Claude (agent), reviewed by Bernardo Gavazzi
 
+## [2026-09-04] - core_sync.py: drift detection for hand-edited vendored files (task 0008)
+### Added
+- `scripts/core_sync.py` — every synced file is now fingerprinted in
+  `<target>/.claude/.core-sync-manifest.json`. If a vendored file's content
+  no longer matches its recorded hash on the next sync (hand-edited locally,
+  violating "core is read-only"), that file — or, for a skill, its whole
+  directory — is skipped instead of silently overwritten, and `main()`
+  returns exit code `1` to flag it distinctly from a clean sync (`0`) or a
+  usage error (`2`). `--force` overwrites a drifted file anyway.
+- `.docs/tasks/0008-feat-core-sync-drift-detection.md`.
+- 21 new tests in `tests/test_core_sync.py` covering `_is_drifted`,
+  manifest load/save (including a corrupt-manifest fallback), drift-skip +
+  `--force` override for all three sync functions, and `main()`-level exit
+  codes.
+### Changed
+- `sync_skills`/`sync_gate_scripts`/`sync_conventions` now return a
+  `SyncResult(synced, drifted)` dataclass instead of a bare `list[str]` —
+  existing tests updated to match; `sync_skills`'s reporting granularity
+  changed from per-directory (`.claude/skills/tester/`) to per-file
+  (`.claude/skills/tester/SKILL.md`), matching how the other two functions
+  already reported.
+- `README.md` Quick Start §1 — notes the manifest should be committed in the
+  target repo, not gitignored (an uncommitted manifest only protects edits
+  made in the same clone that ran the last sync).
+### Not yet done
+- Not validated against a real drifted vendored skill in an actual target
+  repo — only against fixture trees and this repo's own source tree. First
+  real-world case (likely `bluemagic-front`, still on the older
+  `.agentic-core/sync-core.sh` mechanism) is still open.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-09-04] - core_sync.py: automate vendoring the core into satellite repos (task 0005)
 ### Added
 - `scripts/core_sync.py` — vendors `.claude/skills/` (optionally filtered via

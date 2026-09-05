@@ -19,6 +19,10 @@ Usage:
 
 Exit codes:
     0 -- sync completed (or, with --dry-run, would have completed) cleanly
+    1 -- sync completed, but one or more files were skipped because they've
+         drifted from what core_sync last wrote (hand-edited locally since
+         the last sync) — re-run with --force to overwrite, or reconcile
+         manually; see "Drift detection" below
     2 -- usage error (target doesn't exist, source tree malformed, etc.)
 
 What it does (all additive — never deletes anything in the target):
@@ -38,25 +42,92 @@ What it does (all additive — never deletes anything in the target):
        before it was filled in for task 0006 (see git history on that file
        pre-fill, or .docs/tasks/0006-*.md).
 
+Drift detection (task 0008): every file this script writes into a
+target is fingerprinted in <target>/.claude/.core-sync-manifest.json at
+sync time. On the next run, if a previously-synced file's current content no
+longer matches its recorded hash, someone hand-edited a vendored file
+locally — violating "core is read-only" (AGENTS.md §2) — and silently
+overwriting it would destroy that edit with no trace. Default behavior is to
+SKIP that file (or, for a skill, the whole skill directory — see below) and
+report it under "drifted"; --force overwrites anyway and re-fingerprints it.
+A file with no manifest entry (first sync, or a pre-existing file that
+happened to already be there) is never treated as drifted — there is nothing
+to compare against yet, so the first sync always wins, same as before this
+feature existed. The target repo should COMMIT its .core-sync-manifest.json
+(it's small, and it's meta-information about the vendored state, not a
+secret or a build artifact) — an uncommitted, gitignored manifest would only
+protect edits made in the same clone that ran the last sync, defeating the
+point for a repo touched across multiple clones/sessions/machines.
+
+Skills are gated per-directory, not per-file: if ANY file inside a skill's
+directory has drifted, the whole directory is skipped this run (not
+partially merged) — a skill is normally hand-edited by touching one file in
+it, and cherry-picking around that file while replacing the rest risks
+leaving the directory in a state nobody asked for. Gate scripts and
+convention docs are single standalone files, so those are gated file-by-file.
+
 What it deliberately does NOT do (V1 scope — see Honest Backlog in the task
 file for what's cut):
     - Does not create .agents/continuity-<agent>.md (agent-specific, created
       on first read per AGENTS.md §0, not something to seed blindly).
     - Does not create .docs/tasks/ or CHANGELOG.md (project-specific content,
       not core).
-    - Does not diff/warn when a target's vendored skill or gate script has
-      DRIFTED from source (e.g. someone edited a vendored copy locally,
-      violating "core is read-only") — it just overwrites. A drift-detection
-      pass is future work, not V1.
     - Does not touch git (no commit, no branch) — the caller reviews the diff
       and commits it themselves, same as any other change.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import shutil
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
+
+MANIFEST_RELPATH = Path(".claude") / ".core-sync-manifest.json"
+
+
+@dataclass
+class SyncResult:
+    synced: list[str] = field(default_factory=list)
+    drifted: list[str] = field(default_factory=list)
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def load_manifest(target: Path) -> dict[str, str]:
+    p = target / MANIFEST_RELPATH
+    if not p.is_file():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}  # corrupt/unreadable manifest — treat as "nothing tracked yet"
+
+
+def save_manifest(target: Path, manifest: dict[str, str], dry_run: bool) -> None:
+    if dry_run:
+        return
+    p = target / MANIFEST_RELPATH
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _is_drifted(target: Path, manifest: dict[str, str], relpath: str) -> bool:
+    """True only if relpath was synced before AND its current content no
+    longer matches what core_sync last wrote there. A relpath with no
+    manifest entry is never "drifted" — there is nothing yet to compare
+    against, so a first sync (or a file that just happened to pre-exist)
+    always proceeds, same as this script's behavior before drift detection."""
+    if relpath not in manifest:
+        return False
+    dst = target / relpath
+    if not dst.is_file():
+        return False  # can't have drifted by being deleted; nothing to protect
+    return _sha256(dst) != manifest[relpath]
 
 # The only scripts/ files core_sync touches — deliberately a whitelist, not
 # "everything in scripts/", so a target repo's own project-specific scripts
@@ -200,53 +271,105 @@ def find_repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-def sync_skills(source: Path, target: Path, allowlist: set[str] | None, dry_run: bool) -> list[str]:
+_SKILL_IGNORE_DIR_NAMES = {"__pycache__", "state"}
+
+
+def _skill_files(skill_dir: Path) -> list[Path]:
+    """Every file under skill_dir, skipping __pycache__/state dirs and *.pyc
+    — same ignore set as the shutil.ignore_patterns(...) this replaces."""
+    files = []
+    for p in sorted(skill_dir.rglob("*")):
+        if p.is_dir() or p.suffix == ".pyc":
+            continue
+        if any(part in _SKILL_IGNORE_DIR_NAMES for part in p.relative_to(skill_dir).parts[:-1]):
+            continue
+        files.append(p)
+    return files
+
+
+def sync_skills(
+    source: Path, target: Path, allowlist: set[str] | None, dry_run: bool,
+    manifest: dict[str, str] | None = None, force: bool = False,
+) -> SyncResult:
+    manifest = {} if manifest is None else manifest
     src_skills = source / ".claude" / "skills"
     dst_skills = target / ".claude" / "skills"
-    synced = []
+    result = SyncResult()
     if not src_skills.is_dir():
-        return synced
+        return result
     for skill_dir in sorted(p for p in src_skills.iterdir() if p.is_dir()):
         name = skill_dir.name
         if allowlist is not None and name not in allowlist:
             continue
+        src_files = _skill_files(skill_dir)
+        relpaths = [f".claude/skills/{name}/{f.relative_to(skill_dir).as_posix()}" for f in src_files]
+
+        # Gated per-directory, not per-file: a skill is normally hand-edited
+        # by touching one file in it, so if ANY file in this skill drifted,
+        # skip the whole directory this run rather than silently replacing
+        # the rest around the edit. See module docstring.
+        drifted_here = [rp for rp in relpaths if _is_drifted(target, manifest, rp)]
+        if drifted_here and not force:
+            result.drifted.extend(drifted_here)
+            continue
+
         dst = dst_skills / name
         if not dry_run:
             dst_skills.mkdir(parents=True, exist_ok=True)
             if dst.exists():
                 shutil.rmtree(dst)
             shutil.copytree(skill_dir, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "state"))
-        synced.append(f".claude/skills/{name}/")
-    return synced
+            for relpath, src_file in zip(relpaths, src_files):
+                manifest[relpath] = _sha256(src_file)  # == hash of the just-copied dest file
+        result.synced.extend(relpaths)
+    return result
 
 
-def sync_gate_scripts(source: Path, target: Path, dry_run: bool) -> list[str]:
+def sync_gate_scripts(
+    source: Path, target: Path, dry_run: bool,
+    manifest: dict[str, str] | None = None, force: bool = False,
+) -> SyncResult:
+    manifest = {} if manifest is None else manifest
     src_scripts = source / "scripts"
     dst_scripts = target / "scripts"
-    synced = []
+    result = SyncResult()
     for filename in GATE_SCRIPTS:
         src = src_scripts / filename
         if not src.is_file():
             continue
+        relpath = f"scripts/{filename}"
+        if _is_drifted(target, manifest, relpath) and not force:
+            result.drifted.append(relpath)
+            continue
         if not dry_run:
             dst_scripts.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst_scripts / filename)
-        synced.append(f"scripts/{filename}")
-    return synced
+            manifest[relpath] = _sha256(src)
+        result.synced.append(relpath)
+    return result
 
 
-def sync_conventions(source: Path, target: Path, dry_run: bool) -> list[str]:
+def sync_conventions(
+    source: Path, target: Path, dry_run: bool,
+    manifest: dict[str, str] | None = None, force: bool = False,
+) -> SyncResult:
+    manifest = {} if manifest is None else manifest
     src_conv = source / ".docs" / "conventions"
     dst_conv = target / ".docs" / "conventions"
-    synced = []
+    result = SyncResult()
     if not src_conv.is_dir():
-        return synced
+        return result
     for f in sorted(src_conv.glob("*.md")):
+        relpath = f".docs/conventions/{f.name}"
+        if _is_drifted(target, manifest, relpath) and not force:
+            result.drifted.append(relpath)
+            continue
         if not dry_run:
             dst_conv.mkdir(parents=True, exist_ok=True)
             shutil.copy2(f, dst_conv / f.name)
-        synced.append(f".docs/conventions/{f.name}")
-    return synced
+            manifest[relpath] = _sha256(f)
+        result.synced.append(relpath)
+    return result
 
 
 def seed_agents_md(target: Path, dry_run: bool) -> str | None:
@@ -266,6 +389,11 @@ def main() -> int:
         "--skills", default=None,
         help="Comma-separated allowlist of skill names to sync (default: all skills)",
     )
+    parser.add_argument(
+        "--force", action="store_true",
+        help="Overwrite files that have drifted from what core_sync last wrote "
+             "(i.e. were hand-edited locally since the last sync) instead of skipping them",
+    )
     args = parser.parse_args()
 
     target = Path(args.target).resolve()
@@ -283,28 +411,39 @@ def main() -> int:
         return 2
 
     allowlist = set(args.skills.split(",")) if args.skills else None
+    manifest = load_manifest(target)
 
-    skills = sync_skills(source, target, allowlist, args.dry_run)
-    scripts = sync_gate_scripts(source, target, args.dry_run)
-    conventions = sync_conventions(source, target, args.dry_run)
+    skills = sync_skills(source, target, allowlist, args.dry_run, manifest, args.force)
+    scripts = sync_gate_scripts(source, target, args.dry_run, manifest, args.force)
+    conventions = sync_conventions(source, target, args.dry_run, manifest, args.force)
     agents_md = seed_agents_md(target, args.dry_run)
+    save_manifest(target, manifest, args.dry_run)
 
     prefix = "[dry-run] would sync" if args.dry_run else "core_sync: synced"
     print(f"{prefix} into {target}")
-    print(f"  skills:      {len(skills)}")
-    for s in skills:
+    print(f"  skills:      {len(skills.synced)}")
+    for s in skills.synced:
         print(f"    {s}")
-    print(f"  gate scripts: {len(scripts)}")
-    for s in scripts:
+    print(f"  gate scripts: {len(scripts.synced)}")
+    for s in scripts.synced:
         print(f"    {s}")
-    print(f"  conventions:  {len(conventions)}")
-    for s in conventions:
+    print(f"  conventions:  {len(conventions.synced)}")
+    for s in conventions.synced:
         print(f"    {s}")
     if agents_md:
         verb = "would create" if args.dry_run else "created"
         print(f"  AGENTS.md: {verb} — {agents_md}")
     else:
         print("  AGENTS.md: already exists, left untouched")
+
+    all_drifted = skills.drifted + scripts.drifted + conventions.drifted
+    if all_drifted:
+        print(f"  DRIFTED (skipped, hand-edited locally since last sync): {len(all_drifted)}")
+        for d in all_drifted:
+            print(f"    {d}")
+        print("  Re-run with --force to overwrite these with the source version, "
+              "or reconcile them manually.")
+        return 1
 
     return 0
 
