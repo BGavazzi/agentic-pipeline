@@ -1,7 +1,45 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-04] - Surface scanner stderr + cache trivy's DB across runs (task 0007)
+### Added
+- `scripts/scan_gate.py` — `DockerResult(stdout, stderr, returncode)`
+  replaces the bare `str` `_docker_run()` used to return; on an unparseable
+  scanner output, `ToolRun.reason` now includes a truncated stderr tail (or
+  an explicit "empty stderr too" note) instead of just the bare
+  `JSONDecodeError` message that made PR #6's live trivy failure require
+  pulling the CI artifact to diagnose.
+- `run_trivy()` bind-mounts a persistent cache dir (`TRIVY_CACHE_DIR`,
+  default `<repo>/.trivy-cache`) at trivy's default DB path
+  (`/root/.cache/trivy`) so the vulnerability DB survives across
+  `docker run --rm` invocations. `.github/workflows/ci.yml`'s `gates` job
+  caches that dir via `actions/cache` (keyed on `run_id`, falling back to
+  the most recent prior entry).
+- 7 new tests in `tests/test_scan_gate.py` covering the stderr-surfacing
+  behavior and the new mount-building logic.
+### Not resolved
+- The DB-download hypothesis for trivy's original failure is still
+  unconfirmed — no environment this fix was built in has a reachable Docker
+  daemon (same limitation noted in task 0001). The cache mitigation is
+  applied regardless, since it's correct either way; task 0007 stays
+  `in_progress` until a live failure (or real Docker access) actually
+  confirms or refutes the cause. Full reasoning in the task's Honest
+  Backlog.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
 
+## [2026-09-04] - File task 0007: trivy "unparseable output" on scan_gate.py's first live run
+### Added
+- `.docs/tasks/0007-fix-trivy-unparseable-output.md` — backlog task for the
+  trivy scanner error PR #6 surfaced on `scan_gate.py`'s first invocation
+  against a real Docker daemon in CI (noted in commit `c62678b` as a
+  follow-up rather than fixed inline). Diagnosis: `json.loads("")` on empty
+  stdout is the exact error text seen, and `_docker_run()` currently
+  discards `stderr` even on the error path — so the likely root cause (no
+  persistent volume for trivy's vulnerability DB, downloaded fresh on every
+  CI job) can't be confirmed from the gate's own error message today. Filed
+  as `todo`, not fixed — item 5 of the user-ordered remediation list was
+  "file a task," not "fix it."
+=======
 ## [2026-09-04] - Second pass: migrate the rest of guidelines_IA's portable content, scrubbed (task 0006)
 ### Added
 - `.docs/strategy/double-diamond-prototype-pipeline.md` — the actual

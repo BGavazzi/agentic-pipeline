@@ -65,6 +65,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -106,6 +107,23 @@ class ToolRun:
     findings: list[ScanFinding] = field(default_factory=list)
 
 
+@dataclass
+class DockerResult:
+    stdout: str
+    stderr: str
+    returncode: int
+
+
+def _stderr_tail(stderr: str, max_chars: int = 500) -> str:
+    """Last `max_chars` of stderr, stripped — enough to see a real scanner
+    error (DB pull failure, auth, OOM) without dumping a whole crash log into
+    a ToolRun.reason that's meant to be read at a glance."""
+    stderr = stderr.strip()
+    if not stderr:
+        return ""
+    return stderr[-max_chars:]
+
+
 # ---------------------------------------------------------------------------
 # Availability checks (kept as standalone functions so tests can monkeypatch
 # them directly, instead of mocking subprocess calls all the way down).
@@ -129,14 +147,30 @@ def check_docker_available() -> bool:
 # a way that isn't just "found findings" — see note below on exit codes).
 # ---------------------------------------------------------------------------
 
-def _docker_run(image: str, args: list[str], repo: Path) -> str:
-    """Run `docker run --rm -v <repo>:/src <image> <args>`, capturing stdout.
+def _docker_run(
+    image: str, args: list[str], repo: Path,
+    extra_mounts: list[tuple[Path, str]] | None = None,
+) -> DockerResult:
+    """Run `docker run --rm -v <repo>:/src <image> <args>`, capturing both
+    stdout and stderr.
 
     Scanners commonly exit non-zero when they FOUND something (that's not an
-    invocation error) — so this only raises when stdout isn't parseable JSON
-    at all; a non-zero exit with valid JSON on stdout is treated as success.
+    invocation error) — so this only raises when docker itself couldn't be
+    invoked at all; a non-zero exit is still returned as a DockerResult for
+    the caller to parse (or fail to parse, with stderr available to explain
+    why — see run_all_scanners).
+
+    `extra_mounts` bind-mounts additional host dirs (created if missing) —
+    used by run_trivy() to make its vulnerability DB cache persistent across
+    invocations instead of re-downloading it fresh every `docker run --rm`
+    (task 0007: the leading hypothesis for a trivy run that produced empty
+    stdout on its first-ever live CI invocation).
     """
-    cmd = ["docker", "run", "--rm", "-v", f"{repo}:/src", image, *args]
+    cmd = ["docker", "run", "--rm", "-v", f"{repo}:/src"]
+    for host_path, container_path in extra_mounts or []:
+        host_path.mkdir(parents=True, exist_ok=True)
+        cmd += ["-v", f"{host_path}:{container_path}"]
+    cmd += [image, *args]
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=DOCKER_TIMEOUT_SECONDS,
@@ -145,23 +179,32 @@ def _docker_run(image: str, args: list[str], repo: Path) -> str:
         raise RuntimeError(f"timed out after {DOCKER_TIMEOUT_SECONDS}s: {' '.join(cmd)}") from e
     except OSError as e:
         raise RuntimeError(f"failed to invoke docker: {e}") from e
-    return result.stdout
+    return DockerResult(stdout=result.stdout, stderr=result.stderr, returncode=result.returncode)
 
 
-def run_semgrep(repo: Path, targets: list[str]) -> str:
+def run_semgrep(repo: Path, targets: list[str]) -> DockerResult:
     return _docker_run("semgrep/semgrep", ["semgrep", "--config", "auto", "--json", *targets], repo)
 
 
-def run_trivy(repo: Path, targets: list[str]) -> str:
+def run_trivy(repo: Path, targets: list[str]) -> DockerResult:
     scan_targets = targets or ["."]
+    # Trivy's own default cache dir inside the image is /root/.cache/trivy.
+    # Bind-mounting a host dir there (TRIVY_CACHE_DIR, defaulting to a repo-
+    # local .trivy-cache/ so it's easy to .gitignore and to key an
+    # actions/cache step on in CI) means the vulnerability DB survives across
+    # `docker run --rm` invocations instead of being pulled from scratch
+    # every time — see task 0007.
+    cache_dir = Path(os.environ.get("TRIVY_CACHE_DIR", repo / ".trivy-cache"))
     return _docker_run(
         "aquasec/trivy",
-        ["fs", "--scanners", "vuln,secret,misconfig", "--format", "json", *scan_targets],
+        ["fs", "--scanners", "vuln,secret,misconfig", "--format", "json",
+         "--cache-dir", "/root/.cache/trivy", *scan_targets],
         repo,
+        extra_mounts=[(cache_dir, "/root/.cache/trivy")],
     )
 
 
-def run_gitleaks(repo: Path, targets: list[str]) -> str:
+def run_gitleaks(repo: Path, targets: list[str]) -> DockerResult:
     # gitleaks scans a source tree, not individual files — point it at /src
     # regardless of `targets`; findings are filtered to changed files later
     # via the same introduced/pre-existing logic as every other tool.
@@ -172,7 +215,7 @@ def run_gitleaks(repo: Path, targets: list[str]) -> str:
     )
 
 
-def run_dependency_check(repo: Path, task_id: str) -> str:
+def run_dependency_check(repo: Path, task_id: str) -> DockerResult:
     return _docker_run(
         "owasp/dependency-check",
         ["--scan", "/src", "--format", "JSON", "--out", "/src", "--project", task_id],
@@ -295,13 +338,21 @@ def run_all_scanners(
             runs.append(ToolRun(tool=name, status="skipped", reason="docker unavailable"))
             continue
         try:
-            raw = invoke()
-            findings = PARSERS[name](raw)
+            docker_result = invoke()
         except RuntimeError as e:
             runs.append(ToolRun(tool=name, status="error", reason=str(e)))
             continue
+        try:
+            findings = PARSERS[name](docker_result.stdout)
         except json.JSONDecodeError as e:
-            runs.append(ToolRun(tool=name, status="error", reason=f"unparseable output: {e}"))
+            reason = f"unparseable output: {e}"
+            tail = _stderr_tail(docker_result.stderr)
+            if tail:
+                reason += f" — stderr: {tail}"
+            elif not docker_result.stdout.strip():
+                reason += " (empty stdout, empty stderr too — exit code " \
+                    f"{docker_result.returncode})"
+            runs.append(ToolRun(tool=name, status="error", reason=reason))
             continue
         runs.append(ToolRun(tool=name, status="ok", findings=findings))
     return runs
