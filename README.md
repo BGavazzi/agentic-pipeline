@@ -220,6 +220,34 @@ Shared rules referenced by §2 Hard Rules of any repo's `AGENTS.md` — promoted
 
 ---
 
+## Choosing a model and an `AGENTS.md` variant
+
+Migrated from this repo's predecessor (`guidelines_IA`, now archived) — not vendored by `core_sync.py` (they're choices a repo/team makes once, not files every consumer needs copied in), but linked here since they're what a repo most needs when first adopting this doctrine:
+
+- **[`MODEL-SELECTION.guidelines.md`](MODEL-SELECTION.guidelines.md)** — which Claude model fits which kind of task (planning/review vs. implementation vs. mundane lookups), plus token-economics heuristics (output costs ~5x input, cache reads cost ~10% of input, don't switch models mid-task).
+- **[`AGENTS.balanced.md`](AGENTS.balanced.md)** / **[`AGENTS.minimal.md`](AGENTS.minimal.md)** / **[`AGENTS.opus48.balanced.md`](AGENTS.opus48.balanced.md)** — three sizes of the same constitution: full, lean (hard rules + pointers), and harness-trimmed (drops what Claude Code already enforces natively — see the provenance note at the top of that file before using it as-is on a current model generation).
+- **[`AGENTS.usage-guidelines.md`](AGENTS.usage-guidelines.md)** — which variant to hand which role (fullstack/frontend/vibe-coder/UX), and the warning signs you picked the wrong size (agent forgets §0 Continuity twice → go bigger; agent just rephrases rules instead of acting → go smaller).
+- **[`AGENTS.assessment.md`](AGENTS.assessment.md)** — the retrospective on why the old six model-specific variants collapsed into size-based ones; kept for the reasoning pattern, not the specific model names.
+
+All five are in Portuguese, unlike the rest of this repo's English-language docs — left untranslated on migration rather than risk losing nuance in a rewrite; translate on demand if a non-Portuguese-speaking consumer needs one.
+
+---
+
+## More migrated from `guidelines_IA` — design rationale, target architecture, a prototype scaffold kit
+
+A second migration pass pulled over the rest of the portable content from the predecessor repo, scrubbed of anything FIS/company-specific (real names, real incidents, real infra IDs — see task 0006's Honest Backlog for exactly what got left out and why).
+
+- **[`.docs/strategy/double-diamond-prototype-pipeline.md`](.docs/strategy/double-diamond-prototype-pipeline.md)** — the actual definition of "Triple-Diamond" / "Diamante 2", terms this README uses elsewhere (§How the pipeline flows) while saying they're not spelled out anywhere. Now they are: Ideação → Prototipagem → Integração, where the agentic flow lives, and the human gate between Prototipagem and Integração.
+- **[`.docs/analysis/pattern-rationale.md`](.docs/analysis/pattern-rationale.md)** — why this repo's doctrine looks the way it does: 12 patterns (P-01 through P-12) observed across a real portfolio before being canonized here, each with a status (already adopted / candidate not yet adopted).
+- **[`.docs/analysis/meta-constitution.md`](.docs/analysis/meta-constitution.md)** — a not-yet-implemented concept: an `AGENTS.md` one level above individual repos, for the handful of rules that apply to every repo a given maintainer owns.
+- **[`.docs/analysis/agentic-pipeline-target-architecture.md`](.docs/analysis/agentic-pipeline-target-architecture.md)** — the full target architecture for a webhook-driven, ticket-to-PR pipeline. `dispatcher` covers a simplified, session-driven slice of the middle of this (stages 4-7); the webhook listener, classifier, and post-merge stages aren't built.
+- **[`.docs/analysis/factory-testing-gaps-2026-06-09.md`](.docs/analysis/factory-testing-gaps-2026-06-09.md)** — historical design rationale for why `visual-tester`, `tester --fe-real`, and `ultrareview` exist: the 4 hard blockers they were each built to close.
+- **[`.docs/conventions/clickup-task-schema.md`](.docs/conventions/clickup-task-schema.md)** — the schema that makes a task equivalent whether an agent reads it from `.docs/tasks/` or the ClickUp API, plus recommended custom fields. Design spec, not yet built as a validator.
+- **[`.docs/conventions/scope-intake.md`](.docs/conventions/scope-intake.md)** / **[`clickup-comment-style.md`](.docs/conventions/clickup-comment-style.md)** / **[`frontend-screen-flow.md`](.docs/conventions/frontend-screen-flow.md)** — three more shared conventions in the same vein as §The conventions above (request-before-branch, ClickUp comment depth-matches-decision-depth, and the screen-level flow above `engineering-defaults.md`'s component level — including a real gotchas list for when a green visual-regression check lies).
+- **[`.template/`](.template/README.md)** — a minimal scaffold for bootstrapping a **brand-new** prototype repo from scratch (README/AGENTS.md/CHANGELOG/PRD/`.gitignore` skeletons), complementary to `core_sync.py` (which vendors the core into a repo that already exists). Use `.template/` first for a from-scratch repo, then `core_sync.py` for the skills/scripts/conventions.
+
+---
+
 ## Quick start
 
 ### 1. Sync the core into your target repo
