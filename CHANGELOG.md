@@ -2,6 +2,66 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-04] - Second pass: migrate the rest of guidelines_IA's portable content, scrubbed (task 0006)
+### Added
+- `.docs/strategy/double-diamond-prototype-pipeline.md` — the actual
+  Triple-Diamond/Diamante-2 definition this repo's own README references
+  but says isn't written down anywhere; now it is.
+- `.docs/analysis/pattern-rationale.md`, `.docs/analysis/meta-constitution.md`,
+  `.docs/analysis/agentic-pipeline-target-architecture.md`,
+  `.docs/analysis/factory-testing-gaps-2026-06-09.md` — design rationale for
+  why this repo's doctrine and gate scripts look the way they do.
+- `.docs/conventions/clickup-task-schema.md`, `.docs/conventions/scope-intake.md`,
+  `.docs/conventions/clickup-comment-style.md`,
+  `.docs/conventions/frontend-screen-flow.md` — three more shared
+  conventions in the vein of the existing 6, plus the ClickUp-side task
+  schema design spec.
+- `.template/` — a minimal from-scratch prototype scaffold kit
+  (README/AGENTS.md/CHANGELOG/PRD/`.gitignore`), rewired from
+  `guidelines_IA`'s old `git subtree`/`dist/core` bootstrap flow to
+  reference `core_sync.py` instead.
+### Changed
+- `README.md` — new section linking all of the above.
+- `.docs/tasks/0006-docs-migrate-guidelines-ia.md` — scope note + updated
+  Honest Backlog reflecting the second pass.
+### Why a second pass
+The first pass (below) excluded everything under `.docs/analysis/`,
+`.docs/strategy/`, `.template/`, and 5 of `guidelines_IA`'s 11 conventions
+files as "FIS-specific project history." After seeing the exclusion list,
+the user overrode it: "make sure all the bits from there are here without
+fis or company structure." Re-reviewed every excluded file individually —
+files with real names/incidents/GCP-project-IDs/client-codenames threaded
+through them stayed excluded (scrubbing wouldn't leave much); files that
+were generic methodology with only incidental FIS mentions got migrated
+with those mentions scrubbed. Full per-file disposition in task 0006's
+Honest Backlog.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
+## [2026-09-04] - Finish the guidelines_IA migration: model-selection + AGENTS variants (task 0006)
+### Added
+- `MODEL-SELECTION.guidelines.md`, `AGENTS.balanced.md`, `AGENTS.minimal.md`,
+  `AGENTS.opus48.balanced.md`, `AGENTS.assessment.md`,
+  `AGENTS.usage-guidelines.md` — migrated from `guidelines_IA`, the repo this
+  one superseded. Flagged by the portfolio completeness benchmark as content
+  a tombstoned repo was still load-bearing for. Model references updated to
+  the current generation in the two live-reference docs
+  (`MODEL-SELECTION.guidelines.md`, `AGENTS.usage-guidelines.md`); the two
+  explicitly historical/versioned files (`AGENTS.opus48.balanced.md`,
+  `AGENTS.assessment.md`) got a provenance note instead of a rewrite.
+- `.docs/tasks/0006-docs-migrate-guidelines-ia.md`.
+### Changed
+- `README.md` — new "Choosing a model and an AGENTS.md variant" section
+  linking all 6 migrated files.
+### Not migrated (see task 0006's Honest Backlog for why)
+- `.docs/analysis/`, `.docs/strategy/`, `.docs/admin/`, `.docs/tasks/`
+  (FIS-specific project history, not portfolio-wide doctrine).
+- `.docs/skills/*.md` (stale — missing 8 skills this repo already
+  implements; migrating would be a regression).
+- `infra/`, `.template/`, `publish-core.sh` (FIS-specific infra, a
+  superseded scaffold kit, and a publish mechanism superseded by
+  `core_sync.py` respectively).
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-09-04] - core_sync.py: automate vendoring the core into satellite repos (task 0005)
 ### Added
 - `scripts/core_sync.py` — vendors `.claude/skills/` (optionally filtered via
