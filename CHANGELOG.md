@@ -131,6 +131,18 @@ Honest Backlog.
   `.agentic-core/sync-core.sh` mechanism) is still open.
 **Author**: Claude (agent), reviewed by Bernardo Gavazzi
 
+## [2026-09-05] - Cross-repo completion-status handoff doc
+### Added
+- `.docs/analysis/completion-status-2026-09-05.md` — status of every open
+  thread from this initiative (PRs #6-#11, task 0007/0008 honest state,
+  the clawdinha-do-rh WIP ship, the bluemagic-front migration decision,
+  guidelines_IA's 4 still-unmigrated skills, sao-bernardino-brain's
+  VeraCrypt encryption, and older housekeeping: the homelab runner pool
+  registration and the `overpowers`/`zeroclaw` orphaned nested-git-repos in
+  clawdinha-do-rh) — written so a fresh session/model can resume without
+  re-deriving context from chat history.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-09-04] - core_sync.py: automate vendoring the core into satellite repos (task 0005)
 ### Added
 - `scripts/core_sync.py` — vendors `.claude/skills/` (optionally filtered via
