@@ -1,6 +1,65 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-07] - Fix merge-artifact corruption in this file
+### Fixed
+- A stray, unmatched `=======` conflict marker had landed between the
+  "File task 0007" and "Second pass: migrate guidelines_IA" entries — a
+  leftover from resolving one of the several sibling-PR CHANGELOG.md
+  conflicts noted in `completion-status-2026-09-05.md` §1. The same
+  corruption had also eaten that entry's `**Author**` line, and the file's
+  entries were no longer in the "newest entry on top" order this file's own
+  header requires (the 2026-09-05 handoff-doc entry was buried at position 6
+  instead of position 1). Removed the stray marker, restored the missing
+  Author line, and reordered every entry from the 2026-09-03 gates-in-CI
+  entry through the 2026-09-05 handoff doc back into newest-first order.
+  No entry's actual text content changed — this is a structural fix to a
+  merge artifact, not a rewrite of past entries.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
+## [2026-09-05] - Cross-repo completion-status handoff doc
+### Added
+- `.docs/analysis/completion-status-2026-09-05.md` — status of every open
+  thread from this initiative (PRs #6-#11, task 0007/0008 honest state,
+  the clawdinha-do-rh WIP ship, the bluemagic-front migration decision,
+  guidelines_IA's 4 still-unmigrated skills, sao-bernardino-brain's
+  VeraCrypt encryption, and older housekeeping: the homelab runner pool
+  registration and the `overpowers`/`zeroclaw` orphaned nested-git-repos in
+  clawdinha-do-rh) — written so a fresh session/model can resume without
+  re-deriving context from chat history.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
+## [2026-09-04] - core_sync.py: drift detection for hand-edited vendored files (task 0008)
+### Added
+- `scripts/core_sync.py` — every synced file is now fingerprinted in
+  `<target>/.claude/.core-sync-manifest.json`. If a vendored file's content
+  no longer matches its recorded hash on the next sync (hand-edited locally,
+  violating "core is read-only"), that file — or, for a skill, its whole
+  directory — is skipped instead of silently overwritten, and `main()`
+  returns exit code `1` to flag it distinctly from a clean sync (`0`) or a
+  usage error (`2`). `--force` overwrites a drifted file anyway.
+- `.docs/tasks/0008-feat-core-sync-drift-detection.md`.
+- 21 new tests in `tests/test_core_sync.py` covering `_is_drifted`,
+  manifest load/save (including a corrupt-manifest fallback), drift-skip +
+  `--force` override for all three sync functions, and `main()`-level exit
+  codes.
+### Changed
+- `sync_skills`/`sync_gate_scripts`/`sync_conventions` now return a
+  `SyncResult(synced, drifted)` dataclass instead of a bare `list[str]` —
+  existing tests updated to match; `sync_skills`'s reporting granularity
+  changed from per-directory (`.claude/skills/tester/`) to per-file
+  (`.claude/skills/tester/SKILL.md`), matching how the other two functions
+  already reported.
+- `README.md` Quick Start §1 — notes the manifest should be committed in the
+  target repo, not gitignored (an uncommitted manifest only protects edits
+  made in the same clone that ran the last sync).
+### Not yet done
+- Not validated against a real drifted vendored skill in an actual target
+  repo — only against fixture trees and this repo's own source tree. First
+  real-world case (likely `bluemagic-front`, still on the older
+  `.agentic-core/sync-core.sh` mechanism) is still open.
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-09-04] - Surface scanner stderr + cache trivy's DB across runs (task 0007)
 ### Added
 - `scripts/scan_gate.py` — `DockerResult(stdout, stderr, returncode)`
@@ -39,7 +98,8 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   CI job) can't be confirmed from the gate's own error message today. Filed
   as `todo`, not fixed — item 5 of the user-ordered remediation list was
   "file a task," not "fix it."
-=======
+**Author**: Claude (agent), reviewed by Bernardo Gavazzi
+
 ## [2026-09-04] - Second pass: migrate the rest of guidelines_IA's portable content, scrubbed (task 0006)
 ### Added
 - `.docs/strategy/double-diamond-prototype-pipeline.md` — the actual
@@ -98,49 +158,6 @@ Honest Backlog.
 - `infra/`, `.template/`, `publish-core.sh` (FIS-specific infra, a
   superseded scaffold kit, and a publish mechanism superseded by
   `core_sync.py` respectively).
-**Author**: Claude (agent), reviewed by Bernardo Gavazzi
-
-## [2026-09-04] - core_sync.py: drift detection for hand-edited vendored files (task 0008)
-### Added
-- `scripts/core_sync.py` — every synced file is now fingerprinted in
-  `<target>/.claude/.core-sync-manifest.json`. If a vendored file's content
-  no longer matches its recorded hash on the next sync (hand-edited locally,
-  violating "core is read-only"), that file — or, for a skill, its whole
-  directory — is skipped instead of silently overwritten, and `main()`
-  returns exit code `1` to flag it distinctly from a clean sync (`0`) or a
-  usage error (`2`). `--force` overwrites a drifted file anyway.
-- `.docs/tasks/0008-feat-core-sync-drift-detection.md`.
-- 21 new tests in `tests/test_core_sync.py` covering `_is_drifted`,
-  manifest load/save (including a corrupt-manifest fallback), drift-skip +
-  `--force` override for all three sync functions, and `main()`-level exit
-  codes.
-### Changed
-- `sync_skills`/`sync_gate_scripts`/`sync_conventions` now return a
-  `SyncResult(synced, drifted)` dataclass instead of a bare `list[str]` —
-  existing tests updated to match; `sync_skills`'s reporting granularity
-  changed from per-directory (`.claude/skills/tester/`) to per-file
-  (`.claude/skills/tester/SKILL.md`), matching how the other two functions
-  already reported.
-- `README.md` Quick Start §1 — notes the manifest should be committed in the
-  target repo, not gitignored (an uncommitted manifest only protects edits
-  made in the same clone that ran the last sync).
-### Not yet done
-- Not validated against a real drifted vendored skill in an actual target
-  repo — only against fixture trees and this repo's own source tree. First
-  real-world case (likely `bluemagic-front`, still on the older
-  `.agentic-core/sync-core.sh` mechanism) is still open.
-**Author**: Claude (agent), reviewed by Bernardo Gavazzi
-
-## [2026-09-05] - Cross-repo completion-status handoff doc
-### Added
-- `.docs/analysis/completion-status-2026-09-05.md` — status of every open
-  thread from this initiative (PRs #6-#11, task 0007/0008 honest state,
-  the clawdinha-do-rh WIP ship, the bluemagic-front migration decision,
-  guidelines_IA's 4 still-unmigrated skills, sao-bernardino-brain's
-  VeraCrypt encryption, and older housekeeping: the homelab runner pool
-  registration and the `overpowers`/`zeroclaw` orphaned nested-git-repos in
-  clawdinha-do-rh) — written so a fresh session/model can resume without
-  re-deriving context from chat history.
 **Author**: Claude (agent), reviewed by Bernardo Gavazzi
 
 ## [2026-09-04] - core_sync.py: automate vendoring the core into satellite repos (task 0005)
