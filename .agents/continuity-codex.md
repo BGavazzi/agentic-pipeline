@@ -18,6 +18,9 @@
   job. It is explicitly a consistency check until workflow/policy protection
   and signed evidence exist; absent high-risk integration/ultrareview receipts
   block as designed.
+- PR #14 hosted run exposed Gitleaks `detect --no-git` timing out on checkout
+  metadata after 300s. Switched to `gitleaks dir /src`; focused live suite then
+  passed 67 tests locally. Follow-up is uncommitted until pushed.
 - No push, PR, deployment, worker provisioning or private/company-repo change.
 - Final verification with PIPELINE_LIVE_SCANNERS=1: 108 tests passed in 25.34s;
   task/closure structural validators

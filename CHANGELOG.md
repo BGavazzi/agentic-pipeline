@@ -5,6 +5,8 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 ### Changed
 - Live Docker verification fixed Semgrep auto-config/telemetry incompatibility
   and Gitleaks report capture; required scanner images are pinned by digest.
+- Hosted CI exposed Gitleaks `detect --no-git` traversing checkout metadata and
+  timing out; use its explicit directory scanner instead.
 - Scanner absence, incomplete output and unexpected exit codes now return failure.
 - Correct scan working directory and Trivy target, make source mount read-only,
   read Dependency-Check's report file, and avoid publishing raw stderr.

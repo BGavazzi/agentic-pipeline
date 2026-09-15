@@ -480,6 +480,8 @@ def test_gitleaks_reads_report_file_not_stdout(sandbox, monkeypatch):
     def fake_docker(image, args, repo, extra_mounts):
         directory, mount = extra_mounts[0]
         assert mount == "/reports"
+        assert args[:2] == ["dir", "/src"]
+        assert "--no-git" not in args
         (directory / "gitleaks.json").write_text('[{"RuleID":"synthetic","File":"config.py"}]')
         return _dr("", returncode=1)
     monkeypatch.setattr(scan_gate, "_docker_run", fake_docker)

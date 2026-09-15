@@ -212,15 +212,15 @@ def run_trivy(repo: Path, targets: list[str]) -> DockerResult:
 
 
 def run_gitleaks(repo: Path, targets: list[str]) -> DockerResult:
-    # gitleaks scans a source tree, not individual files — point it at /src
-    # regardless of `targets`; findings are filtered to changed files later
-    # via the same introduced/pre-existing logic as every other tool.
+    # Use the explicit directory scanner. `detect --no-git` on a checkout can
+    # traverse .git metadata and timed out on the first hosted-runner run;
+    # `dir` scans the working tree without invoking repository-history logic.
     with tempfile.TemporaryDirectory(prefix="pipeline-gitleaks-") as output:
         output_dir = Path(output)
         result = _docker_run(
             SCANNER_IMAGES["gitleaks"],
-            ["detect", "--source", "/src", "--no-git", "--redact", "--exit-code", "1",
-             "--report-format", "json", "--report-path", "/reports/gitleaks.json"],
+            ["dir", "/src", "--redact", "--exit-code", "1", "--report-format", "json",
+             "--report-path", "/reports/gitleaks.json"],
             repo, extra_mounts=[(output_dir, "/reports")],
         )
         try:

@@ -91,6 +91,10 @@ was treated as a JSON report although it writes a file.
   explicit `p/security-audit` with metrics disabled (not silently enabling telemetry).
 - Gitleaks detected a fixture but `/dev/stdout` did not deliver JSON to the
   caller. Changed to a dedicated writable report mount and require the file.
+- Hosted PR run 35013562997 then exposed a second live issue: Gitleaks
+  `detect --no-git` timed out after 300s on the checkout. Switched to the
+  explicit `dir /src` scanner so repository metadata is not treated as a
+  working-tree scan. Local live suite passed after the fix.
 - Synthetic fixtures use never-issued values with valid format, constructed
   at runtime; public EXAMPLE values are allowlisted by Gitleaks.
 - Added GitHub-hosted live-scanner CI job. This workflow change is local and
