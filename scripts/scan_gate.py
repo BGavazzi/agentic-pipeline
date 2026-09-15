@@ -23,9 +23,8 @@ Context):
 
 Same anti-fake-green principle as validate_task.py / blast_radius.py /
 validate_closure.py: gate on an artifact, never on a model's self-report.
-A missing scanner (no Docker, image not pulled) DEGRADES the run (skip +
-record why) rather than fabricating a pass — mirrors tester's fe_real
-"prerequisite absent -> degrade to build+lint + warn" rule exactly.
+A missing or failed required scanner blocks admission. Diagnostic artifacts
+are still written; unavailable tools must never produce a successful exit.
 
 Severity policy (V1, deliberately simple — see Honest Backlog in task 0001):
 a `critical`/`high` finding whose file appears in the diff's changed-file set
@@ -49,13 +48,9 @@ Output:
                                            (this is what tester/dispatcher gate on)
 
 Exit codes:
-    0 -- pass (no introduced critical/high finding) — includes "degraded" runs
-         where every scanner was skipped (never claims a positive pass in that
-         case; the JSON artifact's "degraded": true is the tell)
+    0 -- all required scanners succeeded, no introduced critical/high finding
     1 -- BLOCK: at least one introduced critical/high finding
-    2 -- usage error (bad --repo path) or a scanner produced unparseable
-         output that isn't itself a "scanner unavailable" case (a real bug in
-         the invocation, not a missing prerequisite)
+    2 -- unavailable/failed/missing scanner, invalid output, or usage error
 
 Part of the agentic-pipeline core scripts (sibling of blast_radius.py, whose
 git-diff helpers this script reuses rather than re-deriving them).
@@ -69,6 +64,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -84,6 +80,14 @@ sys.modules.setdefault("blast_radius", blast_radius)  # dataclass() needs this r
 _spec.loader.exec_module(blast_radius)  # type: ignore[union-attr]
 
 DOCKER_TIMEOUT_SECONDS = 300  # per-tool cap; a hung scanner shouldn't hang the gate forever
+REQUIRED_TOOLS = ("semgrep", "trivy", "gitleaks")
+# Resolved from the locally exercised registry images on 2026-09-15.
+# Updating these is a gate change and must pass the live contract fixtures.
+SCANNER_IMAGES = {
+    "semgrep": "semgrep/semgrep@sha256:34ab619bf1391a24bfda3f05debd0d8a6ce3093c2d5f9d39cfc00f83c1397823",
+    "trivy": "aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969",
+    "gitleaks": "ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f",
+}
 
 SEVERITY_ORDER = ["critical", "high", "medium", "low", "unknown"]
 SARIF_LEVEL = {"critical": "error", "high": "error", "medium": "warning", "low": "note", "unknown": "note"}
@@ -166,14 +170,15 @@ def _docker_run(
     (task 0007: the leading hypothesis for a trivy run that produced empty
     stdout on its first-ever live CI invocation).
     """
-    cmd = ["docker", "run", "--rm", "-v", f"{repo}:/src"]
+    cmd = ["docker", "run", "--rm", "-v", f"{repo}:/src:ro", "-w", "/src"]
     for host_path, container_path in extra_mounts or []:
         host_path.mkdir(parents=True, exist_ok=True)
         cmd += ["-v", f"{host_path}:{container_path}"]
     cmd += [image, *args]
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=DOCKER_TIMEOUT_SECONDS,
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=DOCKER_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired as e:
         raise RuntimeError(f"timed out after {DOCKER_TIMEOUT_SECONDS}s: {' '.join(cmd)}") from e
@@ -183,11 +188,12 @@ def _docker_run(
 
 
 def run_semgrep(repo: Path, targets: list[str]) -> DockerResult:
-    return _docker_run("semgrep/semgrep", ["semgrep", "--config", "auto", "--json", *targets], repo)
+    # Scan the tree: deleted paths and flag-shaped filenames are not CLI args.
+    return _docker_run(SCANNER_IMAGES["semgrep"], ["semgrep", "scan", "--config", "p/security-audit",
+                       "--strict", "--metrics", "off", "--json", "."], repo)
 
 
 def run_trivy(repo: Path, targets: list[str]) -> DockerResult:
-    scan_targets = targets or ["."]
     # Trivy's own default cache dir inside the image is /root/.cache/trivy.
     # Bind-mounting a host dir there (TRIVY_CACHE_DIR, defaulting to a repo-
     # local .trivy-cache/ so it's easy to .gitignore and to key an
@@ -196,9 +202,10 @@ def run_trivy(repo: Path, targets: list[str]) -> DockerResult:
     # every time — see task 0007.
     cache_dir = Path(os.environ.get("TRIVY_CACHE_DIR", repo / ".trivy-cache"))
     return _docker_run(
-        "aquasec/trivy",
+        SCANNER_IMAGES["trivy"],
         ["fs", "--scanners", "vuln,secret,misconfig", "--format", "json",
-         "--cache-dir", "/root/.cache/trivy", *scan_targets],
+         "--exit-code", "0", "--skip-dirs", ".trivy-cache", "--skip-dirs", ".git",
+         "--cache-dir", "/root/.cache/trivy", "."],
         repo,
         extra_mounts=[(cache_dir, "/root/.cache/trivy")],
     )
@@ -208,19 +215,37 @@ def run_gitleaks(repo: Path, targets: list[str]) -> DockerResult:
     # gitleaks scans a source tree, not individual files — point it at /src
     # regardless of `targets`; findings are filtered to changed files later
     # via the same introduced/pre-existing logic as every other tool.
-    return _docker_run(
-        "ghcr.io/gitleaks/gitleaks",
-        ["detect", "--source", "/src", "--no-git", "--report-format", "json", "--report-path", "/dev/stdout"],
-        repo,
-    )
+    with tempfile.TemporaryDirectory(prefix="pipeline-gitleaks-") as output:
+        output_dir = Path(output)
+        result = _docker_run(
+            SCANNER_IMAGES["gitleaks"],
+            ["detect", "--source", "/src", "--no-git", "--redact", "--exit-code", "1",
+             "--report-format", "json", "--report-path", "/reports/gitleaks.json"],
+            repo, extra_mounts=[(output_dir, "/reports")],
+        )
+        try:
+            raw = (output_dir / "gitleaks.json").read_text(encoding="utf-8")
+        except OSError:
+            raise RuntimeError("Gitleaks did not produce a readable report") from None
+        return DockerResult(raw, result.stderr, result.returncode)
 
 
 def run_dependency_check(repo: Path, task_id: str) -> DockerResult:
-    return _docker_run(
-        "owasp/dependency-check",
-        ["--scan", "/src", "--format", "JSON", "--out", "/src", "--project", task_id],
-        repo,
-    )
+    # Dependency-Check writes a report file, not JSON stdout. Keep its output
+    # off the read-only source mount and do not interpret console logs as JSON.
+    with tempfile.TemporaryDirectory(prefix="pipeline-dc-") as output:
+        output_dir = Path(output)
+        result = _docker_run(
+            "owasp/dependency-check",
+            ["--scan", "/src", "--format", "JSON", "--out", "/reports", "--project", task_id],
+            repo, extra_mounts=[(output_dir, "/reports")],
+        )
+        report = output_dir / "dependency-check-report.json"
+        try:
+            raw = report.read_text(encoding="utf-8")
+        except OSError:
+            raise RuntimeError("Dependency-Check did not produce a readable report") from None
+        return DockerResult(raw, result.stderr, result.returncode)
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +256,10 @@ def run_dependency_check(repo: Path, task_id: str) -> DockerResult:
 
 def parse_semgrep(raw: str) -> list[ScanFinding]:
     data = json.loads(raw)
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+        raise ValueError("missing results array")
+    if data.get("errors"):
+        raise ValueError("scanner reported incomplete analysis")
     sev_map = {"ERROR": "high", "WARNING": "medium", "INFO": "low"}
     findings = []
     for r in data.get("results", []):
@@ -248,6 +277,11 @@ def parse_semgrep(raw: str) -> list[ScanFinding]:
 
 def parse_trivy(raw: str) -> list[ScanFinding]:
     data = json.loads(raw)
+    if not isinstance(data, dict) or not (
+        isinstance(data.get("Results"), list)
+        or (data.get("SchemaVersion") == 2 and data.get("Results") is None)
+    ):
+        raise ValueError("invalid Trivy report")
     sev_map = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
     findings = []
     for result in data.get("Results", []) or []:
@@ -281,6 +315,8 @@ def parse_gitleaks(raw: str) -> list[ScanFinding]:
     if not raw:
         return []  # gitleaks emits nothing on stdout when no leaks are found
     data = json.loads(raw)
+    if not isinstance(data, list):
+        raise ValueError("expected gitleaks array")
     findings = []
     for item in data:
         findings.append(ScanFinding(
@@ -294,6 +330,8 @@ def parse_gitleaks(raw: str) -> list[ScanFinding]:
 
 def parse_dependency_check(raw: str) -> list[ScanFinding]:
     data = json.loads(raw)
+    if not isinstance(data, dict) or not isinstance(data.get("dependencies"), list):
+        raise ValueError("missing dependencies array")
     sev_map = {"CRITICAL": "critical", "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
     findings = []
     for dep in data.get("dependencies", []) or []:
@@ -344,21 +382,30 @@ def run_all_scanners(
             continue
         try:
             findings = PARSERS[name](docker_result.stdout)
-        except json.JSONDecodeError as e:
-            reason = f"unparseable output: {e}"
-            tail = _stderr_tail(docker_result.stderr)
-            if tail:
-                reason += f" — stderr: {tail}"
-            elif not docker_result.stdout.strip():
-                reason += " (empty stdout, empty stderr too — exit code " \
-                    f"{docker_result.returncode})"
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            # Never publish raw stderr/output: it may contain source or secrets.
+            reason = f"invalid scanner report ({type(e).__name__}); exit code {docker_result.returncode}"
             runs.append(ToolRun(tool=name, status="error", reason=reason))
             continue
+        allowed_exit = docker_result.returncode == 0 or (
+            name == "gitleaks" and docker_result.returncode == 1 and bool(findings)
+        )
+        if not allowed_exit:
+            runs.append(ToolRun(tool=name, status="error",
+                                reason=f"scanner exit code {docker_result.returncode}", findings=findings))
+            continue
+        for finding in findings:
+            finding.file = finding.file.replace("\\", "/")
+            if finding.file.startswith("/src/"):
+                finding.file = finding.file[5:]
+            while finding.file.startswith("./"):
+                finding.file = finding.file[2:]
         runs.append(ToolRun(tool=name, status="ok", findings=findings))
     return runs
 
 
-def classify_gate(runs: list[ToolRun], changed: list[str]) -> dict:
+def classify_gate(runs: list[ToolRun], changed: list[str],
+                  required_tools: tuple[str, ...] = REQUIRED_TOOLS) -> dict:
     changed_set = set(changed)
     all_findings = [f for r in runs for f in r.findings]
 
@@ -368,8 +415,12 @@ def classify_gate(runs: list[ToolRun], changed: list[str]) -> dict:
     ran_ok = any(r.status == "ok" for r in runs)
     all_skipped = all(r.status == "skipped" for r in runs)
 
-    if all_skipped:
-        verdict = "degraded"
+    names = [r.tool for r in runs]
+    incomplete = (not runs or len(names) != len(set(names))
+                  or bool(set(required_tools) - set(names))
+                  or any(r.status != "ok" for r in runs))
+    if incomplete:
+        verdict = "error"
     elif introduced_blocking:
         verdict = "block"
     else:
@@ -382,6 +433,8 @@ def classify_gate(runs: list[ToolRun], changed: list[str]) -> dict:
     return {
         "verdict": verdict,
         "degraded": all_skipped,
+        "required_tools": list(required_tools),
+        "missing_tools": sorted(set(required_tools) - set(names)),
         "ran_any_scanner": ran_ok,
         "findings_total": len(all_findings),
         "findings_introduced": len(introduced),
@@ -412,7 +465,7 @@ def build_sarif(runs: list[ToolRun]) -> dict:
         sarif_runs.append({
             "tool": {"driver": {"name": r.tool, "informationUri": "", "rules": []}},
             "invocations": [{
-                "executionSuccessful": r.status != "error",
+                "executionSuccessful": r.status == "ok",
                 **({"exitCodeDescription": r.reason} if r.reason else {}),
             }],
             "results": results,
@@ -433,15 +486,20 @@ def scan(
 
     docker_available = check_docker_available()
     runs = run_all_scanners(repo, changed, docker_available, enable_dependency_check, task_id)
-    verdict_info = classify_gate(runs, changed)
+    required = REQUIRED_TOOLS + (("dependency-check",) if enable_dependency_check else ())
+    verdict_info = classify_gate(runs, changed, required)
     sarif = build_sarif(runs)
 
     summary = {
+        "schema_version": 1,
         "task": task_id,
         "base": resolved_base,
         "branch": resolved_branch,
+        "base_sha": blast_radius.run(["git", "rev-parse", resolved_base], cwd=repo).strip(),
+        "head_sha": blast_radius.run(["git", "rev-parse", resolved_branch], cwd=repo).strip(),
         "changed_files": sorted(changed),
         "tool_status": {r.tool: {"status": r.status, "reason": r.reason} for r in runs},
+        "scanner_images": dict(SCANNER_IMAGES),
         **verdict_info,
     }
     return summary, sarif
@@ -489,7 +547,7 @@ def main() -> int:
 
     if summary["verdict"] == "block":
         return 1
-    return 0
+    return 0 if summary["verdict"] == "pass" else 2
 
 
 if __name__ == "__main__":

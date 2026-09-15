@@ -79,7 +79,7 @@ HIGH_RISK_PATH_PATTERNS = [
     # Without this, a PR deleting the whole `gates` job classifies as `low` and
     # is waved through on unit tests alone.
     (r"^\.github/workflows/.*\.ya?ml$", "ci-workflow"),
-    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate)\.py$", "gate-script"),
+    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|ci_receipts)\.py$", "gate-script"),
     (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
 ]
 
@@ -283,10 +283,18 @@ def classify(repo: Path, task_id: str, base: str | None, branch: str | None) -> 
     risk_level, triggered = classify_risk(changed, affected)
     gates = required_gates_for(risk_level, triggered)
 
+    # Bind the report to the exact tree that downstream admission evaluates.
+    # A branch name can move; a full object id cannot.
+    base_sha = run(["git", "rev-parse", resolved_base], cwd=repo).strip()
+    head_sha = run(["git", "rev-parse", resolved_branch], cwd=repo).strip()
+
     return {
+        "schema_version": 1,
         "task": task_id,
         "base": resolved_base,
         "branch": resolved_branch,
+        "base_sha": base_sha,
+        "head_sha": head_sha,
         "changed_files": sorted(changed),
         "affected_modules": sorted(affected),
         "risk_level": risk_level,

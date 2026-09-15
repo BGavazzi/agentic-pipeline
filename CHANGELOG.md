@@ -1,6 +1,24 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-15] - Start fail-closed admission hardening (task 0009)
+### Changed
+- Live Docker verification fixed Semgrep auto-config/telemetry incompatibility
+  and Gitleaks report capture; required scanner images are pinned by digest.
+- Scanner absence, incomplete output and unexpected exit codes now return failure.
+- Correct scan working directory and Trivy target, make source mount read-only,
+  read Dependency-Check's report file, and avoid publishing raw stderr.
+### Added
+- Real clean/planted scanner contract fixtures and a GitHub-hosted CI job.
+- Schema-v1 CI receipt aggregation for unit and scanner evidence, plus a final
+  admission job bound to the pull request base/head SHAs. It intentionally does
+  not claim authenticity until workflow/policy protection is configured.
+- Schema-v1 admission consistency checker with required-gate/commit checks and
+  completeness metrics, adversarial regression tests, and function catalog.
+- Admission gate is included in core sync and classified high-risk when edited.
+  Protected CI receipt production remains pending; this is not a deployed service.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-07] - Fix merge-artifact corruption in this file
 ### Fixed
 - A stray, unmatched `=======` conflict marker had landed between the

@@ -133,6 +133,8 @@ def _is_drifted(target: Path, manifest: dict[str, str], relpath: str) -> bool:
 # "everything in scripts/", so a target repo's own project-specific scripts
 # are never at risk of being overwritten by an unrelated same-named file.
 GATE_SCRIPTS = [
+    "admission_gate.py",
+    "ci_receipts.py",
     "validate_task.py",
     "validate_closure.py",
     "blast_radius.py",

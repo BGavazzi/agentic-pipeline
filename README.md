@@ -1,5 +1,50 @@
 # agentic-pipeline
 
+## Quality admission hardening (task 0009, in progress)
+
+`scan_gate.py` now fails closed: exit 0 means every required scanner succeeded
+and no blocking introduced finding was reported; exit 1 means blocking findings;
+exit 2 means incomplete/error execution or invalid usage. Diagnostic JSON/SARIF
+is still written when Docker is unavailable. Raw scanner stderr is not published
+because it may contain secrets. This is an intentional change from success on
+degraded runs. Source mounts are read-only; findings retain the existing
+changed-file approximation, not a true base/head differential.
+
+`scripts/admission_gate.py` is a new **consistency checker**, not yet a protected
+CI admission service. It requires trusted JSON inputs with `schema_version: 1`,
+full `base_sha` and `head_sha`. The risk document also contains `risk_level`,
+`risk_triggers`, and `required_gates`; the receipt document contains `gates`, a
+list of `{ "gate": "unit", "status": "pass" }` entries. Existing blast reports
+are not schema-v1 receipts and cannot be fed directly without a trusted adapter.
+
+```bash
+python scripts/admission_gate.py --risk risk-v1.json --receipts receipts-v1.json \
+  --base-sha <full-base-sha> --head-sha <full-head-sha>
+```
+
+All risk obligations plus SAST/SCA/secrets must pass. Missing/duplicate/unknown
+gates, invalid identities and non-pass states cannot qualify. Exit codes: 0
+admitted, 1 unmet obligation, 2 invalid input. JSON includes required/passed
+counts and evidence completeness. This does not authenticate candidate-written
+JSON; independent producers and protected policy loading are pending. See
+[task 0009](.docs/tasks/0009-fix-fail-closed-admission.md) for remaining work.
+
+Live scanner contracts (synthetic fixtures only; downloads images/rules/DBs):
+
+```powershell
+$env:PIPELINE_LIVE_SCANNERS = '1'
+python -m pytest tests/test_live_scanners.py -v
+```
+
+These fixtures check clean and planted cases with real Semgrep, Trivy and
+Gitleaks. CI has a GitHub-hosted regression job for them; regular local pytest
+skips them unless opted in. Required images are pinned by digest in
+`SCANNER_IMAGES`; rule/database updates are not yet pinned. Semgrep uses an
+explicit security-audit ruleset with telemetry disabled. Gitleaks JSON is read
+from a dedicated report file, not `/dev/stdout`. Optional Dependency-Check is
+not part of these live fixtures.
+
+
 [![CI](https://github.com/BGavazzi/agentic-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/BGavazzi/agentic-pipeline/actions/workflows/ci.yml)
 
 Minimal agentic task-processing pipeline for Claude Code — skills, task lifecycle, and deterministic gates you can drop into any repo.
@@ -313,7 +358,7 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 | `dispatcher`, `librarian` | `gh` CLI, authenticated — both open/edit PRs via `gh pr create` / `gh pr edit` |
 | `dispatcher`, `librarian` | `scripts/` (this repo's) copied into your target repo, or `PIPELINE_SCRIPTS_DIR` set |
 | `validate_task.py`, `validate_closure.py` | Python 3 + `pyyaml` (`pip install pyyaml`) |
-| `scan_gate.py` | Docker (daemon reachable, e.g. `docker info` succeeds) to run Semgrep/Trivy/gitleaks as containers — no native binaries needed. `--enable-dependency-check` additionally needs an NVD API key synced into the OWASP Dependency-Check image's data volume (slow without one — opt-in for a reason). Missing Docker degrades the gate honestly rather than erroring. |
+| `scan_gate.py` | Docker (daemon reachable, e.g. `docker info` succeeds) to run Semgrep/Trivy/gitleaks as containers — no native binaries needed. `--enable-dependency-check` additionally needs an NVD API key synced into the OWASP Dependency-Check image's data volume (slow without one — opt-in for a reason). Missing Docker is a diagnostic failure and cannot qualify admission. |
 | `dispatcher` (`/loop` unattended mode only) | `.claude/statusline_quota.py` writing `.claude/quota-state.json` from Claude Code's `rate_limits` injection (Pro/Max only), wired via `.claude/settings.json`'s `statusLine`. **Not bundled in this repo — you write it.** Without it, `quota_gate.py` fails safe (STOP) and `/loop` can't run unattended; interactive single-task use (step 4, top block) doesn't need this at all. |
 | `notifier` | GitHub token (`GITHUB_TOKEN`) for PR comments; ClickUp token optional |
 | `grill-me` | ClickUp API key (`CLICKUP_API_KEY`) for poll/per-task modes; interactive mode works without |
@@ -324,6 +369,12 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 | `zap-comms`, `whatsapp-clickup` | A self-hosted [Evolution API](https://github.com/EvolutionAPI/evolution-api) instance (`EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE_NAME`); `whatsapp-clickup` additionally needs `clickup-api`'s vars |
 
 Every skill above sits idle (and costs nothing) until its own env vars are set — none of them guess, degrade silently, or fabricate a result when a credential is missing. Each `SKILL.md` documents its own precondition check and prints setup instructions instead.
+
+On pull requests, CI aggregates unit/scanner evidence into a schema-v1 receipt
+and runs `admission_gate.py` against the exact base/head SHAs. Missing artifacts,
+failed scanners and absent high-risk obligations remain non-admitted. The final
+job is currently a consistency check: branch/ruleset protection and signed policy
+ownership are required before treating it as a trust boundary.
 
 ## License
 

@@ -10,6 +10,29 @@ permissions:
   contents: read
 
 jobs:
+  live-scanner-contracts:
+    # Candidate code exercises scanners; keep it off production-adjacent hosts.
+    # This is a regression job, NOT an independent admission receipt issuer.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PIPELINE_LIVE_SCANNERS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pytest pyyaml
+      - name: Exercise live clean and planted scanner fixtures
+        run: python -m pytest tests/test_live_scanners.py -v --junitxml=.docs/test-reports/live-scanners.xml
+      - name: Upload scanner contract results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-scanner-contracts
+          path: .docs/test-reports/live-scanners.xml
+          if-no-files-found: warn
+
   # ---------------------------------------------------------------------------
   # Runner routing.
   #
@@ -58,7 +81,21 @@ jobs:
         run: pip install pytest pyyaml
 
       - name: Run test suite
-        run: pytest tests/ -v
+        run: |
+          set +e
+          mkdir -p .docs/test-reports
+          pytest tests/ -v --junitxml=.docs/test-reports/unit.xml
+          rc=$?
+          printf '%s\n' "$rc" > .docs/test-reports/unit.exit
+          exit "$rc"
+
+      - name: Upload unit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-result
+          path: .docs/test-reports/
+          if-no-files-found: warn
 
       - name: Validate task schema (dogfood)
         run: python scripts/validate_task.py .docs/tasks
@@ -153,3 +190,61 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: .docs/scan-reports/${{ steps.task.outputs.id }}.sarif
+
+  # Receipt aggregation is deliberately separate from the test/scanner jobs.
+  # It cannot turn a failed job green: missing artifacts and missing high-risk
+  # obligations remain non-admitted. Until this workflow is protected from PR
+  # edits, this is a consistency check, not a cryptographic trust boundary.
+  admission:
+    needs: [test, gates]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download gate evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gate-artifacts-*
+          merge-multiple: true
+      - name: Download unit evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-result
+          path: .docs/test-reports
+          merge-multiple: true
+      - name: Build and evaluate admission receipt
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          risk=$(find .docs/blast-reports -maxdepth 1 -type f -name '*.json' -print -quit)
+          scan=$(find .docs/scan-reports -maxdepth 1 -type f -name '*.json' -print -quit)
+          test -n "$risk" && test -n "$scan"
+          python scripts/ci_receipts.py \
+            --risk "$risk" \
+            --scan "$scan" \
+            --unit-exit .docs/test-reports/unit.exit \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output .docs/admission-receipt.json
+          python scripts/admission_gate.py \
+            --risk "$risk" \
+            --receipts .docs/admission-receipt.json \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA"
+      - name: Upload admission evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admission-evidence
+          path: .docs/admission-receipt.json
+          if-no-files-found: warn
