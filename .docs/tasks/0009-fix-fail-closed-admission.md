@@ -97,6 +97,12 @@ was treated as a JSON report although it writes a file.
   working-tree scan. Hosted run 35015951189 showed that scanning the whole
   working tree still timed out; changed Gitleaks to stage only the changed
   files. Local live suite passed after the fix.
+- Hosted run 35018028766 showed a cold runner's Docker daemon exceeded the
+  previous 10-second readiness probe and that `download-artifact` flattened
+  the uploaded `.docs/` prefix. Increased the readiness budget to 60 seconds,
+  made admission accept either artifact layout, and pinned the gates checkout
+  to the actual pull-request head SHA so receipts cannot bind to a synthetic
+  merge commit.
 - Synthetic fixtures use never-issued values with valid format, constructed
   at runtime; public EXAMPLE values are allowlisted by Gitleaks.
 - Added GitHub-hosted live-scanner CI job. This workflow change is local and

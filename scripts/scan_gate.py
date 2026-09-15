@@ -80,6 +80,7 @@ sys.modules.setdefault("blast_radius", blast_radius)  # dataclass() needs this r
 _spec.loader.exec_module(blast_radius)  # type: ignore[union-attr]
 
 DOCKER_TIMEOUT_SECONDS = 300  # per-tool cap; a hung scanner shouldn't hang the gate forever
+DOCKER_INFO_TIMEOUT_SECONDS = 60  # cold hosted daemons can take longer to answer
 REQUIRED_TOOLS = ("semgrep", "trivy", "gitleaks")
 # Resolved from the locally exercised registry images on 2026-09-15.
 # Updating these is a gate change and must pass the live contract fixtures.
@@ -138,7 +139,8 @@ def check_docker_available() -> bool:
         return False
     try:
         result = subprocess.run(
-            ["docker", "info"], capture_output=True, text=True, timeout=10,
+            ["docker", "info"], capture_output=True, text=True,
+            timeout=DOCKER_INFO_TIMEOUT_SECONDS,
         )
     except (subprocess.TimeoutExpired, OSError):
         return False

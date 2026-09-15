@@ -24,8 +24,15 @@
 - Hosted rerun 35015951189 showed whole-tree `dir` scanning also timed out.
   Gitleaks now stages only changed files in a temporary tree; focused live
   scanner tests pass locally. Follow-up remains uncommitted until pushed.
+- Hosted run 35018028766 showed Docker readiness timing out at 10 seconds and
+  admission not finding artifact directories after GitHub flattened the
+  `.docs/` prefix. Increased readiness to 60 seconds, accepted both artifact
+  layouts, and pinned the gates checkout to the real PR head SHA. Gates still
+  fail closed when Docker is unavailable; admission still reports the missing
+  evidence rather than fabricating a receipt.
 - No push, PR, deployment, worker provisioning or private/company-repo change.
-- Final verification with PIPELINE_LIVE_SCANNERS=1: 108 tests passed in 25.34s;
+- Final verification with PIPELINE_LIVE_SCANNERS=1: 111 tests passed in
+  102.08s;
   task/closure structural validators
   passed; git diff --check passed with Windows line-ending warnings only.
 - Next: trusted CI receipt producers, then durable

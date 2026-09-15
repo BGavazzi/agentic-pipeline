@@ -206,6 +206,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # A pull_request checkout otherwise lands on GitHub's synthetic merge
+          # commit. Gate receipts must identify the actual proposed head SHA.
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -226,8 +229,11 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          risk=$(find .docs/blast-reports -maxdepth 1 -type f -name '*.json' -print -quit)
-          scan=$(find .docs/scan-reports -maxdepth 1 -type f -name '*.json' -print -quit)
+          # download-artifact strips the uploaded .docs/ prefix when the
+          # artifact has multiple path roots; accept both layouts so admission
+          # remains independent of artifact normalization.
+          risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          scan=$(find .docs/scan-reports scan-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           test -n "$risk" && test -n "$scan"
           python scripts/ci_receipts.py \
             --risk "$risk" \

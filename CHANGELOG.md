@@ -9,6 +9,10 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   timing out; use its explicit directory scanner instead.
 - A second hosted run showed whole-tree directory scanning still timed out;
   Gitleaks now receives an isolated temporary tree containing only changed files.
+- Hosted run 35018028766 showed the Docker readiness probe was too short for a
+  cold runner and that artifact download strips the `.docs/` prefix; readiness
+  now allows 60 seconds, admission accepts either artifact layout, and the
+  gates checkout the actual PR head SHA instead of GitHub's synthetic merge.
 - Scanner absence, incomplete output and unexpected exit codes now return failure.
 - Correct scan working directory and Trivy target, make source mount read-only,
   read Dependency-Check's report file, and avoid publishing raw stderr.
