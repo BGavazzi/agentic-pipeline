@@ -120,6 +120,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Use the proposed head, not GitHub's synthetic merge commit, so
+          # risk/scan reports bind to the SHA the admission job evaluates.
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: actions/setup-python@v5
         with:
