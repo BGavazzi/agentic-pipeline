@@ -94,7 +94,9 @@ was treated as a JSON report although it writes a file.
 - Hosted PR run 35013562997 then exposed a second live issue: Gitleaks
   `detect --no-git` timed out after 300s on the checkout. Switched to the
   explicit `dir /src` scanner so repository metadata is not treated as a
-  working-tree scan. Local live suite passed after the fix.
+  working-tree scan. Hosted run 35015951189 showed that scanning the whole
+  working tree still timed out; changed Gitleaks to stage only the changed
+  files. Local live suite passed after the fix.
 - Synthetic fixtures use never-issued values with valid format, constructed
   at runtime; public EXAMPLE values are allowlisted by Gitleaks.
 - Added GitHub-hosted live-scanner CI job. This workflow change is local and

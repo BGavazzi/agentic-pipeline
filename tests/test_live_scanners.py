@@ -37,7 +37,12 @@ def live_runs(tmp_path_factory):
 
     def exercise(name):
         invoke = getattr(scan_gate, "run_" + name)
-        return name, [(directory, invoke(directory, [])) for directory in (clean, planted)]
+        results = []
+        for directory in (clean, planted):
+            targets = [str(path.relative_to(directory)).replace("\\", "/")
+                       for path in directory.rglob("*") if path.is_file()]
+            results.append((directory, invoke(directory, targets)))
+        return name, results
 
     with pytest.MonkeyPatch.context() as patch:
         if not os.environ.get("TRIVY_CACHE_DIR"):

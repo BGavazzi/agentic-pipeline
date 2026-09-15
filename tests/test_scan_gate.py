@@ -482,10 +482,12 @@ def test_gitleaks_reads_report_file_not_stdout(sandbox, monkeypatch):
         assert mount == "/reports"
         assert args[:2] == ["dir", "/src"]
         assert "--no-git" not in args
+        assert (repo / "config.py").read_text() == "seed\n"
         (directory / "gitleaks.json").write_text('[{"RuleID":"synthetic","File":"config.py"}]')
         return _dr("", returncode=1)
     monkeypatch.setattr(scan_gate, "_docker_run", fake_docker)
-    result = scan_gate.run_gitleaks(sandbox, [])
+    (sandbox / "config.py").write_text("seed\n")
+    result = scan_gate.run_gitleaks(sandbox, ["config.py"])
     assert result.returncode == 1
     assert len(scan_gate.parse_gitleaks(result.stdout)) == 1
 

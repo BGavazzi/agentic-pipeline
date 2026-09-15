@@ -21,6 +21,9 @@
 - PR #14 hosted run exposed Gitleaks `detect --no-git` timing out on checkout
   metadata after 300s. Switched to `gitleaks dir /src`; focused live suite then
   passed 67 tests locally. Follow-up is uncommitted until pushed.
+- Hosted rerun 35015951189 showed whole-tree `dir` scanning also timed out.
+  Gitleaks now stages only changed files in a temporary tree; focused live
+  scanner tests pass locally. Follow-up remains uncommitted until pushed.
 - No push, PR, deployment, worker provisioning or private/company-repo change.
 - Final verification with PIPELINE_LIVE_SCANNERS=1: 108 tests passed in 25.34s;
   task/closure structural validators

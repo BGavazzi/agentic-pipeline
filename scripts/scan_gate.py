@@ -212,22 +212,37 @@ def run_trivy(repo: Path, targets: list[str]) -> DockerResult:
 
 
 def run_gitleaks(repo: Path, targets: list[str]) -> DockerResult:
-    # Use the explicit directory scanner. `detect --no-git` on a checkout can
-    # traverse .git metadata and timed out on the first hosted-runner run;
-    # `dir` scans the working tree without invoking repository-history logic.
-    with tempfile.TemporaryDirectory(prefix="pipeline-gitleaks-") as output:
-        output_dir = Path(output)
-        result = _docker_run(
-            SCANNER_IMAGES["gitleaks"],
-            ["dir", "/src", "--redact", "--exit-code", "1", "--report-format", "json",
-             "--report-path", "/reports/gitleaks.json"],
-            repo, extra_mounts=[(output_dir, "/reports")],
-        )
-        try:
-            raw = (output_dir / "gitleaks.json").read_text(encoding="utf-8")
-        except OSError:
-            raise RuntimeError("Gitleaks did not produce a readable report") from None
-        return DockerResult(raw, result.stderr, result.returncode)
+    # Scan only changed files. Findings in untouched files are pre-existing by
+    # this gate's policy, while copying the changed-file set avoids traversing
+    # a large checkout (including .git/build artifacts) on hosted runners.
+    with tempfile.TemporaryDirectory(prefix="pipeline-gitleaks-tree-") as staged:
+        staged_dir = Path(staged)
+        repo_root = repo.resolve()
+        for relative in targets:
+            source = (repo / relative).resolve()
+            try:
+                source.relative_to(repo_root)
+            except ValueError:
+                continue
+            if not source.is_file():
+                continue  # deleted paths have no working-tree bytes to scan
+            destination = staged_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+
+        with tempfile.TemporaryDirectory(prefix="pipeline-gitleaks-") as output:
+            output_dir = Path(output)
+            result = _docker_run(
+                SCANNER_IMAGES["gitleaks"],
+                ["dir", "/src", "--redact", "--exit-code", "1", "--report-format", "json",
+                 "--report-path", "/reports/gitleaks.json"],
+                staged_dir, extra_mounts=[(output_dir, "/reports")],
+            )
+            try:
+                raw = (output_dir / "gitleaks.json").read_text(encoding="utf-8")
+            except OSError:
+                raise RuntimeError("Gitleaks did not produce a readable report") from None
+            return DockerResult(raw, result.stderr, result.returncode)
 
 
 def run_dependency_check(repo: Path, task_id: str) -> DockerResult:

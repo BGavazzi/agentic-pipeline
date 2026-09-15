@@ -7,6 +7,8 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   and Gitleaks report capture; required scanner images are pinned by digest.
 - Hosted CI exposed Gitleaks `detect --no-git` traversing checkout metadata and
   timing out; use its explicit directory scanner instead.
+- A second hosted run showed whole-tree directory scanning still timed out;
+  Gitleaks now receives an isolated temporary tree containing only changed files.
 - Scanner absence, incomplete output and unexpected exit codes now return failure.
 - Correct scan working directory and Trivy target, make source mount read-only,
   read Dependency-Check's report file, and avoid publishing raw stderr.
