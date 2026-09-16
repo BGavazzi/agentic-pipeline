@@ -46,11 +46,16 @@ def _imports(path: Path, module: str) -> set[str]:
         if isinstance(node, ast.Import):
             result.update(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
-            prefix = package
             if node.level:
                 parts = package.split(".") if package else []
                 prefix = ".".join(parts[: max(0, len(parts) - node.level + 1)])
-            name = ".".join(part for part in (prefix, node.module or "") if part)
+                name = ".".join(part for part in (prefix, node.module or "") if part)
+            else:
+                # Absolute imports are already rooted at the module named in
+                # the statement; prepending the importer's package would turn
+                # `from src.shared import X` inside `src.service` into the
+                # nonexistent `src.src.shared`.
+                name = node.module or ""
             if name:
                 result.add(name)
     return result
@@ -62,6 +67,48 @@ def _conventional_matches(changed: str, tests: list[str]) -> set[str]:
         return set()
     candidates = {f"test_{stem}.py", f"{stem}_test.py"}
     return {test for test in tests if Path(test).name in candidates}
+
+
+def _reverse_dependency_closure(
+    repo: Path, tracked: list[str], module_paths: dict[str, str],
+    changed_modules: set[str],
+) -> set[str]:
+    """Return changed modules plus every known reverse importer.
+
+    The first TIA version only inspected imports from tests directly to the
+    changed module. That is safe but misses a common chain such as
+    ``test_service -> service -> shared``. Building a conservative reverse
+    graph over the tracked Python tree closes that gap without claiming to
+    understand dynamic imports: unresolved imports simply contribute no edge,
+    and the caller still falls back on unknown changed modules.
+    """
+    reverse: dict[str, set[str]] = {}
+    known = set(module_paths)
+    for path in tracked:
+        if not path.endswith(".py"):
+            continue
+        importer = _module_name(path)
+        for imported in _imports(repo / path, importer):
+            candidates = [
+                target for target in known
+                if imported == target or imported.startswith(target + ".")
+            ]
+            if not candidates:
+                continue
+            target = max(candidates, key=len)
+            reverse.setdefault(target, set()).add(importer)
+
+    closure = set(changed_modules)
+    frontier = set(changed_modules)
+    while frontier:
+        next_frontier: set[str] = set()
+        for module in frontier:
+            for importer in reverse.get(module, set()):
+                if importer not in closure:
+                    closure.add(importer)
+                    next_frontier.add(importer)
+        frontier = next_frontier
+    return closure
 
 
 def analyze(repo: Path, base: str, head: str) -> dict:
@@ -78,6 +125,9 @@ def analyze(repo: Path, base: str, head: str) -> dict:
 
     module_paths = {_module_name(path): path for path in tracked if path.endswith(".py")}
     changed_modules = {_module_name(path) for path in changed if path.endswith(".py")}
+    dependency_closure = _reverse_dependency_closure(
+        repo, tracked, module_paths, changed_modules,
+    )
     for changed_path in changed:
         if not changed_path.endswith(".py"):
             fallback = True
@@ -92,8 +142,12 @@ def analyze(repo: Path, base: str, head: str) -> dict:
         for test in test_files:
             module = _module_name(test)
             imported = _imports(repo / test, module)
-            if any(target == changed_module or target.startswith(changed_module + ".")
-                   for target in imported for changed_module in changed_modules):
+            if module in dependency_closure or any(
+                target in dependency_closure
+                or any(target.startswith(changed_module + ".")
+                       for changed_module in changed_modules)
+                for target in imported
+            ):
                 selected.add(test)
         if not any(module == changed_path[:-3].replace("/", ".")
                    or module == changed_path[:-12].replace("/", ".")
@@ -122,6 +176,7 @@ def analyze(repo: Path, base: str, head: str) -> dict:
             "selection_ratio": (len(test_files if fallback else selected) / len(test_files)
                                 if test_files else 1.0),
             "fallback_reasons": reasons,
+            "dependency_closure_count": len(dependency_closure),
         },
         "policy": {"fallback_on_unknown": True, "optimization_only": True},
     }

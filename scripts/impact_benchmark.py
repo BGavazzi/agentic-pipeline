@@ -83,6 +83,9 @@ def run_case(path: Path) -> dict:
             "relevant_count": len(relevant),
             "minimum_precision": minimum_precision,
             "minimum_recall": minimum_recall,
+            "dependency_closure_count": result["metrics"].get(
+                "dependency_closure_count", 0
+            ),
         },
         "promotion_safe": result["mode"] == "impacted" and recall == 1.0,
     }
@@ -95,7 +98,7 @@ def run_benchmark(fixtures_dir: Path) -> dict:
     impacted = [case for case in cases if case["mode"] == "impacted"]
     return {
         "schema_version": 1,
-        "benchmark_version": "0.1",
+        "benchmark_version": "0.2",
         "status": "pass" if cases and passed == len(cases) else "fail",
         "promotion_ready": bool(impacted) and all(
             case["promotion_safe"] for case in impacted

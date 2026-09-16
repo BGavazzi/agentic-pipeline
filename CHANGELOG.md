@@ -1,6 +1,14 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Close transitive test-impact gap (task 0028)
+### Changed
+- Test-impact analysis now traverses a conservative reverse Python import
+  closure and correctly handles absolute `ImportFrom` statements.
+- The versioned benchmark moved to `0.2`; transitive recall is now `1.000`,
+  mean recall is `1.000`, and the benchmark reports `promotion_ready=true`.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Implement infrastructure dry-run gate (task 0027)
 ### Added
 - `scripts/infra_dry_run.py` detects infrastructure changes and runs an

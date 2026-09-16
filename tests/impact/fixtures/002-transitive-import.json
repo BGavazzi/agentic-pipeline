@@ -1,6 +1,6 @@
 {
   "expected_mode": "impacted",
-  "minimum_recall": 0.5,
+  "minimum_recall": 1.0,
   "relevant_tests": ["tests/test_service.py", "tests/test_shared.py"],
   "before": {
     "src/__init__.py": "",

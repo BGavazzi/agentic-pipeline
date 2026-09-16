@@ -6,13 +6,15 @@ from scripts.impact_benchmark import run_benchmark, run_case
 FIXTURES = Path(__file__).parent / "impact" / "fixtures"
 
 
-def test_benchmark_reports_selection_quality_and_known_transitive_gap():
+def test_benchmark_reports_selection_quality_and_closes_transitive_gap():
     report = run_benchmark(FIXTURES)
     assert report["status"] == "pass"
     assert report["metrics"]["cases_total"] == 3
-    assert report["promotion_ready"] is False
+    assert report["promotion_ready"] is True
+    assert report["benchmark_version"] == "0.2"
     transitive = next(case for case in report["cases"] if "transitive" in case["name"])
-    assert transitive["metrics"]["recall"] == 0.5
+    assert transitive["metrics"]["recall"] == 1.0
+    assert transitive["metrics"]["dependency_closure_count"] >= 3
 
 
 def test_direct_import_fixture_is_promotion_safe():

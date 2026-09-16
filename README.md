@@ -423,6 +423,11 @@ the gate runs a repository-supplied argv profile in a clean committed archive.
 No profile means a changed infrastructure tree stays blocked; ordinary code
 changes receive an explicit `not_applicable` receipt.
 
+The test-impact benchmark is versioned and conservative: v0.2 includes a
+reverse-import closure for transitive dependencies and reports precision,
+recall, closure size, and `promotion_ready`. It remains shadow-only; the full
+clean-room integration suite is still authoritative.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it
