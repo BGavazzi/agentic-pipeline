@@ -101,6 +101,10 @@ jobs:
         run: pip install pytest pyyaml
 
       - name: Run test suite
+        env:
+          # Keep imports deterministic across pytest/import-mode differences in
+          # clean hosted and homelab workers.
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           set +e
           mkdir -p .docs/test-reports
