@@ -301,6 +301,8 @@ def test_run_all_scanners_surfaces_stderr_on_unparseable_output(sandbox: Path, m
     assert trivy_run.status == "error"
     assert "invalid scanner report" in trivy_run.reason
     assert "unable to update vulnerability DB" not in trivy_run.reason
+    assert "diagnostic=trivy-db-download" in trivy_run.reason
+    assert "stderr_sha256_16=" in trivy_run.reason
 
 
 def test_run_all_scanners_notes_empty_stderr_too_when_stdout_is_empty(sandbox: Path, monkeypatch):
@@ -316,6 +318,13 @@ def test_run_all_scanners_notes_empty_stderr_too_when_stdout_is_empty(sandbox: P
     trivy_run = {r.tool: r for r in runs}["trivy"]
     assert trivy_run.status == "error"
     assert "137" in trivy_run.reason
+    assert "diagnostic=stderr-empty" in trivy_run.reason
+
+
+def test_stderr_diagnostic_redacts_unknown_contents():
+    reason = scan_gate._stderr_diagnostic("secret-looking-token-123")
+    assert reason.startswith("stderr-present;stderr_sha256_16=")
+    assert "secret-looking-token" not in reason
 
 
 def test_run_all_scanners_skips_dependency_check_by_default(sandbox: Path):

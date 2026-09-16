@@ -1,6 +1,16 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add safe scanner failure diagnostics (task 0029)
+### Added
+- Scanner parse failures now emit a bounded diagnostic category and short
+  stderr digest instead of raw tool logs, preserving actionable telemetry
+  without publishing paths or accidental secrets.
+- Live Docker smoke evidence: Semgrep, Trivy, and Gitleaks passed clean and
+  planted synthetic contracts (`3 passed`); task 0007 remains open because the
+  original transient Trivy root cause was not reproduced.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Close transitive test-impact gap (task 0028)
 ### Changed
 - Test-impact analysis now traverses a conservative reverse Python import

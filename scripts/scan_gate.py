@@ -58,6 +58,7 @@ git-diff helpers this script reuses rather than re-deriving them).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -127,6 +128,29 @@ def _stderr_tail(stderr: str, max_chars: int = 500) -> str:
     if not stderr:
         return ""
     return stderr[-max_chars:]
+
+
+def _stderr_diagnostic(stderr: str) -> str:
+    """Classify scanner stderr without publishing arbitrary log contents.
+
+    Scanner stderr can contain paths, URLs, or accidentally echoed secrets.
+    A bounded category plus a digest gives operators useful failure telemetry
+    while keeping the receipt safe to upload to a PR artifact.
+    """
+    tail = _stderr_tail(stderr).lower()
+    if not tail:
+        return "stderr-empty"
+    categories = (
+        ("trivy-db-download", ("vulnerability db", "unable to update", "context deadline")),
+        ("rate-limited", ("rate limit", "too many requests", "429")),
+        ("network", ("network", "connection", "timeout", "tls")),
+        ("permission", ("permission denied", "forbidden", "unauthorized")),
+        ("resource-exhausted", ("out of memory", "oom", "no space left")),
+    )
+    category = next((name for name, needles in categories if any(n in tail for n in needles)),
+                    "stderr-present")
+    digest = hashlib.sha256(stderr.encode("utf-8", errors="replace")).hexdigest()[:16]
+    return f"{category};stderr_sha256_16={digest}"
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +425,10 @@ def run_all_scanners(
             findings = PARSERS[name](docker_result.stdout)
         except (ValueError, TypeError, AttributeError, KeyError) as e:
             # Never publish raw stderr/output: it may contain source or secrets.
-            reason = f"invalid scanner report ({type(e).__name__}); exit code {docker_result.returncode}"
+            # Emit a safe diagnostic category and short digest instead.
+            reason = (f"invalid scanner report ({type(e).__name__}); "
+                      f"exit code {docker_result.returncode}; "
+                      f"diagnostic={_stderr_diagnostic(docker_result.stderr)}")
             runs.append(ToolRun(tool=name, status="error", reason=reason))
             continue
         allowed_exit = docker_result.returncode == 0 or (
