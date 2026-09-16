@@ -149,6 +149,7 @@ GATE_SCRIPTS = [
     "visual_receipt.py",
     "staging_gate.py",
     "worker_preflight.py",
+    "infra_dry_run.py",
     "validate_task.py",
     "validate_closure.py",
     "blast_radius.py",

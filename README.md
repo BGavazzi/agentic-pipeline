@@ -418,6 +418,11 @@ In CI, the homelab supervisor supplies runtime facts through
 `$RUNNER_TEMP/homelab-worker-facts.json`; a missing facts file blocks the
 self-hosted lane rather than silently downgrading its trust assumptions.
 
+Infrastructure changes have a separate `scripts/infra_dry_run.py` obligation:
+the gate runs a repository-supplied argv profile in a clean committed archive.
+No profile means a changed infrastructure tree stays blocked; ordinary code
+changes receive an explicit `not_applicable` receipt.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it

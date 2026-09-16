@@ -42,6 +42,14 @@ def ultrareview_file(tmp_path, status="pass", base=BASE, head=HEAD):
     return path
 
 
+def infra_file(tmp_path, status="pass", base=BASE, head=HEAD):
+    path = tmp_path / "infra.json"
+    path.write_text(json.dumps({"schema_version": 1, "gate": "infra-dry-run",
+                                "base_sha": base, "head_sha": head,
+                                "status": status}))
+    return path
+
+
 def test_builds_pass_receipts_from_job_artifacts(tmp_path):
     risk, scan, unit, policy = files(tmp_path)
     result = build_receipts(risk, scan, unit, BASE, HEAD, policy_path=policy)
@@ -97,3 +105,28 @@ def test_stale_ultrareview_report_rejected(tmp_path):
         build_receipts(risk, scan, unit, BASE, HEAD,
                        ultrareview_path=ultrareview_file(tmp_path, head="c" * 40),
                        policy_path=policy)
+
+
+def test_infra_report_is_carried_when_applicable(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    result = build_receipts(risk, scan, unit, BASE, HEAD,
+                            policy_path=policy, infra_path=infra_file(tmp_path))
+    infra = next(g for g in result["gates"] if g["gate"] == "infra-dry-run")
+    assert infra["status"] == "pass"
+
+
+def test_not_applicable_infra_report_does_not_create_a_blocker(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    result = build_receipts(
+        risk, scan, unit, BASE, HEAD, policy_path=policy,
+        infra_path=infra_file(tmp_path, status="not_applicable"),
+    )
+    assert "infra-dry-run" not in {g["gate"] for g in result["gates"]}
+
+
+def test_stale_infra_report_rejected(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    with pytest.raises(ValueError, match="infra report"):
+        build_receipts(risk, scan, unit, BASE, HEAD,
+                       policy_path=policy,
+                       infra_path=infra_file(tmp_path, head="c" * 40))

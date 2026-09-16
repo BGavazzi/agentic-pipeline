@@ -1,6 +1,17 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Implement infrastructure dry-run gate (task 0027)
+### Added
+- `scripts/infra_dry_run.py` detects infrastructure changes and runs an
+  explicit argv-only dry-run profile in a clean committed candidate archive.
+- CI now produces and aggregates the infrastructure receipt; absent profiles
+  fail closed while ordinary code changes remain explicitly not applicable.
+### Changed
+- The infrastructure gate is part of the canonical sync and high-risk policy
+  surface.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Wire worker preflight into CI execution lanes (task 0026)
 ### Added
 - CI runs the worker trust preflight before unit, clean-room integration, and

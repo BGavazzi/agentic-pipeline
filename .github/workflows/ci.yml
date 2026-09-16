@@ -362,6 +362,18 @@ jobs:
             --policy-ref "$BASE_SHA" \
             --output ".docs/policy-reports/$TASK_ID.json"
 
+      - name: Infrastructure dry-run gate
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+        run: |
+          mkdir -p .docs/infra-reports
+          python scripts/infra_dry_run.py "$TASK_ID" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output ".docs/infra-reports/$TASK_ID.json"
+
       - name: Upload gate artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -371,6 +383,7 @@ jobs:
             .docs/blast-reports/
             .docs/scan-reports/
             .docs/policy-reports/
+            .docs/infra-reports/
             .docs/worker-reports/
           if-no-files-found: ignore
 
@@ -433,6 +446,7 @@ jobs:
           scan=$(find .docs/scan-reports scan-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          infra=$(find .docs/infra-reports infra-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           test -n "$risk" && test -n "$scan" && test -n "$policy"
           args=(
             --risk "$risk"
@@ -445,6 +459,9 @@ jobs:
           )
           if test -n "$integration"; then
             args+=(--integration-report "$integration")
+          fi
+          if test -n "$infra"; then
+            args+=(--infra-report "$infra")
           fi
           python scripts/ci_receipts.py "${args[@]}"
           python scripts/admission_gate.py \

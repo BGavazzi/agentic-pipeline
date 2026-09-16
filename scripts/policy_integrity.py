@@ -26,6 +26,7 @@ POLICY_PATHS = (
     "scripts/impact_benchmark.py",
     "scripts/impact_runner.py",
     "scripts/integration_gate.py",
+    "scripts/infra_dry_run.py",
     "scripts/policy_integrity.py",
     "scripts/quality_scorecard.py",
     "scripts/quota_gate.py",
