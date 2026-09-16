@@ -346,6 +346,9 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   head against eligibility, attaches the PR intelligence evidence, and plans
   the survivor-to-staging PR. It is dry-run by default; `--create` opens the
   human-review PR but never merges or deploys.
+- **`quality_metrics_dashboard.py`** — aggregates PR-intelligence receipts
+  with explicit denominators, invalid-input counts and a calibration-only flag
+  for cohorts below 30 changes. It is telemetry, never an admission score.
 
 The deterministic gate modules and the meta-test runner are covered by real pytest tests and run in CI. `meta-test` now exercises a committed builder fixture in a disposable git sandbox; its worker command is deliberately runtime-supplied so trusted homelab agents can participate without granting the harness a real checkout or push remote. The live scanner contract has also been exercised with a reachable Docker daemon on 2026-09-16: Semgrep, Trivy, and Gitleaks all passed clean/planted synthetic fixtures (`3 passed`). That proves the current pinned invocation and cache path work; it does **not** reproduce or confirm the historical first-run Trivy failure, which remains honestly tracked in task 0007.
 

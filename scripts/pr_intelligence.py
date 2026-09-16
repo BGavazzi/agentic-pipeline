@@ -109,11 +109,11 @@ def surfaces(paths: list[str]) -> dict[str, list[str]]:
 
 def gate_metrics(receipts: dict[str, Any] | None, risk: dict[str, Any]) -> dict[str, Any]:
     if receipts is None:
-        return {"status": "missing", "observed_count": 0, "passed_count": 0,
+        return {"status": "missing", "required_count": 0, "observed_count": 0, "passed_count": 0,
                 "failed_or_nonpass": [], "missing_required": list(risk.get("required_gates", []))}
     items = receipts.get("gates", [])
     if not isinstance(items, list):
-        return {"status": "invalid", "observed_count": 0, "passed_count": 0,
+        return {"status": "invalid", "required_count": 0, "observed_count": 0, "passed_count": 0,
                 "failed_or_nonpass": [], "missing_required": list(risk.get("required_gates", []))}
     statuses = {item.get("gate"): item.get("status") for item in items
                 if isinstance(item, dict) and isinstance(item.get("gate"), str)}
@@ -122,8 +122,11 @@ def gate_metrics(receipts: dict[str, Any] | None, risk: dict[str, Any]) -> dict[
                      if statuses.get(name) != "pass")
     return {
         "status": "complete" if not nonpass else "blocked",
+        "required_count": len(required),
         "observed_count": len(statuses),
         "passed_count": sum(value == "pass" for value in statuses.values()),
+        "evidence_completeness": ((len(required) - len(nonpass)) / len(required)
+                                   if required else 0.0),
         "failed_or_nonpass": nonpass,
         "missing_required": sorted(name for name in required if name not in statuses),
         "statuses": dict(sorted(statuses.items())),

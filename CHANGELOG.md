@@ -1,6 +1,17 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add denominator-first quality metrics dashboard (task 0040)
+### Added
+- `scripts/quality_metrics_dashboard.py` aggregates PR-intelligence receipts
+  into JSON and Markdown risk, HITL, evidence, churn and test-impact metrics.
+- Small cohorts are labeled calibration-only, invalid receipts remain counted,
+  and limitations are explicit; the dashboard cannot override admission.
+### Changed
+- PR intelligence now exposes required-gate count and evidence completeness
+  so aggregate measurements retain their denominators.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add safe survivor-to-staging dispatcher (task 0039)
 ### Added
 - `scripts/staging_dispatch.py` verifies the current base/head refs against the
