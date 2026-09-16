@@ -40,7 +40,7 @@ SURFACE_RULES: tuple[tuple[str, str], ...] = (
     (r"(?:^|/)(?:api|openapi|graphql|routes?|handlers?)(?:/|[_.-])", "API/contracts"),
     (r"(?:^|/)(?:components?|pages?|stories?|storybook|frontend|ui|web|playwright)(?:/|[_.-])", "UI/visual"),
     (r"(?:^|/)(?:tests?|__tests__|specs?)(?:/|[_.-])|(?:^|/)test_[^/]+|\.test\.[^.]+$|\.spec\.[^.]+$", "tests"),
-    (r"(?:^|/)(?:docs?|\.docs/|README|CHANGELOG|AGENTS)(?:/|$|\.)", "documentation/governance"),
+    (r"^(?:\.docs/|\.agents/)|(?:^|/)(?:docs?|README|CHANGELOG|AGENTS)(?:/|$|\.)", "documentation/governance"),
 )
 
 

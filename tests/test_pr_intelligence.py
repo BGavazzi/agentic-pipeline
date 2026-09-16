@@ -101,6 +101,13 @@ def test_stale_risk_identity_is_rejected(tmp_path: Path):
         raise AssertionError("stale risk identity was accepted")
 
 
+def test_hidden_governance_directories_are_not_application_source():
+    result = module.surfaces([".docs/tasks/0039.md", ".agents/continuity-codex.md", "src/service.py"])
+    assert ".docs/tasks/0039.md" in result["documentation/governance"]
+    assert ".agents/continuity-codex.md" in result["documentation/governance"]
+    assert "src/service.py" in result["application/source"]
+
+
 def test_markdown_never_claims_admission_from_advisory_summary():
     report = {"base_sha": BASE, "head_sha": HEAD,
         "risk": {"level": "high", "triggers": ["gate-script"], "affected_module_count": 1, "required_gate_count": 5},
