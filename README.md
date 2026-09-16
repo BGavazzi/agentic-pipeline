@@ -29,6 +29,16 @@ counts and evidence completeness. This does not authenticate candidate-written
 JSON; independent producers and protected policy loading are pending. See
 [task 0009](.docs/tasks/0009-fix-fail-closed-admission.md) for remaining work.
 
+Task 0010 adds the first executable integration layer:
+`scripts/integration_gate.py` archives the committed candidate HEAD into a
+temporary clean workspace, runs an explicit argv command without a shell, and
+emits `.docs/integration-reports/<NNNN>.json` with exact commit identity,
+pass/fail/error status, exit code, duration, and output-size metrics. The PR
+workflow runs this as an independent `integration` job and uploads evidence on
+failure as well as success. It is deliberately a clean-room execution
+boundary, not yet a containerized service topology or cryptographic trust
+boundary; see [task 0010](.docs/tasks/0010-feat-clean-room-integration-evidence.md).
+
 Live scanner contracts (synthetic fixtures only; downloads images/rules/DBs):
 
 ```powershell
@@ -370,11 +380,12 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 
 Every skill above sits idle (and costs nothing) until its own env vars are set — none of them guess, degrade silently, or fabricate a result when a credential is missing. Each `SKILL.md` documents its own precondition check and prints setup instructions instead.
 
-On pull requests, CI aggregates unit/scanner evidence into a schema-v1 receipt
-and runs `admission_gate.py` against the exact base/head SHAs. Missing artifacts,
-failed scanners and absent high-risk obligations remain non-admitted. The final
-job is currently a consistency check: branch/ruleset protection and signed policy
-ownership are required before treating it as a trust boundary.
+On pull requests, CI aggregates unit, clean-room integration, and scanner
+evidence into a schema-v1 receipt and runs `admission_gate.py` against the exact
+base/head SHAs. Missing artifacts, failed scanners and absent high-risk
+obligations remain non-admitted. The final job is currently a consistency
+check: branch/ruleset protection and signed policy ownership are required before
+treating it as a trust boundary.
 
 ## License
 

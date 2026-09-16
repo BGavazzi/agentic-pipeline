@@ -1,6 +1,22 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add clean-room integration evidence (task 0010)
+### Added
+- `scripts/integration_gate.py` stages the committed HEAD into a temporary
+  git-archive workspace and runs an explicit argv integration command without a
+  shell. It emits schema-v1 identity, status, isolation, exit-code, duration,
+  and output-size metrics; staging, timeout, and non-zero execution are never
+  reported as pass.
+- Independent PR `integration` job and artifact aggregation into the admission
+  receipt. Core-sync and blast-radius now treat the integration producer as a
+  gate script/high-risk surface.
+### Changed
+- Admission receipts now carry integration evidence when the producer emits
+  it, while preserving missing-evidence fail-closed behavior for high-risk
+  changes. Ultrareview evidence remains a separate follow-up.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-15] - Start fail-closed admission hardening (task 0009)
 ### Changed
 - Live Docker verification fixed Semgrep auto-config/telemetry incompatibility

@@ -37,3 +37,20 @@
   passed; git diff --check passed with Windows line-ending warnings only.
 - Next: trusted CI receipt producers, then durable
   isolated execution. Keep task in_progress until verification and review.
+
+## 2026-09-16 — Task 0010, clean-room integration evidence
+
+- User explicitly authorized continuing without waiting for PR approval; PR #14
+  remains a parallel handoff and is not being falsified as approved.
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0010` from commit
+  `8ec455f`, branch `feat/0010-integration-evidence`.
+- Added `integration_gate.py`: committed-HEAD git archive, temporary isolated
+  workspace, argv-only execution, timeout/error distinctions, schema-v1 metrics.
+- Added CI integration job and receipt aggregation; high-risk admission will
+  now receive real integration evidence, while ultrareview remains intentionally
+  missing until its own producer exists.
+- Focused verification: 55 tests passed in 10.66s; clean-room full local run
+  passed with exit code 0 and 14.766s duration; task validator, workflow YAML
+  parse, and git diff check passed.
+- Next: commit/push this stacked task, open its PR, then implement an
+  independent ultrareview receipt producer as the next queue slice.

@@ -23,6 +23,13 @@ def files(tmp_path):
     return risk, scan, unit
 
 
+def integration_file(tmp_path, status="pass", base=BASE, head=HEAD):
+    path = tmp_path / "integration.json"
+    path.write_text(json.dumps({"schema_version": 1, "base_sha": base,
+                                "head_sha": head, "status": status}))
+    return path
+
+
 def test_builds_pass_receipts_from_job_artifacts(tmp_path):
     result = build_receipts(*files(tmp_path), BASE, HEAD)
     assert result["schema_version"] == 1
@@ -44,3 +51,20 @@ def test_stale_risk_report_rejected(tmp_path):
     risk.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="commit pair"):
         build_receipts(risk, scan, unit, BASE, HEAD)
+
+
+def test_integration_report_is_carried_into_receipts(tmp_path):
+    risk, scan, unit = files(tmp_path)
+    result = build_receipts(risk, scan, unit, BASE, HEAD,
+                            integration_file(tmp_path))
+    assert {g["gate"] for g in result["gates"]} == {
+        "unit", "integration", "sast", "sca", "secrets"
+    }
+    assert next(g for g in result["gates"] if g["gate"] == "integration")["status"] == "pass"
+
+
+def test_stale_integration_report_rejected(tmp_path):
+    risk, scan, unit = files(tmp_path)
+    with pytest.raises(ValueError, match="integration report"):
+        build_receipts(risk, scan, unit, BASE, HEAD,
+                       integration_file(tmp_path, head="c" * 40))

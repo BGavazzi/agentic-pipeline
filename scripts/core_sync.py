@@ -135,6 +135,7 @@ def _is_drifted(target: Path, manifest: dict[str, str], relpath: str) -> bool:
 GATE_SCRIPTS = [
     "admission_gate.py",
     "ci_receipts.py",
+    "integration_gate.py",
     "validate_task.py",
     "validate_closure.py",
     "blast_radius.py",

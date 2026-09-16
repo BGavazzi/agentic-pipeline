@@ -104,6 +104,57 @@ jobs:
         run: python scripts/validate_closure.py .docs/tasks
 
   # ---------------------------------------------------------------------------
+  # Clean-room integration evidence. This deliberately repeats execution in a
+  # git-archive workspace so a passing unit job cannot be confused with proof
+  # that the committed candidate works without checkout-local residue.
+  # ---------------------------------------------------------------------------
+  integration:
+    needs: route
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pytest pyyaml
+
+      - name: Derive task id from branch
+        id: task
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          id=$(echo "$HEAD_REF" | grep -oE '[0-9]{4}' | head -1)
+          echo "id=${id:-0000}" >> "$GITHUB_OUTPUT"
+
+      - name: Run clean-room integration gate
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p .docs/integration-reports
+          python scripts/integration_gate.py "${{ steps.task.outputs.id }}" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output ".docs/integration-reports/${{ steps.task.outputs.id }}.json" \
+            --command python -m pytest tests/ -q
+
+      - name: Upload integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-artifacts-${{ steps.task.outputs.id }}
+          path: .docs/integration-reports/
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
   # Diff-scoped gates. These need the full history to compute a base..head diff,
   # hence fetch-depth: 0. They run on PRs only — on a push to master there is no
   # meaningful "proposed change" to classify.
@@ -199,7 +250,7 @@ jobs:
   # obligations remain non-admitted. Until this workflow is protected from PR
   # edits, this is a consistency check, not a cryptographic trust boundary.
   admission:
-    needs: [test, gates]
+    needs: [test, gates, integration]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -226,6 +277,11 @@ jobs:
           name: unit-test-result
           path: .docs/test-reports
           merge-multiple: true
+      - name: Download integration evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: integration-artifacts-*
+          merge-multiple: true
       - name: Build and evaluate admission receipt
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -237,14 +293,20 @@ jobs:
           # remains independent of artifact normalization.
           risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           scan=$(find .docs/scan-reports scan-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           test -n "$risk" && test -n "$scan"
-          python scripts/ci_receipts.py \
-            --risk "$risk" \
-            --scan "$scan" \
-            --unit-exit .docs/test-reports/unit.exit \
-            --base-sha "$BASE_SHA" \
-            --head-sha "$HEAD_SHA" \
+          args=(
+            --risk "$risk"
+            --scan "$scan"
+            --unit-exit .docs/test-reports/unit.exit
+            --base-sha "$BASE_SHA"
+            --head-sha "$HEAD_SHA"
             --output .docs/admission-receipt.json
+          )
+          if test -n "$integration"; then
+            args+=(--integration-report "$integration")
+          fi
+          python scripts/ci_receipts.py "${args[@]}"
           python scripts/admission_gate.py \
             --risk "$risk" \
             --receipts .docs/admission-receipt.json \

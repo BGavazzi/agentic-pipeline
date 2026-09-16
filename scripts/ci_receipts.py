@@ -27,13 +27,20 @@ def test_status(path: Path) -> str:
 
 
 def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
-                   base_sha: str, head_sha: str) -> dict:
+                   base_sha: str, head_sha: str,
+                   integration_path: Path | None = None) -> dict:
     risk = read_json(risk_path)
     scan = read_json(scan_path)
     if risk.get("base_sha") != base_sha or risk.get("head_sha") != head_sha:
         raise ValueError("risk report is for a different commit pair")
     if scan.get("base_sha") not in (None, base_sha) or scan.get("head_sha") not in (None, head_sha):
         raise ValueError("scan report is for a different commit pair")
+
+    integration = None
+    if integration_path is not None:
+        integration = read_json(integration_path)
+        if integration.get("base_sha") != base_sha or integration.get("head_sha") != head_sha:
+            raise ValueError("integration report is for a different commit pair")
 
     statuses = {
         "unit": test_status(unit_exit_path),
@@ -43,11 +50,18 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
     }
     statuses = {name: ("pass" if status == "ok" else status)
                 for name, status in statuses.items()}
+    if integration is not None:
+        statuses["integration"] = integration.get("status", "error")
+        if statuses["integration"] not in {"pass", "fail", "error"}:
+            statuses["integration"] = "error"
+    evidence = {"risk_report": str(risk_path), "scan_report": str(scan_path),
+                "unit_exit": str(unit_exit_path)}
+    if integration_path is not None:
+        evidence["integration_report"] = str(integration_path)
     return {"schema_version": SCHEMA_VERSION, "base_sha": base_sha,
             "head_sha": head_sha,
             "gates": [{"gate": name, "status": status} for name, status in sorted(statuses.items())],
-            "evidence": {"risk_report": str(risk_path), "scan_report": str(scan_path),
-                         "unit_exit": str(unit_exit_path)}}
+            "evidence": evidence}
 
 
 def main() -> int:
@@ -55,13 +69,15 @@ def main() -> int:
     parser.add_argument("--risk", type=Path, required=True)
     parser.add_argument("--scan", type=Path, required=True)
     parser.add_argument("--unit-exit", type=Path, required=True)
+    parser.add_argument("--integration-report", type=Path)
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
         result = build_receipts(args.risk, args.scan, args.unit_exit,
-                                args.base_sha, args.head_sha)
+                                args.base_sha, args.head_sha,
+                                args.integration_report)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
