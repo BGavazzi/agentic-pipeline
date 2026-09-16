@@ -103,6 +103,9 @@ jobs:
       - name: Validate closure law compliance (dogfood)
         run: python scripts/validate_closure.py .docs/tasks
 
+      - name: Run deterministic harness self-test corpus
+        run: python scripts/harness_selftest.py --output .docs/test-reports/harness-selftest.json
+
   # ---------------------------------------------------------------------------
   # Clean-room integration evidence. This deliberately repeats execution in a
   # git-archive workspace so a passing unit job cannot be confused with proof

@@ -13,7 +13,10 @@ import json
 import re
 from pathlib import Path
 
-from blast_radius import required_gates_for
+try:  # Package import for pytest; direct import for the CLI entry point.
+    from .blast_radius import required_gates_for
+except ImportError:  # pragma: no cover - exercised by `python scripts/...`.
+    from blast_radius import required_gates_for
 
 SCHEMA_VERSION = 1
 KNOWN_GATES = {"unit", "integration", "sast", "sca", "ultrareview", "infra-dry-run", "secrets"}

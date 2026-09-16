@@ -1,0 +1,24 @@
+{
+  "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "risk": {
+    "schema_version": 1,
+    "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "risk_level": "high",
+    "risk_triggers": ["gate-script"],
+    "required_gates": ["unit", "integration", "sast", "sca", "ultrareview"]
+  },
+  "receipts": {
+    "schema_version": 1,
+    "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "gates": [
+      {"gate": "unit", "status": "pass"},
+      {"gate": "sast", "status": "pass"},
+      {"gate": "sca", "status": "pass"},
+      {"gate": "secrets", "status": "pass"}
+    ]
+  },
+  "expect": {"admitted": false}
+}
