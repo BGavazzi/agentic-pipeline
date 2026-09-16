@@ -89,3 +89,12 @@
 - No remote host mutation, credential handling, or confidential repository
   access was performed; one real ephemeral worker still requires host-side
   operator execution.
+
+## 2026-09-16 — Task 0014, deterministic quality scorecard
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0014` from task 0013
+  commit `7318858`, branch `feat/0014-quality-scorecard`.
+- Added `quality_scorecard.py`, CI scorecard artifact wiring, tests, and core
+  gate-surface classification. Metrics are provenance-bound and report-only;
+  admission remains the policy authority.
+- Next: run full verification, commit/push, open PR, then continue the queue.

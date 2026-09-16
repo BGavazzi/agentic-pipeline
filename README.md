@@ -54,6 +54,13 @@ or unavailable execution produces an error receipt—not PASS. It does not carry
 LLM credentials or choose a worker host; trusted-event routing and homelab
 credential isolation remain deployment work. See [task 0012](.docs/tasks/0012-feat-ultrareview-worker-runner.md).
 
+Task 0014 emits a deterministic `.docs/quality-reports/scorecard.json` from
+the risk report and admission receipts. It records schema/provenance, risk and
+fan-out, required/passed gate counts, evidence completeness, observed pass rate,
+integration duration/isolation, and reviewer independence when available. The
+scorecard mirrors admission (`green` or `blocked`) but does not replace the
+admission policy or turn partial evidence into a pass.
+
 Task 0013 defines the homelab boundary: fork PRs stay on GitHub-hosted runners;
 trusted same-repo jobs may use the pool only after ephemeral/JIT workers,
 disposable workspaces, zero host-secret mounts, cleanup, revocation, and pool

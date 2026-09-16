@@ -312,10 +312,33 @@ jobs:
             --receipts .docs/admission-receipt.json \
             --base-sha "$BASE_SHA" \
             --head-sha "$HEAD_SHA"
+      - name: Build deterministic quality scorecard
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          test -n "$risk" && test -f .docs/admission-receipt.json
+          args=(
+            --risk "$risk"
+            --receipts .docs/admission-receipt.json
+            --base-sha "$BASE_SHA"
+            --head-sha "$HEAD_SHA"
+            --output .docs/quality-reports/scorecard.json
+          )
+          if test -n "$integration"; then
+            args+=(--integration-report "$integration")
+          fi
+          python scripts/quality_scorecard.py "${args[@]}"
       - name: Upload admission evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: admission-evidence
-          path: .docs/admission-receipt.json
+          path: |
+            .docs/admission-receipt.json
+            .docs/quality-reports/
           if-no-files-found: warn

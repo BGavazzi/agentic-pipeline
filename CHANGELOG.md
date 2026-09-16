@@ -1,6 +1,16 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add deterministic quality scorecard (task 0014)
+### Added
+- `scripts/quality_scorecard.py` emits provenance-bound metrics for risk,
+  evidence completeness, gate pass rate, change fan-out, integration duration,
+  isolation, and reviewer independence.
+- PR admission CI uploads the scorecard alongside the receipt. The scorecard
+  mirrors the admission result and cannot create a green result from incomplete
+  evidence.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Define ephemeral homelab worker boundary (task 0013)
 ### Changed
 - Expanded the homelab runbook with a trust matrix, ephemeral/JIT lifecycle,
