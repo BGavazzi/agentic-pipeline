@@ -153,6 +153,7 @@ GATE_SCRIPTS = [
     "staging_pr.py",
     "meta_test.py",
     "worker_supervisor.py",
+    "impact_promotion.py",
     "validate_task.py",
     "validate_closure.py",
     "blast_radius.py",

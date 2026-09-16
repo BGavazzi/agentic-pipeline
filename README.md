@@ -326,6 +326,11 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`worker_supervisor.py`** — the homelab lifecycle boundary. Rejects unsafe
   self-hosted facts before launch, runs one argv-only worker, and requires
   post-run proof of one job, cleanup, zero mounted secrets, and deregistration.
+- **`impact_promotion.py`** — combines the versioned TIA benchmark, impacted
+  selection, shadow execution, and authoritative full-suite evidence into an
+  explicit eligibility receipt with recall, precision, tests-avoided, and
+  observed-duration-savings metrics. It never makes a full-suite fallback
+  eligible.
 
 The deterministic gate modules and the meta-test runner are covered by real pytest tests and run in CI. `meta-test` now exercises a committed builder fixture in a disposable git sandbox; its worker command is deliberately runtime-supplied so trusted homelab agents can participate without granting the harness a real checkout or push remote. The live scanner contract has also been exercised with a reachable Docker daemon on 2026-09-16: Semgrep, Trivy, and Gitleaks all passed clean/planted synthetic fixtures (`3 passed`). That proves the current pinned invocation and cache path work; it does **not** reproduce or confirm the historical first-run Trivy failure, which remains honestly tracked in task 0007.
 

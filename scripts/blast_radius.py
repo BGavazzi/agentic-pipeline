@@ -80,7 +80,7 @@ HIGH_RISK_PATH_PATTERNS = [
     # is waved through on unit tests alone.
     (r"^\.github/workflows/.*\.ya?ml$", "ci-workflow"),
     (r"^\.claude/skills/.+/SKILL\.md$", "agent-skill"),
-    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|ci_receipts|integration_gate|impact_runner|impact_benchmark|harness_selftest|meta_test|policy_integrity|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt|staging_gate|worker_preflight|worker_supervisor|infra_dry_run|staging_pr)\.py$", "gate-script"),
+    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|ci_receipts|integration_gate|impact_runner|impact_benchmark|impact_promotion|harness_selftest|meta_test|policy_integrity|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt|staging_gate|worker_preflight|worker_supervisor|infra_dry_run|staging_pr)\.py$", "gate-script"),
     (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
 ]
 

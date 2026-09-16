@@ -25,6 +25,7 @@ POLICY_PATHS = (
     "scripts/harness_selftest.py",
     "scripts/impact_benchmark.py",
     "scripts/impact_runner.py",
+    "scripts/impact_promotion.py",
     "scripts/integration_gate.py",
     "scripts/infra_dry_run.py",
     "scripts/meta_test.py",

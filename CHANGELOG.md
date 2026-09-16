@@ -1,6 +1,16 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add test-impact promotion eligibility receipt (task 0034)
+### Added
+- `scripts/impact_promotion.py` combines versioned benchmark, candidate
+  selection, shadow execution, and authoritative full-suite evidence into a
+  commit-bound eligibility decision.
+- The receipt measures benchmark precision/recall, selection ratio, tests
+  avoided, shadow/full durations, and observed duration savings while keeping
+  full-suite authority explicit.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Enforce one-shot homelab worker lifecycle (task 0033)
 ### Added
 - `scripts/worker_supervisor.py` now blocks unsafe self-hosted facts before
