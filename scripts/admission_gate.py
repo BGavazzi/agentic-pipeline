@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - exercised by `python scripts/...`.
     from blast_radius import required_gates_for
 
 SCHEMA_VERSION = 1
-KNOWN_GATES = {"unit", "integration", "sast", "sca", "ultrareview", "infra-dry-run", "secrets", "policy", "visual"}
+KNOWN_GATES = {"unit", "integration", "sast", "sca", "ultrareview", "infra-dry-run", "secrets", "policy", "visual", "meta-test"}
 STATUSES = {"pass", "fail", "error", "skipped", "not_applicable"}
 
 

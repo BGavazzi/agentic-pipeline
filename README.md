@@ -230,7 +230,7 @@ A glossary for terms that recur across `AGENTS.md`, `GDFRSBT.md`, and every `SKI
   notifier/              ← posts structured comments to GitHub PR + ClickUp
   grill-me/              ← relentless plan/design interview (gate before build)
   codebase-audit/        ← read-only audit of repo against its own rules
-  meta-test/             ← design spec for fixture-based skill tests (not yet implemented — see SKILL.md)
+  meta-test/             ← isolated fixture-based skill tests with versioned receipts
   clickup-api/           ← generic ClickUp API v2 reference (auth, rate limit, discovery) — BYO credentials
   clickup-grounding/     ← enriches a single ClickUp task with its own list/comment/blocker context
   clickup-audit/         ← read-only audit of a ClickUp workspace against its own conventions
@@ -283,7 +283,7 @@ GDFRSBT.md               ← the full 8-practice methodology this repo operation
 | `librarian` | branch + green tester report | Closure Law §3 commits, updated PR body | `notifier` |
 | `notifier` | an event + payload | GitHub PR comment (always) + ClickUp comment (opt-in) | end of cycle |
 | `codebase-audit` | a repo's own constitution | violation report (10 dimensions, 5 implemented) | human triage |
-| `meta-test` | fixtures under `tests/skills/fixtures/` | pass/fail table per fixture | **design spec — no fixture exists yet, see its `SKILL.md`** |
+| `meta-test` | fixtures under `tests/skills/fixtures/` | schema-v1 receipt with fixture/trajectory metrics | `scripts/meta_test.py` |
 
 **ClickUp adapters** (need `CLICKUP_API_KEY`):
 
@@ -322,8 +322,9 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`validate_closure.py`** — checks Closure Law §3 compliance on a task file before `librarian` (or a human) marks it `done`. Catches the "0/7 items, rest `[N/A]`" rubber-stamp pattern specifically.
 - **`quota_gate.py`** — the STOP/CONTINUE authority for `/loop /dispatcher` (see §Concepts: Quota gate).
 - **`scan_gate.py`** — the deterministic SAST/SCA/secret-scan half of what a paid tool like CodeRabbit/SonarQube would otherwise cover (the LLM-judgment half is `ultrareview`). Runs Semgrep, Trivy, and Gitleaks as Docker images (`docker run --rm -v <repo>:/src <image> ...` — the BYO footprint is "has Docker," not four separate package-manager installs); OWASP Dependency-Check is opt-in only (`--enable-dependency-check`) since its vulnerability database needs an API key to sync at a usable speed. Normalizes all findings into a SARIF file plus a verdict JSON (`.docs/scan-reports/<NNNN>.{sarif,json}`) that `tester` reads as a required step whenever `blast_radius.py` marked the diff `sast`/`sca`. Semgrep/Trivy scan the working tree; Gitleaks stages only changed files because introduced findings are the blocking policy and scanning checkout metadata caused hosted-runner timeouts. A `critical`/`high` finding on a changed file blocks (exit 1); missing/error scanners block admission (exit 2).
+- **`meta_test.py`** — the agent-skill integration gate. Runs a runtime-supplied worker against disposable fixture repositories, then deterministically checks task status, branch/commit discipline, touched-file scope, Closure Law markers, and reported tool trajectory. A skill change triggers `meta-test` as a high-risk obligation; the receipt is bound to the exact base/head pair before admission.
 
-All five are covered by real pytest tests (`tests/test_blast_radius.py`, `tests/test_scan_gate.py` — both CI-run) — the only skill-adjacent things in this repo with actual automated test coverage today; `meta-test` describes the target architecture for testing the *skills themselves* but hasn't been built yet. The live scanner contract has now also been exercised with a reachable Docker daemon on 2026-09-16: Semgrep, Trivy, and Gitleaks all passed clean/planted synthetic fixtures (`3 passed`). That proves the current pinned invocation and cache path work; it does **not** reproduce or confirm the historical first-run Trivy failure, which remains honestly tracked in task 0007.
+The deterministic gate modules and the meta-test runner are covered by real pytest tests and run in CI. `meta-test` now exercises a committed builder fixture in a disposable git sandbox; its worker command is deliberately runtime-supplied so trusted homelab agents can participate without granting the harness a real checkout or push remote. The live scanner contract has also been exercised with a reachable Docker daemon on 2026-09-16: Semgrep, Trivy, and Gitleaks all passed clean/planted synthetic fixtures (`3 passed`). That proves the current pinned invocation and cache path work; it does **not** reproduce or confirm the historical first-run Trivy failure, which remains honestly tracked in task 0007.
 
 ---
 

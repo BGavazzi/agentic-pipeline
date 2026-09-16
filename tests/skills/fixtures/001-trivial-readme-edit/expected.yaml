@@ -1,0 +1,29 @@
+skill: builder
+expected:
+  task_status_final: done
+  branch_pattern: '^feat/0001-'
+  commits_min: 1
+  commits_max: 3
+  files_touched:
+    - README.md
+    - CHANGELOG.md
+    - .docs/tasks/0001-add-greeting.md
+  files_NOT_touched:
+    - .env
+    - secret.txt
+  conditions_marked_done: 1
+  lei_de_fechamento:
+    CHANGELOG: yes
+    tests: yes
+  tool_calls_must_include_in_order:
+    - Read
+    - Edit
+    - Bash
+  tool_calls_must_NOT_include:
+    - git push
+*** Add File: D:\VIBES\agentic-pipeline-0032\tests\skills\fixtures\001-trivial-readme-edit\README.md
+# 001 — trivial builder happy path
+
+The first executable meta-test fixture. A builder worker must update the
+README, task status, and changelog in an isolated repository, commit the work,
+and report its observable closure evidence without pushing.

@@ -1,6 +1,22 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add the agent-skill meta-test integration gate (task 0032)
+### Added
+- `scripts/meta_test.py` runs runtime-supplied agent workers against disposable
+  fixture repositories and emits a schema-v1 receipt with deterministic checks
+  for branch/commit discipline, task state, file scope, Closure Law markers,
+  trajectory, and bounded timing/count metrics.
+- A committed builder happy-path fixture is now executable under
+  `tests/skills/fixtures/001-trivial-readme-edit/`.
+- Skill changes are classified as `agent-skill` and require `meta-test` in the
+  high-risk gate set; receipts are carried into admission and scorecard metrics
+  only when bound to the exact candidate commit pair.
+### Changed
+- The `meta-test` skill and README now describe an implemented worker contract,
+  not a design-only feature.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add staging-review PR handoff adapter (task 0031)
 ### Added
 - `scripts/staging_pr.py` validates eligible receipts, exact candidate SHA,

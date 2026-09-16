@@ -101,6 +101,10 @@ jobs:
         run: pip install pytest pyyaml
 
       - name: Run test suite
+        env:
+          # Keep imports deterministic across pytest/import-mode differences in
+          # clean hosted and homelab workers.
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           set +e
           mkdir -p .docs/test-reports
@@ -448,11 +452,13 @@ jobs:
           policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           infra=$(find .docs/infra-reports infra-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*.json' -name '*visual*.json' -print -quit 2>/dev/null || true)
-          test -n "$risk" && test -n "$scan" && test -n "$policy"
+          meta_test=$(find .docs/meta-test-reports meta-test-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          unit=$(find .docs/test-reports test-reports -maxdepth 2 -type f -name 'unit.exit' -print -quit 2>/dev/null || true)
+          test -n "$risk" && test -n "$scan" && test -n "$policy" && test -n "$unit"
           args=(
             --risk "$risk"
             --scan "$scan"
-            --unit-exit .docs/test-reports/unit.exit
+            --unit-exit "$unit"
             --policy-report "$policy"
             --base-sha "$BASE_SHA"
             --head-sha "$HEAD_SHA"
@@ -466,6 +472,9 @@ jobs:
           fi
           if test -n "$visual"; then
             args+=(--visual-report "$visual")
+          fi
+          if test -n "$meta_test"; then
+            args+=(--meta-test-report "$meta_test")
           fi
           python scripts/ci_receipts.py "${args[@]}"
           python scripts/admission_gate.py \
@@ -483,6 +492,7 @@ jobs:
           risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*visual*.json' -print -quit 2>/dev/null || true)
+          meta_test=$(find .docs/meta-test-reports meta-test-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           test -n "$risk" && test -f .docs/admission-receipt.json
           args=(
             --risk "$risk"
@@ -496,6 +506,9 @@ jobs:
           fi
           if test -n "$visual"; then
             args+=(--visual-report "$visual")
+          fi
+          if test -n "$meta_test"; then
+            args+=(--meta-test-report "$meta_test")
           fi
           python scripts/quality_scorecard.py "${args[@]}"
       - name: Evaluate autonomous staging eligibility

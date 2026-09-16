@@ -199,6 +199,21 @@ def test_high_risk_gate_script_path(sandbox: Path):
     assert "gate-script" in result["risk_triggers"]
 
 
+def test_agent_skill_change_requires_meta_test(sandbox: Path):
+    write(sandbox, ".claude/skills/builder/SKILL.md", "# builder\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed skill")
+    git(sandbox, "checkout", "-q", "-b", "feat/skill")
+    write(sandbox, ".claude/skills/builder/SKILL.md", "# builder\nnew rule\n")
+    git(sandbox, "commit", "-q", "-am", "edit skill")
+
+    result = blast_radius.classify(sandbox, "0106", base="master", branch="feat/skill")
+
+    assert result["risk_level"] == "high"
+    assert "agent-skill" in result["risk_triggers"]
+    assert "meta-test" in result["required_gates"]
+
+
 def test_ordinary_source_change_not_flagged_as_gate(sandbox: Path):
     """Guard against the new patterns over-matching: a normal script outside the
     gate set must not inherit gate-script risk."""

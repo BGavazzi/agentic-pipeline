@@ -59,6 +59,16 @@ def visual_file(tmp_path, status="pass", base=BASE, head=HEAD):
     return path
 
 
+def meta_test_file(tmp_path, status="pass", base=BASE, head=HEAD):
+    path = tmp_path / "meta-test.json"
+    path.write_text(json.dumps({"schema_version": 1, "gate": "meta-test",
+                                "base_sha": base, "head_sha": head,
+                                "status": status,
+                                "metrics": {"fixtures_total": 1,
+                                             "fixtures_passed": 1}}))
+    return path
+
+
 def test_builds_pass_receipts_from_job_artifacts(tmp_path):
     risk, scan, unit, policy = files(tmp_path)
     result = build_receipts(risk, scan, unit, BASE, HEAD, policy_path=policy)
@@ -157,4 +167,23 @@ def test_stale_visual_report_rejected(tmp_path):
         build_receipts(
             risk, scan, unit, BASE, HEAD, policy_path=policy,
             visual_path=visual_file(tmp_path, head="c" * 40),
+        )
+
+
+def test_meta_test_report_is_carried_and_identity_bound(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    result = build_receipts(
+        risk, scan, unit, BASE, HEAD, policy_path=policy,
+        meta_test_path=meta_test_file(tmp_path),
+    )
+    meta = next(g for g in result["gates"] if g["gate"] == "meta-test")
+    assert meta["status"] == "pass"
+
+
+def test_stale_meta_test_report_rejected(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    with pytest.raises(ValueError, match="meta-test report"):
+        build_receipts(
+            risk, scan, unit, BASE, HEAD, policy_path=policy,
+            meta_test_path=meta_test_file(tmp_path, head="c" * 40),
         )

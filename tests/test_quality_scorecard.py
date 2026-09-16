@@ -87,3 +87,18 @@ def test_visual_metrics_are_carried_into_scorecard(tmp_path):
     assert result["metrics"]["visual_status"] == "pass"
     assert result["metrics"]["visual_diff_ratio"] == 0.004
     assert result["metrics"]["visual_comparisons"] == 3
+
+
+def test_meta_test_metrics_are_carried_into_scorecard(tmp_path):
+    risk, receipts = files(tmp_path)
+    meta = tmp_path / "meta-test.json"
+    meta.write_text(json.dumps({
+        "schema_version": 1, "gate": "meta-test", "base_sha": BASE,
+        "head_sha": HEAD, "status": "pass",
+        "metrics": {"fixtures_total": 4, "fixtures_passed": 4,
+                    "duration_seconds": 2.5},
+    }))
+    result = build_scorecard(risk, receipts, BASE, HEAD, meta_test_path=meta)
+    assert result["metrics"]["meta_test_status"] == "pass"
+    assert result["metrics"]["meta_test_fixtures_total"] == 4
+    assert result["metrics"]["meta_test_fixtures_passed"] == 4

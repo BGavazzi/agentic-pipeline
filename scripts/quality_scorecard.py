@@ -27,7 +27,8 @@ def read_json(path: Path) -> dict:
 def build_scorecard(risk_path: Path, receipts_path: Path, base_sha: str,
                     head_sha: str, integration_path: Path | None = None,
                     ultrareview_path: Path | None = None,
-                    visual_path: Path | None = None) -> dict:
+                    visual_path: Path | None = None,
+                    meta_test_path: Path | None = None) -> dict:
     risk = read_json(risk_path)
     receipts = read_json(receipts_path)
     decision = evaluate(risk, receipts, base_sha, head_sha)
@@ -65,6 +66,15 @@ def build_scorecard(risk_path: Path, receipts_path: Path, base_sha: str,
         visual_metrics = visual.get("metrics", {})
         metrics["visual_diff_ratio"] = visual_metrics.get("diff_ratio")
         metrics["visual_comparisons"] = visual_metrics.get("comparisons", 0)
+    if meta_test_path is not None:
+        meta_test = read_json(meta_test_path)
+        if meta_test.get("base_sha") != base_sha or meta_test.get("head_sha") != head_sha:
+            raise ValueError("meta-test report is for a different commit pair")
+        metrics["meta_test_status"] = meta_test.get("status", "error")
+        meta_metrics = meta_test.get("metrics", {})
+        metrics["meta_test_fixtures_total"] = meta_metrics.get("fixtures_total", 0)
+        metrics["meta_test_fixtures_passed"] = meta_metrics.get("fixtures_passed", 0)
+        metrics["meta_test_duration_seconds"] = meta_metrics.get("duration_seconds")
     return {
         "schema_version": SCHEMA_VERSION,
         "scorecard_version": 1,
@@ -80,6 +90,7 @@ def build_scorecard(risk_path: Path, receipts_path: Path, base_sha: str,
             "receipts": str(receipts_path),
             "integration_report": str(integration_path) if integration_path else None,
             "ultrareview_report": str(ultrareview_path) if ultrareview_path else None,
+            "meta_test_report": str(meta_test_path) if meta_test_path else None,
         },
     }
 
@@ -91,6 +102,7 @@ def main() -> int:
     parser.add_argument("--integration-report", type=Path)
     parser.add_argument("--ultrareview-report", type=Path)
     parser.add_argument("--visual-report", type=Path)
+    parser.add_argument("--meta-test-report", type=Path)
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -98,7 +110,8 @@ def main() -> int:
     try:
         result = build_scorecard(args.risk, args.receipts, args.base_sha,
                                  args.head_sha, args.integration_report,
-                                 args.ultrareview_report, args.visual_report)
+                                 args.ultrareview_report, args.visual_report,
+                                 args.meta_test_report)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
