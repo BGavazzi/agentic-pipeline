@@ -141,6 +141,7 @@ GATE_SCRIPTS = [
     "quality_scorecard.py",
     "impact_runner.py",
     "harness_selftest.py",
+    "impact_benchmark.py",
     "visual_receipt.py",
     "validate_task.py",
     "validate_closure.py",

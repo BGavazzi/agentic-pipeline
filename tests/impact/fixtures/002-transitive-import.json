@@ -1,0 +1,19 @@
+{
+  "expected_mode": "impacted",
+  "minimum_recall": 0.5,
+  "relevant_tests": ["tests/test_service.py", "tests/test_shared.py"],
+  "before": {
+    "src/__init__.py": "",
+    "src/shared.py": "VALUE = 1\n",
+    "src/service.py": "from src.shared import VALUE\n",
+    "tests/test_service.py": "from src.service import VALUE\n\ndef test_service():\n    assert VALUE == 1\n",
+    "tests/test_shared.py": "from src.shared import VALUE\n\ndef test_shared():\n    assert VALUE == 1\n"
+  },
+  "after": {
+    "src/__init__.py": "",
+    "src/shared.py": "VALUE = 2\n",
+    "src/service.py": "from src.shared import VALUE\n",
+    "tests/test_service.py": "from src.service import VALUE\n\ndef test_service():\n    assert VALUE == 1\n",
+    "tests/test_shared.py": "from src.shared import VALUE\n\ndef test_shared():\n    assert VALUE == 1\n"
+  }
+}

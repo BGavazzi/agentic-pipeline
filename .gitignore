@@ -44,6 +44,7 @@ logs/
 .docs/integration-reports/
 .docs/quality-reports/
 .docs/impact-reports/
+.docs/test-reports/
 
 # scan_gate.py's trivy vulnerability-DB cache (task 0007) — host-side mount,
 # not scan output; kept out of git the same way node_modules/.venv are.

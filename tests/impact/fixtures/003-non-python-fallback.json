@@ -1,0 +1,16 @@
+{
+  "expected_mode": "full",
+  "relevant_tests": ["tests/test_foo.py"],
+  "before": {
+    "src/__init__.py": "",
+    "src/foo.py": "VALUE = 1\n",
+    "tests/test_foo.py": "from src.foo import VALUE\n\ndef test_value():\n    assert VALUE == 1\n",
+    "README.md": "old\n"
+  },
+  "after": {
+    "src/__init__.py": "",
+    "src/foo.py": "VALUE = 1\n",
+    "tests/test_foo.py": "from src.foo import VALUE\n\ndef test_value():\n    assert VALUE == 1\n",
+    "README.md": "new\n"
+  }
+}

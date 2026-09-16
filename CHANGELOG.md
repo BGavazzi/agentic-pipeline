@@ -1,6 +1,15 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add versioned test-impact benchmark (task 0019)
+### Added
+- `scripts/impact_benchmark.py` materializes before/after git fixtures and
+  reports precision, recall, fallback behavior, and `promotion_ready`.
+### Changed
+- CI now runs the benchmark as a deterministic harness metric. The corpus keeps
+  test-impact shadow-only and makes the known transitive-import gap explicit.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add test-impact shadow execution (task 0018)
 ### Added
 - `scripts/impact_runner.py` executes conservative impacted-test selections in

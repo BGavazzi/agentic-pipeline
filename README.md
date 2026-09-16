@@ -73,6 +73,12 @@ It executes the conservative selection inside the same clean-room boundary as
 `authoritative: false`. The full-suite integration job remains the correctness
 authority until a precision/recall benchmark justifies promotion.
 
+Task 0019 adds a versioned benchmark under `tests/impact/fixtures/`. It creates
+small before/after git histories, measures selection precision and recall, and
+reports `promotion_ready` separately from benchmark execution status. The
+current corpus intentionally exposes a transitive-import recall gap, so impact
+analysis remains shadow-only until that metric is improved.
+
 Task 0016 adds the core visual-regression evidence contract in
 `scripts/visual_receipt.py`. A consuming frontend runner (typically Playwright)
 must provide screenshot paths, viewport, baseline provenance, pixel counts,
