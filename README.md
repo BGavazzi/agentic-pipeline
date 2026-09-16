@@ -342,6 +342,10 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   explicit eligibility receipt with recall, precision, tests-avoided, and
   observed-duration-savings metrics. It never makes a full-suite fallback
   eligible.
+- **`staging_dispatch.py`** — verifies the current staging base and candidate
+  head against eligibility, attaches the PR intelligence evidence, and plans
+  the survivor-to-staging PR. It is dry-run by default; `--create` opens the
+  human-review PR but never merges or deploys.
 
 The deterministic gate modules and the meta-test runner are covered by real pytest tests and run in CI. `meta-test` now exercises a committed builder fixture in a disposable git sandbox; its worker command is deliberately runtime-supplied so trusted homelab agents can participate without granting the harness a real checkout or push remote. The live scanner contract has also been exercised with a reachable Docker daemon on 2026-09-16: Semgrep, Trivy, and Gitleaks all passed clean/planted synthetic fixtures (`3 passed`). That proves the current pinned invocation and cache path work; it does **not** reproduce or confirm the historical first-run Trivy failure, which remains honestly tracked in task 0007.
 

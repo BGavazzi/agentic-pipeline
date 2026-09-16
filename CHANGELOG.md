@@ -1,6 +1,15 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add safe survivor-to-staging dispatcher (task 0039)
+### Added
+- `scripts/staging_dispatch.py` verifies the current base/head refs against the
+  staging eligibility receipt, composes the review body with PR intelligence,
+  and defaults to a no-write dry run.
+- `--create` is the explicit human-review handoff; the adapter never merges,
+  approves, deploys, or pushes.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add trusted meta-test dispatcher boundary (task 0038)
 ### Added
 - `scripts/meta_test_dispatch.py` composes the disposable agent-skill fixture
