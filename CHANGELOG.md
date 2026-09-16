@@ -1,6 +1,14 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Wire worker preflight into CI execution lanes (task 0026)
+### Added
+- CI runs the worker trust preflight before unit, clean-room integration, and
+  deterministic gate commands, and uploads the resulting receipts.
+- Self-hosted jobs now require a supervisor-provided facts file; hosted/fork
+  jobs use an explicit safe default.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add machine-checkable homelab worker preflight (task 0025)
 ### Added
 - `scripts/worker_preflight.py` emits a fail-closed worker trust receipt with

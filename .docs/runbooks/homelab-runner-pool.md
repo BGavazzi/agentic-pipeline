@@ -117,6 +117,12 @@ python scripts/worker_preflight.py \
   --output .docs/worker-reports/preflight.json
 ```
 
+For CI, the supervisor must write the same facts as JSON to
+`$RUNNER_TEMP/homelab-worker-facts.json` before the job starts, with keys
+`worker_kind`, `labels`, `ephemeral`, `jobs_completed`, `workspace_clean`,
+`mounted_secret_count`, and `docker_reachable`. The workflow refuses to run a
+self-hosted lane when that file is absent.
+
 The receipt records `worker_age_jobs`, `mounted_secret_count`, cleanup,
 Docker reachability, and fork-to-pool routing metrics. It is an operational
 acceptance artifact, not proof that a compromised host is safe; the stronger

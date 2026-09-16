@@ -72,30 +72,49 @@ def evaluate(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--worker-kind", choices=["github-hosted", "self-hosted"], required=True)
+    parser.add_argument("--worker-kind", choices=["github-hosted", "self-hosted"])
     parser.add_argument("--fork-pr", action="store_true")
-    parser.add_argument("--labels", default="", help="comma-separated runner labels")
-    parser.add_argument("--ephemeral", action="store_true")
-    parser.add_argument("--jobs-completed", type=int, default=0)
-    parser.add_argument("--workspace-clean", action="store_true")
-    parser.add_argument("--mounted-secret-count", type=int, default=0)
-    parser.add_argument("--docker-reachable", action="store_true")
+    parser.add_argument("--labels", help="comma-separated runner labels")
+    parser.add_argument("--ephemeral", action="store_true", default=None)
+    parser.add_argument("--jobs-completed", type=int)
+    parser.add_argument("--workspace-clean", action="store_true", default=None)
+    parser.add_argument("--mounted-secret-count", type=int)
+    parser.add_argument("--docker-reachable", action="store_true", default=None)
     parser.add_argument("--require-docker", action="store_true")
+    parser.add_argument(
+        "--facts", type=Path,
+        help="JSON facts written by the worker supervisor; required for self-hosted jobs",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
+        facts = {}
+        if args.facts is not None:
+            facts = json.loads(args.facts.read_text(encoding="utf-8"))
+            if not isinstance(facts, dict):
+                raise ValueError("worker facts must be a JSON object")
+        worker_kind = args.worker_kind or facts.get("worker_kind")
+        if worker_kind is None:
+            raise ValueError("worker_kind is required directly or in --facts")
+        labels = args.labels.split(",") if args.labels is not None else facts.get("labels", [])
+        ephemeral = args.ephemeral if args.ephemeral is not None else facts.get("ephemeral", False)
+        jobs_completed = args.jobs_completed if args.jobs_completed is not None else facts.get("jobs_completed", 0)
+        workspace_clean = args.workspace_clean if args.workspace_clean is not None else facts.get("workspace_clean", False)
+        mounted_secret_count = args.mounted_secret_count if args.mounted_secret_count is not None else facts.get("mounted_secret_count", 0)
+        docker_reachable = args.docker_reachable if args.docker_reachable is not None else facts.get("docker_reachable", False)
+        require_docker = args.require_docker or facts.get("require_docker", False)
         result = evaluate(
-            args.worker_kind, args.fork_pr,
-            [label for label in args.labels.split(",") if label],
-            args.ephemeral, args.jobs_completed, args.workspace_clean,
-            args.mounted_secret_count, args.docker_reachable, args.require_docker,
+            worker_kind, args.fork_pr,
+            [label for label in labels if label],
+            ephemeral, jobs_completed, workspace_clean,
+            mounted_secret_count, docker_reachable, require_docker,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     except (OSError, TypeError, ValueError) as exc:
         print("ERROR: invalid worker preflight: " + type(exc).__name__, flush=True)
         return 2
-    print(f"worker_preflight: eligible={str(result['eligible']).lower()} kind={args.worker_kind}")
+    print(f"worker_preflight: eligible={str(result['eligible']).lower()} kind={worker_kind}")
     return 0 if result["eligible"] else 1
 
 

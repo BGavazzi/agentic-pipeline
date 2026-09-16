@@ -414,6 +414,9 @@ and blockers. It does not create or merge a PR; human review remains mandatory.
 Homelab workers also have a machine-checkable preflight contract:
 `scripts/worker_preflight.py` blocks persistent, dirty, stale, secret-bearing,
 mislabelled, or fork-routed self-hosted workers before candidate execution.
+In CI, the homelab supervisor supplies runtime facts through
+`$RUNNER_TEMP/homelab-worker-facts.json`; a missing facts file blocks the
+self-hosted lane rather than silently downgrading its trust assumptions.
 
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your

@@ -77,6 +77,26 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Worker trust preflight
+        env:
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
+          USE_HOMELAB_POOL: ${{ vars.USE_HOMELAB_POOL }}
+          RUNNER_TEMP_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p .docs/worker-reports
+          fork_args=()
+          [[ "$FORK_PR" == "true" ]] && fork_args+=(--fork-pr)
+          if [[ "$FORK_PR" == "true" || "$USE_HOMELAB_POOL" != "true" ]]; then
+            python scripts/worker_preflight.py --worker-kind github-hosted \
+              "${fork_args[@]}" --output .docs/worker-reports/test.json
+          else
+            facts="$RUNNER_TEMP_DIR/homelab-worker-facts.json"
+            test -f "$facts"
+            python scripts/worker_preflight.py --facts "$facts" \
+              "${fork_args[@]}" --output .docs/worker-reports/test.json
+          fi
+
       - name: Install dependencies
         run: pip install pytest pyyaml
 
@@ -94,7 +114,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-result
-          path: .docs/test-reports/
+          path: |
+            .docs/test-reports/
+            .docs/worker-reports/
           if-no-files-found: warn
 
       - name: Validate task schema (dogfood)
@@ -129,6 +151,26 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Worker trust preflight
+        env:
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
+          USE_HOMELAB_POOL: ${{ vars.USE_HOMELAB_POOL }}
+          RUNNER_TEMP_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p .docs/worker-reports
+          fork_args=()
+          [[ "$FORK_PR" == "true" ]] && fork_args+=(--fork-pr)
+          if [[ "$FORK_PR" == "true" || "$USE_HOMELAB_POOL" != "true" ]]; then
+            python scripts/worker_preflight.py --worker-kind github-hosted \
+              "${fork_args[@]}" --output .docs/worker-reports/integration.json
+          else
+            facts="$RUNNER_TEMP_DIR/homelab-worker-facts.json"
+            test -f "$facts"
+            python scripts/worker_preflight.py --facts "$facts" \
+              "${fork_args[@]}" --output .docs/worker-reports/integration.json
+          fi
+
       - name: Install dependencies
         run: pip install pytest pyyaml
 
@@ -158,7 +200,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-artifacts-${{ steps.task.outputs.id }}
-          path: .docs/integration-reports/
+          path: |
+            .docs/integration-reports/
+            .docs/worker-reports/
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
@@ -238,6 +282,26 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Worker trust preflight
+        env:
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
+          USE_HOMELAB_POOL: ${{ vars.USE_HOMELAB_POOL }}
+          RUNNER_TEMP_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p .docs/worker-reports
+          fork_args=()
+          [[ "$FORK_PR" == "true" ]] && fork_args+=(--fork-pr)
+          if [[ "$FORK_PR" == "true" || "$USE_HOMELAB_POOL" != "true" ]]; then
+            python scripts/worker_preflight.py --worker-kind github-hosted \
+              "${fork_args[@]}" --output .docs/worker-reports/gates.json
+          else
+            facts="$RUNNER_TEMP_DIR/homelab-worker-facts.json"
+            test -f "$facts"
+            python scripts/worker_preflight.py --facts "$facts" \
+              "${fork_args[@]}" --output .docs/worker-reports/gates.json
+          fi
+
       - name: Install dependencies
         run: pip install pytest pyyaml
 
@@ -307,6 +371,7 @@ jobs:
             .docs/blast-reports/
             .docs/scan-reports/
             .docs/policy-reports/
+            .docs/worker-reports/
           if-no-files-found: ignore
 
       # scan_gate emits SARIF 2.1.0 — feed it to GitHub code scanning so

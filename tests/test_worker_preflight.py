@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -69,3 +71,32 @@ def test_github_hosted_worker_is_safe_default_for_fork_pr():
 def test_negative_counters_are_invalid():
     with pytest.raises(ValueError, match="non-negative"):
         clean_worker(jobs_completed=-1)
+
+
+def test_supervisor_facts_file_can_supply_self_hosted_runtime_state(tmp_path: Path):
+    facts = tmp_path / "worker-facts.json"
+    facts.write_text(json.dumps({
+        "worker_kind": "self-hosted",
+        "labels": ["self-hosted", "homelab-pool"],
+        "ephemeral": True,
+        "jobs_completed": 0,
+        "workspace_clean": True,
+        "mounted_secret_count": 0,
+        "docker_reachable": True,
+        "require_docker": True,
+    }))
+    output = tmp_path / "receipt.json"
+
+    # Exercise the same parser path used by CI's worker wrapper.
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(sys, "argv", [
+        "worker_preflight.py", "--facts", str(facts), "--fork-pr",
+        "--output", str(output),
+    ])
+    try:
+        assert worker_preflight.main() == 1
+        # A fork flag must block the self-hosted facts, proving the wrapper
+        # cannot accidentally ignore event trust context.
+        assert json.loads(output.read_text())["eligible"] is False
+    finally:
+        monkeypatch.undo()
