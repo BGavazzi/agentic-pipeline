@@ -1,6 +1,17 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add visual-regression receipt contract (task 0016)
+### Added
+- `scripts/visual_receipt.py` validates screenshot/viewport evidence, baseline
+  provenance, pixel metrics, thresholds, and exact candidate identity before
+  normalizing a visual PASS/FAIL receipt.
+### Changed
+- Visual receipt validation is now part of the synced/high-risk gate surface.
+  The core remains honest: consuming frontend repos provide the Playwright
+  producer; missing browser evidence is not a pass.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add conservative test-impact analysis (task 0015)
 ### Added
 - `scripts/test_impact.py` emits schema-v1 changed-file, selected-test,

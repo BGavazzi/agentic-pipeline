@@ -67,6 +67,14 @@ unknown file types, unresolved modules, and empty selections fall back to the
 full suite. The report is optimization-only until a precision/recall benchmark
 proves it safe to wire into execution.
 
+Task 0016 adds the core visual-regression evidence contract in
+`scripts/visual_receipt.py`. A consuming frontend runner (typically Playwright)
+must provide screenshot paths, viewport, baseline provenance, pixel counts,
+diff ratio, and threshold. The contract normalizes PASS/FAIL and rejects
+missing screenshots or baselines; this repo still does not launch a browser by
+itself. That keeps the generic core honest while making visual evidence
+machine-admissible for repos such as PortalApp or a future Bluemagic frontend.
+
 Task 0013 defines the homelab boundary: fork PRs stay on GitHub-hosted runners;
 trusted same-repo jobs may use the pool only after ephemeral/JIT workers,
 disposable workspaces, zero host-secret mounts, cleanup, revocation, and pool

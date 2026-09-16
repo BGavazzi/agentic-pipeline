@@ -139,6 +139,7 @@ GATE_SCRIPTS = [
     "ultrareview_receipt.py",
     "ultrareview_runner.py",
     "quality_scorecard.py",
+    "visual_receipt.py",
     "validate_task.py",
     "validate_closure.py",
     "blast_radius.py",

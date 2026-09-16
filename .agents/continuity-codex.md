@@ -106,3 +106,11 @@
 - Added `test_impact.py`: direct Python AST/path selection with explicit full-
   suite fallback for uncertainty. It is optimization-only; integration still
   runs the full suite until a precision/recall benchmark exists.
+
+## 2026-09-16 — Task 0016, visual-regression receipt contract
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0016` from task 0015
+  commit `72536a6`, branch `feat/0016-visual-receipt-contract`.
+- Added `visual_receipt.py` and adversarial tests for thresholds, screenshot /
+  baseline provenance, comparison counts, and stale identity. No browser or
+  credential is introduced in the generic core.
