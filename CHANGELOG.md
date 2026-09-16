@@ -1,6 +1,18 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Migrate reusable pipeline skills (task 0035)
+### Added
+- Portable `integration-pilot`, `frontend-refactor-pr`, and `debt-ledger`
+  skills are now canonical, scrubbed of company-specific structure.
+- The migration preserves reversible integration-only merge/revert rules,
+  per-location visual proof, and the no-trigger debt distinction.
+### Changed
+- The application-specific speaker-to-ClickUp skill remains explicitly
+  excluded rather than introducing FIS entities or company workflow into the
+  generic pipeline.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add test-impact promotion eligibility receipt (task 0034)
 ### Added
 - `scripts/impact_promotion.py` combines versioned benchmark, candidate

@@ -231,6 +231,9 @@ A glossary for terms that recur across `AGENTS.md`, `GDFRSBT.md`, and every `SKI
   grill-me/              ← relentless plan/design interview (gate before build)
   codebase-audit/        ← read-only audit of repo against its own rules
   meta-test/             ← isolated fixture-based skill tests with versioned receipts
+  integration-pilot/     ← reversible integration-branch merge/watch/revert protocol
+  frontend-refactor-pr/  ← reachability + build + per-location visual-proof playbook
+  debt-ledger/            ← read-only no-trigger shortcut ledger
   clickup-api/           ← generic ClickUp API v2 reference (auth, rate limit, discovery) — BYO credentials
   clickup-grounding/     ← enriches a single ClickUp task with its own list/comment/blocker context
   clickup-audit/         ← read-only audit of a ClickUp workspace against its own conventions
@@ -284,6 +287,9 @@ GDFRSBT.md               ← the full 8-practice methodology this repo operation
 | `notifier` | an event + payload | GitHub PR comment (always) + ClickUp comment (opt-in) | end of cycle |
 | `codebase-audit` | a repo's own constitution | violation report (10 dimensions, 5 implemented) | human triage |
 | `meta-test` | fixtures under `tests/skills/fixtures/` | schema-v1 receipt with fixture/trajectory metrics | `scripts/meta_test.py` |
+| `integration-pilot` | open PRs targeting reversible integration | merge/watch/revert report | supervised integration branch |
+| `frontend-refactor-pr` | component reachability + visual surface | refactor PR with per-location proof | human visual review |
+| `debt-ledger` | source markers and revisit-task references | read-only ledger of tracked/no-trigger shortcuts | builder task creation |
 
 **ClickUp adapters** (need `CLICKUP_API_KEY`):
 
