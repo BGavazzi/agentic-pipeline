@@ -428,6 +428,12 @@ reverse-import closure for transitive dependencies and reports precision,
 recall, closure size, and `promotion_ready`. It remains shadow-only; the full
 clean-room integration suite is still authoritative.
 
+Visual producers are consumer-owned: a frontend runs Playwright/Storybook and
+emits the validated `visual` receipt; the core admission and scorecard adapters
+carry that receipt, bind it to the candidate SHAs, and block supplied visual
+failures. Repositories without a deterministic browser surface do not receive
+a fabricated visual pass.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it

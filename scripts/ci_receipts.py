@@ -31,7 +31,8 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
                    integration_path: Path | None = None,
                    ultrareview_path: Path | None = None,
                    policy_path: Path | None = None,
-                   infra_path: Path | None = None) -> dict:
+                   infra_path: Path | None = None,
+                   visual_path: Path | None = None) -> dict:
     risk = read_json(risk_path)
     scan = read_json(scan_path)
     if risk.get("base_sha") != base_sha or risk.get("head_sha") != head_sha:
@@ -70,6 +71,14 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         if infra.get("base_sha") != base_sha or infra.get("head_sha") != head_sha:
             raise ValueError("infra report is for a different commit pair")
 
+    visual = None
+    if visual_path is not None:
+        visual = read_json(visual_path)
+        if visual.get("schema_version") != 1 or visual.get("gate") != "visual":
+            raise ValueError("invalid visual receipt")
+        if visual.get("base_sha") != base_sha or visual.get("head_sha") != head_sha:
+            raise ValueError("visual report is for a different commit pair")
+
     statuses = {
         "unit": test_status(unit_exit_path),
         "sast": scan.get("tool_status", {}).get("semgrep", {}).get("status", "error"),
@@ -93,6 +102,10 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         statuses["infra-dry-run"] = infra.get("status", "error")
         if statuses["infra-dry-run"] not in {"pass", "fail", "error"}:
             statuses["infra-dry-run"] = "error"
+    if visual is not None:
+        statuses["visual"] = visual.get("status", "error")
+        if statuses["visual"] not in {"pass", "fail", "error"}:
+            statuses["visual"] = "error"
     evidence = {"risk_report": str(risk_path), "scan_report": str(scan_path),
                 "unit_exit": str(unit_exit_path)}
     if integration_path is not None:
@@ -103,6 +116,8 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         evidence["policy_report"] = str(policy_path)
     if infra_path is not None:
         evidence["infra_report"] = str(infra_path)
+    if visual_path is not None:
+        evidence["visual_report"] = str(visual_path)
     return {"schema_version": SCHEMA_VERSION, "base_sha": base_sha,
             "head_sha": head_sha,
             "gates": [{"gate": name, "status": status} for name, status in sorted(statuses.items())],
@@ -118,6 +133,7 @@ def main() -> int:
     parser.add_argument("--ultrareview-report", type=Path)
     parser.add_argument("--policy-report", type=Path, required=True)
     parser.add_argument("--infra-report", type=Path)
+    parser.add_argument("--visual-report", type=Path)
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -126,7 +142,7 @@ def main() -> int:
         result = build_receipts(args.risk, args.scan, args.unit_exit,
                                 args.base_sha, args.head_sha,
                                 args.integration_report, args.ultrareview_report,
-                                args.policy_report, args.infra_report)
+                                args.policy_report, args.infra_report, args.visual_report)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, TypeError, json.JSONDecodeError):

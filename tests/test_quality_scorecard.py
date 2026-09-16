@@ -71,3 +71,19 @@ def test_stale_optional_report_is_rejected(tmp_path):
     integration.write_text(json.dumps({"base_sha": BASE, "head_sha": "c" * 40}))
     with pytest.raises(ValueError, match="integration report"):
         build_scorecard(risk, receipts, BASE, HEAD, integration_path=integration)
+
+
+def test_visual_metrics_are_carried_into_scorecard(tmp_path):
+    risk, receipts = files(tmp_path)
+    visual = tmp_path / "visual.json"
+    visual.write_text(json.dumps({
+        "schema_version": 1, "gate": "visual", "base_sha": BASE,
+        "head_sha": HEAD, "status": "pass",
+        "metrics": {"diff_ratio": 0.004, "comparisons": 3},
+    }))
+
+    result = build_scorecard(risk, receipts, BASE, HEAD, visual_path=visual)
+
+    assert result["metrics"]["visual_status"] == "pass"
+    assert result["metrics"]["visual_diff_ratio"] == 0.004
+    assert result["metrics"]["visual_comparisons"] == 3

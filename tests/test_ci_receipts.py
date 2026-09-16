@@ -50,6 +50,15 @@ def infra_file(tmp_path, status="pass", base=BASE, head=HEAD):
     return path
 
 
+def visual_file(tmp_path, status="pass", base=BASE, head=HEAD):
+    path = tmp_path / "visual.json"
+    path.write_text(json.dumps({"schema_version": 1, "gate": "visual",
+                                "base_sha": base, "head_sha": head,
+                                "status": status,
+                                "metrics": {"diff_ratio": 0.0, "comparisons": 1}}))
+    return path
+
+
 def test_builds_pass_receipts_from_job_artifacts(tmp_path):
     risk, scan, unit, policy = files(tmp_path)
     result = build_receipts(risk, scan, unit, BASE, HEAD, policy_path=policy)
@@ -130,3 +139,22 @@ def test_stale_infra_report_rejected(tmp_path):
         build_receipts(risk, scan, unit, BASE, HEAD,
                        policy_path=policy,
                        infra_path=infra_file(tmp_path, head="c" * 40))
+
+
+def test_visual_report_is_carried_into_receipts(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    result = build_receipts(
+        risk, scan, unit, BASE, HEAD, policy_path=policy,
+        visual_path=visual_file(tmp_path),
+    )
+    visual = next(g for g in result["gates"] if g["gate"] == "visual")
+    assert visual["status"] == "pass"
+
+
+def test_stale_visual_report_rejected(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    with pytest.raises(ValueError, match="visual report"):
+        build_receipts(
+            risk, scan, unit, BASE, HEAD, policy_path=policy,
+            visual_path=visual_file(tmp_path, head="c" * 40),
+        )

@@ -1,6 +1,14 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Carry visual receipts through admission (task 0030)
+### Added
+- Admission and scorecard adapters now recognize optional `visual` receipts,
+  bind them to exact base/head SHAs, and expose diff/comparison metrics.
+- CI discovers visual receipts when a consumer workflow supplies them without
+  forcing browser dependencies on the core repository.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add safe scanner failure diagnostics (task 0029)
 ### Added
 - Scanner parse failures now emit a bounded diagnostic category and short

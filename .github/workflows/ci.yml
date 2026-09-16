@@ -447,6 +447,7 @@ jobs:
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           infra=$(find .docs/infra-reports infra-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*.json' -name '*visual*.json' -print -quit 2>/dev/null || true)
           test -n "$risk" && test -n "$scan" && test -n "$policy"
           args=(
             --risk "$risk"
@@ -463,6 +464,9 @@ jobs:
           if test -n "$infra"; then
             args+=(--infra-report "$infra")
           fi
+          if test -n "$visual"; then
+            args+=(--visual-report "$visual")
+          fi
           python scripts/ci_receipts.py "${args[@]}"
           python scripts/admission_gate.py \
             --risk "$risk" \
@@ -478,6 +482,7 @@ jobs:
           set -euo pipefail
           risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*visual*.json' -print -quit 2>/dev/null || true)
           test -n "$risk" && test -f .docs/admission-receipt.json
           args=(
             --risk "$risk"
@@ -488,6 +493,9 @@ jobs:
           )
           if test -n "$integration"; then
             args+=(--integration-report "$integration")
+          fi
+          if test -n "$visual"; then
+            args+=(--visual-report "$visual")
           fi
           python scripts/quality_scorecard.py "${args[@]}"
       - name: Evaluate autonomous staging eligibility
