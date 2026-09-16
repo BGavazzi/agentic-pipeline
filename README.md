@@ -382,7 +382,10 @@ python scripts/core_sync.py /path/to/your-repo
 This copies `.claude/skills/` (or a `--skills a,b,c` subset), the gate
 scripts (`validate_task.py`, `validate_closure.py`, `blast_radius.py`,
 `scan_gate.py`, `quota_gate.py`) into `<target>/scripts/`, and
-`.docs/conventions/*.md` — and seeds `AGENTS.md` from a generic template
+`.docs/conventions/*.md`. It also writes
+`.claude/skills/VENDORED.md`, a generated provenance/inventory receipt that
+points agents at this canonical repository instead of the retired
+`guidelines_IA` subtree flow — and seeds `AGENTS.md` from a generic template
 **only if the target has none yet** (an existing `AGENTS.md` is repo-specific
 and is never overwritten). Use `--dry-run` to preview first. Re-run it any
 time the core changes to re-sync; skills and gate scripts are meant to be

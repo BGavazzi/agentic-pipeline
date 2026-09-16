@@ -1,6 +1,18 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Make core sync provenance canonical and self-describing (task 0023)
+### Added
+- `core_sync.py` now generates `.claude/skills/VENDORED.md` with the canonical
+  source URL plus the complete skill and gate inventory.
+- Provenance metadata participates in the existing manifest/drift contract and
+  has tests for clean sync, dry-run, drift detection, and forced repair.
+### Changed
+- Consumer Quick Start documentation now explains that stale
+  `guidelines_IA` provenance is retired and should be replaced by the generated
+  canonical receipt.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add protected reusable policy workflow (task 0021)
 ### Added
 - Added a reusable policy-integrity workflow that checks out a pinned core
