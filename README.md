@@ -54,6 +54,11 @@ or unavailable execution produces an error receipt—not PASS. It does not carry
 LLM credentials or choose a worker host; trusted-event routing and homelab
 credential isolation remain deployment work. See [task 0012](.docs/tasks/0012-feat-ultrareview-worker-runner.md).
 
+Task 0013 defines the homelab boundary: fork PRs stay on GitHub-hosted runners;
+trusted same-repo jobs may use the pool only after ephemeral/JIT workers,
+disposable workspaces, zero host-secret mounts, cleanup, revocation, and pool
+metrics are verified. See [the ephemeral worker runbook](.docs/runbooks/homelab-runner-pool.md).
+
 Live scanner contracts (synthetic fixtures only; downloads images/rules/DBs):
 
 ```powershell

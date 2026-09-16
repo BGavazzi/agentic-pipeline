@@ -1,6 +1,16 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Define ephemeral homelab worker boundary (task 0013)
+### Changed
+- Expanded the homelab runbook with a trust matrix, ephemeral/JIT lifecycle,
+  credential and workspace isolation rules, revocation procedure, preflight,
+  and measurable pool acceptance metrics.
+- Explicitly retained fork-PR routing on GitHub-hosted workers and prohibited
+  persistent workers for public PR validation. No credentials or confidential
+  repository data are included.
+**Author**: Codex (agent); pending human review and host-side execution.
+
 ## [2026-09-16] - Add isolated ultrareview worker runner (task 0012)
 ### Added
 - `scripts/ultrareview_runner.py` executes an explicit reviewer argv in a

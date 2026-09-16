@@ -78,3 +78,14 @@
   are introduced.
 - Next: run full verification, commit/push, open PR, then continue with
   protected homelab worker routing and credential isolation.
+
+## 2026-09-16 — Task 0013, ephemeral homelab worker boundary
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0013` from task 0012
+  commit `24cc99b`, branch `feat/0013-ephemeral-worker-boundary`.
+- Expanded `.docs/runbooks/homelab-runner-pool.md` with the trust matrix,
+  ephemeral/JIT lifecycle, no-host-secret boundary, cleanup/revocation,
+  preflight, metrics/SLOs, and migration-safe registration outline.
+- No remote host mutation, credential handling, or confidential repository
+  access was performed; one real ephemeral worker still requires host-side
+  operator execution.
