@@ -1,6 +1,19 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add trusted meta-test dispatcher boundary (task 0038)
+### Added
+- `scripts/meta_test_dispatch.py` composes the disposable agent-skill fixture
+  suite with the one-shot worker supervisor and emits one exact-SHA-bound
+  `meta-test` receipt carrying lifecycle evidence.
+- Missing worker output, unsafe facts, failed cleanup or failed deregistration
+  remain non-pass; the adapter never fabricates agent or teardown evidence.
+### Changed
+- The runtime handoff is now explicit: a protected homelab dispatcher can
+  upload the combined receipt without the core selecting a model or opening a
+  remote connection.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add commit-bound PR intelligence for early HITL routing (task 0037)
 ### Added
 - `scripts/pr_intelligence.py` emits JSON and Markdown with deterministic risk,

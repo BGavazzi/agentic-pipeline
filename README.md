@@ -333,6 +333,10 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`worker_supervisor.py`** — the homelab lifecycle boundary. Rejects unsafe
   self-hosted facts before launch, runs one argv-only worker, and requires
   post-run proof of one job, cleanup, zero mounted secrets, and deregistration.
+- **`meta_test_dispatch.py`** — the trusted runtime adapter that composes the
+  one-shot worker lifecycle with `meta_test.py`, producing one SHA-bound
+  `meta-test` receipt. The agent command and post-facts producer remain
+  operator-supplied; missing cleanup proof cannot become a pass.
 - **`impact_promotion.py`** — combines the versioned TIA benchmark, impacted
   selection, shadow execution, and authoritative full-suite evidence into an
   explicit eligibility receipt with recall, precision, tests-avoided, and

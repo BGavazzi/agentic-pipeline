@@ -21,9 +21,3 @@ expected:
     - Bash
   tool_calls_must_NOT_include:
     - git push
-*** Add File: D:\VIBES\agentic-pipeline-0032\tests\skills\fixtures\001-trivial-readme-edit\README.md
-# 001 — trivial builder happy path
-
-The first executable meta-test fixture. A builder worker must update the
-README, task status, and changelog in an isolated repository, commit the work,
-and report its observable closure evidence without pushing.
