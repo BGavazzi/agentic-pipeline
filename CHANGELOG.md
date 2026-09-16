@@ -1,6 +1,19 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Enforce one-shot homelab worker lifecycle (task 0033)
+### Added
+- `scripts/worker_supervisor.py` now blocks unsafe self-hosted facts before
+  launch, runs one bounded argv-only worker, scrubs obvious credential
+  variables, and requires post-run cleanup/deregistration facts.
+- Lifecycle receipts expose queue wait, worker age, mounted-secret count,
+  cleanup, deregistration, duration, and exit metrics; failures remain
+  non-pass.
+### Changed
+- The supervisor is included in canonical sync and the high-risk policy
+  surface; the homelab runbook now documents the pre/post facts contract.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add the agent-skill meta-test integration gate (task 0032)
 ### Added
 - `scripts/meta_test.py` runs runtime-supplied agent workers against disposable

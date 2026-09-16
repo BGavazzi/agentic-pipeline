@@ -28,6 +28,7 @@ POLICY_PATHS = (
     "scripts/integration_gate.py",
     "scripts/infra_dry_run.py",
     "scripts/meta_test.py",
+    "scripts/worker_supervisor.py",
     "scripts/policy_integrity.py",
     "scripts/quality_scorecard.py",
     "scripts/quota_gate.py",

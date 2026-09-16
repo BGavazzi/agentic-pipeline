@@ -96,6 +96,29 @@ Each worker must be single-use:
    unreachable worker is revoked before replacement.
 5. Record only operational metrics, never source contents or secret values.
 
+### Supervisor contract
+
+The host-side wrapper can enforce the lifecycle around the runner process with
+the canonical supervisor:
+
+```bash
+python scripts/worker_supervisor.py \
+  --facts "$RUNNER_TEMP/homelab-worker-facts.json" \
+  --post-facts "$RUNNER_TEMP/homelab-worker-post-facts.json" \
+  --require-docker \
+  --output .docs/worker-reports/lifecycle.json \
+  --command ./run.sh
+```
+
+The pre-run facts must describe an eligible ephemeral worker with zero prior
+jobs, a clean workspace, zero mounted secrets, and (when required) reachable
+Docker. The runner command is an argv-only process; the supervisor does not
+mint tokens or register the worker. After it exits, the host wrapper must write
+post-run facts proving `jobs_completed: 1`, `workspace_clean: true`,
+`mounted_secret_count: 0`, and `registered: false`. Any missing or contradictory
+fact produces a non-pass `worker-lifecycle` receipt and the pool remains
+ineligible.
+
 ## Machine-checkable preflight
 
 Before checkout or any candidate-controlled command, the worker wrapper should
