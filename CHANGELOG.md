@@ -1,6 +1,13 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add protected reusable policy workflow (task 0021)
+### Added
+- Added a reusable policy-integrity workflow that checks out a pinned core
+  implementation and emits a policy receipt without inheriting secrets.
+- Added a rollout runbook requiring immutable SHA pinning and branch protection.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add policy-integrity admission receipt (task 0020)
 ### Added
 - `scripts/policy_integrity.py` fingerprints the trusted base policy surface and

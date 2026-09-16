@@ -1,0 +1,70 @@
+name: Protected policy gate
+
+on:
+  workflow_call:
+    inputs:
+      core_ref:
+        description: "Immutable agentic-pipeline commit containing policy_integrity.py"
+        required: true
+        type: string
+      base_sha:
+        description: "Protected base commit being compared"
+        required: true
+        type: string
+      head_sha:
+        description: "Candidate commit being evaluated"
+        required: true
+        type: string
+      task_id:
+        description: "Task identifier used for the evidence artifact"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: Protected policy integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout candidate repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.head_sha }}
+
+      - name: Checkout pinned policy implementation
+        uses: actions/checkout@v4
+        with:
+          repository: BGavazzi/agentic-pipeline
+          ref: ${{ inputs.core_ref }}
+          path: .agentic-policy
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Emit policy-integrity receipt
+        env:
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          TASK_ID: ${{ inputs.task_id }}
+        run: |
+          mkdir -p .docs/policy-reports
+          python .agentic-policy/scripts/policy_integrity.py \
+            --repo . \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --policy-ref "$BASE_SHA" \
+            --output ".docs/policy-reports/$TASK_ID.json"
+
+      - name: Upload protected policy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: protected-policy-${{ inputs.task_id }}
+          path: .docs/policy-reports/
+          if-no-files-found: error
