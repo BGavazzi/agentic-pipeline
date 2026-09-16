@@ -250,6 +250,7 @@ scripts/
   validate_closure.py    ← validates Closure Law §3 compliance post-librarian
   blast_radius.py        ← diff-scoped blast-radius + risk-tier classifier
   scan_gate.py           ← SAST/SCA/secret-scan gate (Trivy/Semgrep/gitleaks/OWASP-DC via Docker), gated behind blast_radius's sast/sca required_gates
+  debt_ledger.py         ← read-only TODO/FIXME/HACK ledger with no-trigger and tracked-debt metrics
 
 tests/
   test_blast_radius.py   ← real pytest unit tests for blast_radius.py (run in CI)

@@ -1,6 +1,18 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Implement the read-only debt ledger runner (task 0036)
+### Added
+- `scripts/debt_ledger.py` emits deterministic Markdown and JSON ledgers for
+  TODO/FIXME/HACK/XXX/ponytail markers, prioritizing no-trigger debt and
+  reporting scan errors and marker metrics.
+- Generated/dependency/archive directories are skipped by default; docs are
+  opt-in through `--include-docs`.
+### Changed
+- The `debt-ledger` skill now points at the executable runner instead of an
+  unimplemented `runner.py` placeholder.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Migrate reusable pipeline skills (task 0035)
 ### Added
 - Portable `integration-pilot`, `frontend-refactor-pr`, and `debt-ledger`

@@ -9,7 +9,8 @@ tools: Bash, Read
 This skill is read-only. It identifies shortcuts that are intentionally left
 behind and makes the dangerous class visible: a shortcut with no revisit
 trigger tends to become permanent “later.” It never edits code or creates
-tasks silently.
+tasks silently. The canonical implementation is
+`python scripts/debt_ledger.py --output-dir <dir>`.
 
 ## Marker convention
 
@@ -31,6 +32,9 @@ directory:
 - `ledger.md`: “No trigger” entries first, then tracked entries.
 - `ledger.json`: `schema_version`, totals, counts by marker kind, and entries
   with file, line, marker, text, and revisit task (if any).
+
+The runner skips generated/dependency/archive directories and code-only scans
+by default. Use `--include-docs` for a deliberate documentation pass.
 
 Skip `.git`, dependency trees, build outputs, archives, and documentation files
 unless the repository explicitly opts into them. Documentation commonly quotes
