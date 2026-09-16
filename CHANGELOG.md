@@ -1,6 +1,14 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add append-only local quality receipt journal (task 0041)
+### Added
+- `scripts/receipt_journal.py` stores immutable receipt events in SQLite WAL,
+  making identical retries idempotent and conflicting event IDs an error.
+- Replayable summaries expose event counts, candidate pairs, statuses and time
+  range without turning telemetry into an admission decision.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add denominator-first quality metrics dashboard (task 0040)
 ### Added
 - `scripts/quality_metrics_dashboard.py` aggregates PR-intelligence receipts
