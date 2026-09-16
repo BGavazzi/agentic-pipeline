@@ -39,6 +39,13 @@ failure as well as success. It is deliberately a clean-room execution
 boundary, not yet a containerized service topology or cryptographic trust
 boundary; see [task 0010](.docs/tasks/0010-feat-clean-room-integration-evidence.md).
 
+Task 0011 adds `scripts/ultrareview_receipt.py`, a deterministic adapter for
+the independent `ultrareview` agent. It requires exact commit identity, an
+independence marker, reviewer invocation id, evidence citations, metrics, and
+findings when blocking. It validates and normalizes a reviewer report; it does
+not perform or impersonate the LLM review. Missing ultrareview evidence still
+blocks high-risk admission. See [task 0011](.docs/tasks/0011-feat-ultrareview-receipt-contract.md).
+
 Live scanner contracts (synthetic fixtures only; downloads images/rules/DBs):
 
 ```powershell
@@ -380,12 +387,12 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 
 Every skill above sits idle (and costs nothing) until its own env vars are set — none of them guess, degrade silently, or fabricate a result when a credential is missing. Each `SKILL.md` documents its own precondition check and prints setup instructions instead.
 
-On pull requests, CI aggregates unit, clean-room integration, and scanner
-evidence into a schema-v1 receipt and runs `admission_gate.py` against the exact
-base/head SHAs. Missing artifacts, failed scanners and absent high-risk
-obligations remain non-admitted. The final job is currently a consistency
-check: branch/ruleset protection and signed policy ownership are required before
-treating it as a trust boundary.
+On pull requests, CI aggregates unit, clean-room integration, scanner, and—when
+the independent reviewer has run—ultrareview evidence into a schema-v1 receipt
+and runs `admission_gate.py` against the exact base/head SHAs. Missing
+artifacts, failed scanners and absent high-risk obligations remain non-admitted.
+The final job is currently a consistency check: branch/ruleset protection and
+signed policy ownership are required before treating it as a trust boundary.
 
 ## License
 

@@ -30,6 +30,14 @@ def integration_file(tmp_path, status="pass", base=BASE, head=HEAD):
     return path
 
 
+def ultrareview_file(tmp_path, status="pass", base=BASE, head=HEAD):
+    path = tmp_path / "ultrareview.json"
+    path.write_text(json.dumps({"schema_version": 1, "gate": "ultrareview",
+                                "base_sha": base, "head_sha": head,
+                                "status": status}))
+    return path
+
+
 def test_builds_pass_receipts_from_job_artifacts(tmp_path):
     result = build_receipts(*files(tmp_path), BASE, HEAD)
     assert result["schema_version"] == 1
@@ -68,3 +76,18 @@ def test_stale_integration_report_rejected(tmp_path):
     with pytest.raises(ValueError, match="integration report"):
         build_receipts(risk, scan, unit, BASE, HEAD,
                        integration_file(tmp_path, head="c" * 40))
+
+
+def test_ultrareview_report_is_carried_into_receipts(tmp_path):
+    risk, scan, unit = files(tmp_path)
+    result = build_receipts(risk, scan, unit, BASE, HEAD,
+                            ultrareview_path=ultrareview_file(tmp_path))
+    review = next(g for g in result["gates"] if g["gate"] == "ultrareview")
+    assert review["status"] == "pass"
+
+
+def test_stale_ultrareview_report_rejected(tmp_path):
+    risk, scan, unit = files(tmp_path)
+    with pytest.raises(ValueError, match="ultrareview report"):
+        build_receipts(risk, scan, unit, BASE, HEAD,
+                       ultrareview_path=ultrareview_file(tmp_path, head="c" * 40))

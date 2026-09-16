@@ -1,6 +1,18 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add ultrareview receipt contract (task 0011)
+### Added
+- `scripts/ultrareview_receipt.py` validates independent reviewer reports and
+  emits canonical schema-v1 PASS/BLOCK receipts with exact commit identity,
+  invocation identity, evidence citations, findings, and metrics.
+### Changed
+- Receipt aggregation can now consume validated ultrareview evidence; malformed
+  or stale review reports remain errors, and absent evidence still blocks
+  high-risk admission. The adapter does not perform or impersonate the LLM
+  review; protected reviewer execution remains a follow-up.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add clean-room integration evidence (task 0010)
 ### Added
 - `scripts/integration_gate.py` stages the committed HEAD into a temporary
