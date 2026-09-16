@@ -441,8 +441,10 @@ changes receive an explicit `not_applicable` receipt.
 
 The test-impact benchmark is versioned and conservative: v0.2 includes a
 reverse-import closure for transitive dependencies and reports precision,
-recall, closure size, and `promotion_ready`. It remains shadow-only; the full
-clean-room integration suite is still authoritative.
+recall, closure size, and `promotion_ready`. `scripts/impact_promotion.py`
+combines that evidence with the shadow and full-suite receipts to make a
+commit-bound optimization decision; it never makes a fallback eligible and
+the full clean-room integration suite remains authoritative.
 
 Visual producers are consumer-owned: a frontend runs Playwright/Storybook and
 emits the validated `visual` receipt; the core admission and scorecard adapters
