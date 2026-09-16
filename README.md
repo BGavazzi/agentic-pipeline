@@ -402,6 +402,15 @@ longer matches its recorded hash (someone hand-edited it locally, violating
 "core is read-only"), the next sync skips it and exits `1` instead of
 silently clobbering the edit; `--force` overwrites it anyway.
 
+### Autonomous integration → staging review
+
+The PR workflow runs the candidate in a clean-room integration workspace and
+builds an admission-backed quality scorecard. `scripts/staging_gate.py` then
+emits `.docs/staging-reports/eligibility.json`: only an admitted green
+scorecard with a passing isolated integration is eligible for a staging-review
+PR. The gate reports evidence completeness, integration duration, risk level,
+and blockers. It does not create or merge a PR; human review remains mandatory.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it

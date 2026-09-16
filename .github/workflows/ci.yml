@@ -408,6 +408,21 @@ jobs:
             args+=(--integration-report "$integration")
           fi
           python scripts/quality_scorecard.py "${args[@]}"
+      - name: Evaluate autonomous staging eligibility
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          test -n "$integration" || integration=.docs/integration-reports/missing.json
+          python scripts/staging_gate.py \
+            --scorecard .docs/quality-reports/scorecard.json \
+            --integration-report "$integration" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output .docs/staging-reports/eligibility.json
       - name: Upload admission evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -416,4 +431,5 @@ jobs:
           path: |
             .docs/admission-receipt.json
             .docs/quality-reports/
+            .docs/staging-reports/
           if-no-files-found: warn

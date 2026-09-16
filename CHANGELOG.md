@@ -1,6 +1,18 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add autonomous-to-staging promotion gate (task 0024)
+### Added
+- `scripts/staging_gate.py` converts an admitted quality scorecard plus a
+  passing isolated integration receipt into a versioned staging-review
+  eligibility receipt with blockers and metrics.
+- CI now uploads staging eligibility evidence; missing or failed evidence stays
+  blocked instead of becoming a green result.
+### Changed
+- The staging gate is part of the canonical synced/high-risk gate surface.
+  It never creates or merges a PR; human review remains the next stage.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Make core sync provenance canonical and self-describing (task 0023)
 ### Added
 - `core_sync.py` now generates `.claude/skills/VENDORED.md` with the canonical
