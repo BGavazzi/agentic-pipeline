@@ -61,6 +61,12 @@ integration duration/isolation, and reviewer independence when available. The
 scorecard mirrors admission (`green` or `blocked`) but does not replace the
 admission policy or turn partial evidence into a pass.
 
+Task 0015 adds conservative `scripts/test_impact.py`. It uses committed diff
+and Python AST import/path evidence to select impacted tests only when reliable;
+unknown file types, unresolved modules, and empty selections fall back to the
+full suite. The report is optimization-only until a precision/recall benchmark
+proves it safe to wire into execution.
+
 Task 0013 defines the homelab boundary: fork PRs stay on GitHub-hosted runners;
 trusted same-repo jobs may use the pool only after ephemeral/JIT workers,
 disposable workspaces, zero host-secret mounts, cleanup, revocation, and pool

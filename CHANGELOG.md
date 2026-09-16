@@ -1,6 +1,16 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add conservative test-impact analysis (task 0015)
+### Added
+- `scripts/test_impact.py` emits schema-v1 changed-file, selected-test,
+  fallback-reason, and selection-ratio metrics using Python AST/path evidence.
+### Changed
+- Unknown/non-Python/unresolved changes explicitly fall back to the full test
+  suite. Test-impact output is advisory until precision/recall benchmarking
+  proves it safe to replace full clean-room execution.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add deterministic quality scorecard (task 0014)
 ### Added
 - `scripts/quality_scorecard.py` emits provenance-bound metrics for risk,

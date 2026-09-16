@@ -98,3 +98,11 @@
   gate-surface classification. Metrics are provenance-bound and report-only;
   admission remains the policy authority.
 - Next: run full verification, commit/push, open PR, then continue the queue.
+
+## 2026-09-16 — Task 0015, conservative test-impact analysis
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0015` from task 0014
+  commit `4348c75`, branch `feat/0015-test-impact-analysis`.
+- Added `test_impact.py`: direct Python AST/path selection with explicit full-
+  suite fallback for uncertainty. It is optimization-only; integration still
+  runs the full suite until a precision/recall benchmark exists.
