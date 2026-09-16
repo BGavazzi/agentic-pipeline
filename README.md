@@ -434,6 +434,11 @@ carry that receipt, bind it to the candidate SHAs, and block supplied visual
 failures. Repositories without a deterministic browser surface do not receive
 a fabricated visual pass.
 
+When the autonomous lane is eligible for human review, use
+`scripts/staging_pr.py` to perform the explicit handoff. It validates the
+receipt and exact head SHA, avoids duplicating an open PR, supports `--dry-run`,
+and only creates a staging PR; approval and merge remain human actions.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it

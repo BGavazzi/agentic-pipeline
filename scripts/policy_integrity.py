@@ -31,6 +31,8 @@ POLICY_PATHS = (
     "scripts/quality_scorecard.py",
     "scripts/quota_gate.py",
     "scripts/scan_gate.py",
+    "scripts/staging_gate.py",
+    "scripts/staging_pr.py",
     "scripts/test_impact.py",
     "scripts/ultrareview_receipt.py",
     "scripts/ultrareview_runner.py",

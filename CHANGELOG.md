@@ -1,6 +1,14 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add staging-review PR handoff adapter (task 0031)
+### Added
+- `scripts/staging_pr.py` validates eligible receipts, exact candidate SHA,
+  open-PR idempotency, and emits a dry-run plan before invoking `gh pr create`.
+- The adapter is synced/classified as a high-risk policy surface and cannot
+  merge or approve a PR.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Carry visual receipts through admission (task 0030)
 ### Added
 - Admission and scorecard adapters now recognize optional `visual` receipts,

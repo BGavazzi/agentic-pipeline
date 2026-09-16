@@ -150,6 +150,7 @@ GATE_SCRIPTS = [
     "staging_gate.py",
     "worker_preflight.py",
     "infra_dry_run.py",
+    "staging_pr.py",
     "validate_task.py",
     "validate_closure.py",
     "blast_radius.py",
