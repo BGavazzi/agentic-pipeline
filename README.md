@@ -503,6 +503,18 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 
 Every skill above sits idle (and costs nothing) until its own env vars are set — none of them guess, degrade silently, or fabricate a result when a credential is missing. Each `SKILL.md` documents its own precondition check and prints setup instructions instead.
 
+### PR intelligence and early HITL
+
+Every pull request also receives a commit-bound quality-intelligence summary
+when the admission artifacts are available. `scripts/pr_intelligence.py`
+combines the deterministic risk report with diff churn, contact surfaces,
+gate evidence and test-impact state. It emits JSON for dashboards and Markdown
+for the GitHub job summary/PR comment. The summary explicitly labels the
+earliest recommended human checkpoint (for example, `before integration` for
+high-risk or non-pass evidence). This is advisory routing: it cannot override
+the fail-closed admission decision, and it never treats a weighted score as a
+substitute for a required gate.
+
 On pull requests, CI aggregates unit, clean-room integration, scanner, and—when
 the independent reviewer has run—ultrareview evidence into a schema-v1 receipt
 and runs `admission_gate.py` against the exact base/head SHAs. Missing
