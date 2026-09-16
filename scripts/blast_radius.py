@@ -79,7 +79,7 @@ HIGH_RISK_PATH_PATTERNS = [
     # Without this, a PR deleting the whole `gates` job classifies as `low` and
     # is waved through on unit tests alone.
     (r"^\.github/workflows/.*\.ya?ml$", "ci-workflow"),
-    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|ci_receipts|integration_gate|impact_runner|impact_benchmark|harness_selftest|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt)\.py$", "gate-script"),
+    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|ci_receipts|integration_gate|impact_runner|impact_benchmark|harness_selftest|policy_integrity|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt)\.py$", "gate-script"),
     (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
 ]
 

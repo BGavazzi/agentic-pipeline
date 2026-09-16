@@ -29,7 +29,8 @@ def test_status(path: Path) -> str:
 def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
                    base_sha: str, head_sha: str,
                    integration_path: Path | None = None,
-                   ultrareview_path: Path | None = None) -> dict:
+                   ultrareview_path: Path | None = None,
+                   policy_path: Path | None = None) -> dict:
     risk = read_json(risk_path)
     scan = read_json(scan_path)
     if risk.get("base_sha") != base_sha or risk.get("head_sha") != head_sha:
@@ -52,6 +53,14 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         if ultrareview.get("base_sha") != base_sha or ultrareview.get("head_sha") != head_sha:
             raise ValueError("ultrareview report is for a different commit pair")
 
+    policy = None
+    if policy_path is not None:
+        policy = read_json(policy_path)
+        if policy.get("schema_version") != 1 or policy.get("gate") != "policy":
+            raise ValueError("invalid policy integrity receipt")
+        if policy.get("base_sha") != base_sha or policy.get("head_sha") != head_sha:
+            raise ValueError("policy report is for a different commit pair")
+
     statuses = {
         "unit": test_status(unit_exit_path),
         "sast": scan.get("tool_status", {}).get("semgrep", {}).get("status", "error"),
@@ -68,12 +77,17 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         statuses["ultrareview"] = ultrareview.get("status", "error")
         if statuses["ultrareview"] not in {"pass", "fail", "error"}:
             statuses["ultrareview"] = "error"
+    statuses["policy"] = policy.get("status", "error") if policy is not None else "error"
+    if statuses["policy"] == "review_required":
+        statuses["policy"] = "fail"
     evidence = {"risk_report": str(risk_path), "scan_report": str(scan_path),
                 "unit_exit": str(unit_exit_path)}
     if integration_path is not None:
         evidence["integration_report"] = str(integration_path)
     if ultrareview_path is not None:
         evidence["ultrareview_report"] = str(ultrareview_path)
+    if policy_path is not None:
+        evidence["policy_report"] = str(policy_path)
     return {"schema_version": SCHEMA_VERSION, "base_sha": base_sha,
             "head_sha": head_sha,
             "gates": [{"gate": name, "status": status} for name, status in sorted(statuses.items())],
@@ -87,6 +101,7 @@ def main() -> int:
     parser.add_argument("--unit-exit", type=Path, required=True)
     parser.add_argument("--integration-report", type=Path)
     parser.add_argument("--ultrareview-report", type=Path)
+    parser.add_argument("--policy-report", type=Path, required=True)
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -94,7 +109,8 @@ def main() -> int:
     try:
         result = build_receipts(args.risk, args.scan, args.unit_exit,
                                 args.base_sha, args.head_sha,
-                                args.integration_report, args.ultrareview_report)
+                                args.integration_report, args.ultrareview_report,
+                                args.policy_report)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, TypeError, json.JSONDecodeError):

@@ -1,6 +1,15 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add policy-integrity admission receipt (task 0020)
+### Added
+- `scripts/policy_integrity.py` fingerprints the trusted base policy surface and
+  reports workflow/gate-script changes as `review_required`.
+### Changed
+- Admission now requires a policy receipt in addition to unit, scanner, and
+  risk-selected gates; policy changes cannot be silently auto-admitted.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add versioned test-impact benchmark (task 0019)
 ### Added
 - `scripts/impact_benchmark.py` materializes before/after git fixtures and

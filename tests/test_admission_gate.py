@@ -18,7 +18,7 @@ def documents(level="low"):
     required = admission_gate.required_gates_for(level, [])
     risk = dict(identity, risk_level=level, risk_triggers=[], required_gates=required)
     receipts = dict(identity, gates=[dict(gate=g, status="pass")
-                                   for g in sorted(set(required) | {"sast", "sca", "secrets"})])
+                                   for g in sorted(set(required) | {"sast", "sca", "secrets", "policy"})])
     return risk, receipts
 
 

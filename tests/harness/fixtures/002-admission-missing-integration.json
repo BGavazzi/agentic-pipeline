@@ -18,6 +18,7 @@
       {"gate": "sast", "status": "pass"},
       {"gate": "sca", "status": "pass"},
       {"gate": "secrets", "status": "pass"}
+      ,{"gate": "policy", "status": "pass"}
     ]
   },
   "expect": {"admitted": false}

@@ -21,6 +21,7 @@ def files(tmp_path, *, blocked=False):
         {"gate": "secrets", "status": "pass"},
         {"gate": "unit", "status": "pass"},
         {"gate": "ultrareview", "status": "fail" if blocked else "pass"},
+        {"gate": "policy", "status": "pass"},
     ]
     risk.write_text(json.dumps({
         "schema_version": 1, "base_sha": BASE, "head_sha": HEAD,

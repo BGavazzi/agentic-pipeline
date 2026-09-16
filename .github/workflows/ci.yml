@@ -285,6 +285,19 @@ jobs:
             --base "origin/$BASE_REF" \
             --branch HEAD
 
+      - name: Policy integrity receipt
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+        run: |
+          mkdir -p .docs/policy-reports
+          python scripts/policy_integrity.py \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --policy-ref "$BASE_SHA" \
+            --output ".docs/policy-reports/$TASK_ID.json"
+
       - name: Upload gate artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -293,6 +306,7 @@ jobs:
           path: |
             .docs/blast-reports/
             .docs/scan-reports/
+            .docs/policy-reports/
           if-no-files-found: ignore
 
       # scan_gate emits SARIF 2.1.0 — feed it to GitHub code scanning so
@@ -353,11 +367,13 @@ jobs:
           risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           scan=$(find .docs/scan-reports scan-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
-          test -n "$risk" && test -n "$scan"
+          policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          test -n "$risk" && test -n "$scan" && test -n "$policy"
           args=(
             --risk "$risk"
             --scan "$scan"
             --unit-exit .docs/test-reports/unit.exit
+            --policy-report "$policy"
             --base-sha "$BASE_SHA"
             --head-sha "$HEAD_SHA"
             --output .docs/admission-receipt.json

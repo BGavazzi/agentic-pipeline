@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - exercised by `python scripts/...`.
     from blast_radius import required_gates_for
 
 SCHEMA_VERSION = 1
-KNOWN_GATES = {"unit", "integration", "sast", "sca", "ultrareview", "infra-dry-run", "secrets"}
+KNOWN_GATES = {"unit", "integration", "sast", "sca", "ultrareview", "infra-dry-run", "secrets", "policy"}
 STATUSES = {"pass", "fail", "error", "skipped", "not_applicable"}
 
 
@@ -47,7 +47,7 @@ def evaluate(risk: dict, receipts: dict, base_sha: str, head_sha: str) -> dict:
     if not set(required_gates_for(level, triggers)) <= set(required):
         raise ValueError("risk obligations were removed")
     # Scanners remain mandatory even for low risk, matching existing CI policy.
-    obligations = set(required) | {"sast", "sca", "secrets"}
+    obligations = set(required) | {"sast", "sca", "secrets", "policy"}
     items = receipts.get("gates")
     if not isinstance(items, list):
         raise ValueError("missing gate receipts")
