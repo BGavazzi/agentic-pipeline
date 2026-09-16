@@ -66,3 +66,15 @@
   classification; added adversarial tests for missing proof and stale identity.
 - Focused verification: 60 tests passed in 8.11s. Full-suite and CI checks
   remain to run before opening the PR.
+
+## 2026-09-16 — Task 0012, isolated ultrareview worker runner
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0012` from task 0011
+  commit `47163a0`, branch `feat/0012-ultrareview-runner`.
+- Added `ultrareview_runner.py`: committed-HEAD archive, separate diff context,
+  explicit reviewer argv, timeout/error handling, and task 0011 validation.
+- Added worker failure tests and propagated the runner into core sync and
+  high-risk gate classification. No LLM credentials or external service calls
+  are introduced.
+- Next: run full verification, commit/push, open PR, then continue with
+  protected homelab worker routing and credential isolation.

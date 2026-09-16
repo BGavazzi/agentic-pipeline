@@ -137,6 +137,7 @@ GATE_SCRIPTS = [
     "ci_receipts.py",
     "integration_gate.py",
     "ultrareview_receipt.py",
+    "ultrareview_runner.py",
     "validate_task.py",
     "validate_closure.py",
     "blast_radius.py",

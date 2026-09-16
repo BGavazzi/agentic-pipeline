@@ -46,6 +46,14 @@ findings when blocking. It validates and normalizes a reviewer report; it does
 not perform or impersonate the LLM review. Missing ultrareview evidence still
 blocks high-risk admission. See [task 0011](.docs/tasks/0011-feat-ultrareview-receipt-contract.md).
 
+Task 0012 adds `scripts/ultrareview_runner.py`: a worker-side adapter that
+archives committed HEAD, writes a base/head diff context, invokes an explicit
+reviewer argv in a temporary workspace, and validates its JSON through the
+ultrareview receipt contract. Worker timeout, non-zero exit, malformed output,
+or unavailable execution produces an error receipt—not PASS. It does not carry
+LLM credentials or choose a worker host; trusted-event routing and homelab
+credential isolation remain deployment work. See [task 0012](.docs/tasks/0012-feat-ultrareview-worker-runner.md).
+
 Live scanner contracts (synthetic fixtures only; downloads images/rules/DBs):
 
 ```powershell

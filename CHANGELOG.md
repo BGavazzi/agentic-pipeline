@@ -1,6 +1,19 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add isolated ultrareview worker runner (task 0012)
+### Added
+- `scripts/ultrareview_runner.py` executes an explicit reviewer argv in a
+  temporary committed-HEAD workspace, supplies a base/head diff context, and
+  normalizes JSON through the ultrareview receipt contract.
+- Worker timeout, non-zero exit, malformed output, and unavailable execution
+  produce explicit error evidence rather than a fabricated PASS.
+### Changed
+- Core sync and blast-radius gate-surface classification now include the
+  worker runner. Homelab routing, network/credential isolation, and evidence
+  authentication remain deployment follow-ups.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add ultrareview receipt contract (task 0011)
 ### Added
 - `scripts/ultrareview_receipt.py` validates independent reviewer reports and
