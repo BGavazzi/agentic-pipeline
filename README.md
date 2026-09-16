@@ -411,6 +411,10 @@ scorecard with a passing isolated integration is eligible for a staging-review
 PR. The gate reports evidence completeness, integration duration, risk level,
 and blockers. It does not create or merge a PR; human review remains mandatory.
 
+Homelab workers also have a machine-checkable preflight contract:
+`scripts/worker_preflight.py` blocks persistent, dirty, stale, secret-bearing,
+mislabelled, or fork-routed self-hosted workers before candidate execution.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it

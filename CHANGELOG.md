@@ -1,6 +1,16 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add machine-checkable homelab worker preflight (task 0025)
+### Added
+- `scripts/worker_preflight.py` emits a fail-closed worker trust receipt with
+  ephemeral, cleanup, worker-age, mounted-secret, Docker, and fork-routing
+  metrics.
+- The homelab runbook now documents the preflight invocation and its limits.
+### Changed
+- Worker preflight is part of the canonical synced/high-risk gate surface.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add autonomous-to-staging promotion gate (task 0024)
 ### Added
 - `scripts/staging_gate.py` converts an admitted quality scorecard plus a

@@ -96,6 +96,32 @@ Each worker must be single-use:
    unreachable worker is revoked before replacement.
 5. Record only operational metrics, never source contents or secret values.
 
+## Machine-checkable preflight
+
+Before checkout or any candidate-controlled command, the worker wrapper should
+run the canonical `scripts/worker_preflight.py` and stop on exit code `1` or
+`2`. A self-hosted worker is accepted only when it has the `homelab-pool`
+label, is ephemeral, has completed zero prior jobs, has verified cleanup, and
+has zero mounted secrets. Fork PRs are always rejected on self-hosted workers.
+
+Example receipt command on a disposable worker:
+
+```bash
+python scripts/worker_preflight.py \
+  --worker-kind self-hosted \
+  --labels homelab-pool,self-hosted \
+  --ephemeral \
+  --workspace-clean \
+  --docker-reachable \
+  --require-docker \
+  --output .docs/worker-reports/preflight.json
+```
+
+The receipt records `worker_age_jobs`, `mounted_secret_count`, cleanup,
+Docker reachability, and fork-to-pool routing metrics. It is an operational
+acceptance artifact, not proof that a compromised host is safe; the stronger
+boundary remains a disposable VM/container with no host application secrets.
+
 ## Preflight before enabling `USE_HOMELAB_POOL`
 
 - [ ] Fork PR routing verified on a no-op workflow: runner is GitHub-hosted.
