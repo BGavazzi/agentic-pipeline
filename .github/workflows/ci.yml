@@ -138,12 +138,13 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
         run: |
           mkdir -p .docs/integration-reports
-          python scripts/integration_gate.py "${{ steps.task.outputs.id }}" \
+          python scripts/integration_gate.py "$TASK_ID" \
             --base-sha "$BASE_SHA" \
             --head-sha "$HEAD_SHA" \
-            --output ".docs/integration-reports/${{ steps.task.outputs.id }}.json" \
+            --output ".docs/integration-reports/$TASK_ID.json" \
             --command python -m pytest tests/ -q
 
       - name: Upload integration evidence
@@ -152,6 +153,58 @@ jobs:
         with:
           name: integration-artifacts-${{ steps.task.outputs.id }}
           path: .docs/integration-reports/
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # Test-impact shadow evidence. The full integration job remains authoritative;
+  # this job measures the conservative optimization before any future promotion.
+  # ---------------------------------------------------------------------------
+  impact-shadow:
+    needs: route
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pytest pyyaml
+
+      - name: Derive task id from branch
+        id: task
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          id=$(echo "$HEAD_REF" | grep -oE '[0-9]{4}' | head -1)
+          echo "id=${id:-0000}" >> "$GITHUB_OUTPUT"
+
+      - name: Run test-impact shadow worker
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+        run: |
+          mkdir -p .docs/impact-reports
+          python scripts/impact_runner.py "$TASK_ID" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output .docs/impact-reports/shadow.json \
+            --impact-output .docs/impact-reports/selection.json
+
+      - name: Upload test-impact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: impact-shadow-artifacts-${{ github.run_id }}
+          path: .docs/impact-reports/
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------

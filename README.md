@@ -67,6 +67,12 @@ unknown file types, unresolved modules, and empty selections fall back to the
 full suite. The report is optimization-only until a precision/recall benchmark
 proves it safe to wire into execution.
 
+Task 0018 adds `scripts/impact_runner.py` as a shadow-mode test-impact worker.
+It executes the conservative selection inside the same clean-room boundary as
+`integration_gate.py`, records selection and execution metrics, and keeps
+`authoritative: false`. The full-suite integration job remains the correctness
+authority until a precision/recall benchmark justifies promotion.
+
 Task 0016 adds the core visual-regression evidence contract in
 `scripts/visual_receipt.py`. A consuming frontend runner (typically Playwright)
 must provide screenshot paths, viewport, baseline provenance, pixel counts,

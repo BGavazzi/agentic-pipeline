@@ -1,6 +1,17 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Add test-impact shadow execution (task 0018)
+### Added
+- `scripts/impact_runner.py` executes conservative impacted-test selections in
+  the clean-room boundary and emits non-authoritative selection/execution
+  metrics.
+### Changed
+- CI now publishes test-impact shadow evidence while full-suite integration
+  remains the correctness authority; task-derived shell arguments are routed via
+  environment variables.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-16] - Add visual-regression receipt contract (task 0016)
 ### Added
 - `scripts/visual_receipt.py` validates screenshot/viewport evidence, baseline
