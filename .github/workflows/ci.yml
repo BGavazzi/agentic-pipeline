@@ -452,11 +452,12 @@ jobs:
           policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           infra=$(find .docs/infra-reports infra-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*.json' -name '*visual*.json' -print -quit 2>/dev/null || true)
-          test -n "$risk" && test -n "$scan" && test -n "$policy"
+          unit=$(find .docs/test-reports test-reports -maxdepth 2 -type f -name 'unit.exit' -print -quit 2>/dev/null || true)
+          test -n "$risk" && test -n "$scan" && test -n "$policy" && test -n "$unit"
           args=(
             --risk "$risk"
             --scan "$scan"
-            --unit-exit .docs/test-reports/unit.exit
+            --unit-exit "$unit"
             --policy-report "$policy"
             --base-sha "$BASE_SHA"
             --head-sha "$HEAD_SHA"
