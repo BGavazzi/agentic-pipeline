@@ -154,6 +154,7 @@ GATE_SCRIPTS = [
     "impact_runner.py",
     "harness_selftest.py",
     "impact_benchmark.py",
+    "impact_holdout.py",
     "policy_integrity.py",
     "visual_receipt.py",
     "playwright_visual_producer.py",

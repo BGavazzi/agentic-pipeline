@@ -169,6 +169,19 @@ jobs:
       - name: Run test-impact precision/recall benchmark
         run: python scripts/impact_benchmark.py --output .docs/test-reports/impact-benchmark.json
 
+      - name: Run independent seeded-fault holdout benchmark
+        run: python scripts/impact_holdout.py --output .docs/test-reports/impact-holdout.json
+
+      - name: Upload impact benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: impact-benchmark-${{ github.run_id }}
+          path: |
+            .docs/test-reports/impact-benchmark.json
+            .docs/test-reports/impact-holdout.json
+          if-no-files-found: warn
+
   # ---------------------------------------------------------------------------
   # Clean-room integration evidence. This deliberately repeats execution in a
   # git-archive workspace so a passing unit job cannot be confused with proof

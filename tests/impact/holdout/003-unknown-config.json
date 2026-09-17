@@ -1,0 +1,19 @@
+{
+  "corpus": "holdout",
+  "fault_seed": "seeded-unknown-config-003",
+  "fault_type": "non-python-config-change",
+  "before": {
+    "src/worker.py": "def run():\n    return True\n",
+    "tests/test_worker.py": "from src.worker import run\n\ndef test_run():\n    assert run() is True\n",
+    "config/app.toml": "mode = 'safe'\n"
+  },
+  "after": {
+    "src/worker.py": "def run():\n    return True\n",
+    "tests/test_worker.py": "from src.worker import run\n\ndef test_run():\n    assert run() is True\n",
+    "config/app.toml": "mode = 'strict'\n"
+  },
+  "expected_mode": "full",
+  "relevant_tests": ["tests/test_worker.py"],
+  "minimum_precision": 1.0,
+  "minimum_recall": 1.0
+}

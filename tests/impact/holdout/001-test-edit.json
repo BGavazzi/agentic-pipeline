@@ -1,0 +1,17 @@
+{
+  "corpus": "holdout",
+  "fault_seed": "seeded-test-edit-001",
+  "fault_type": "test-file-change",
+  "before": {
+    "src/calculator.py": "def add(a, b):\n    return a + b\n",
+    "tests/test_calculator.py": "from src.calculator import add\n\ndef test_add():\n    assert add(1, 2) == 3\n"
+  },
+  "after": {
+    "src/calculator.py": "def add(a, b):\n    return a + b\n",
+    "tests/test_calculator.py": "from src.calculator import add\n\ndef test_add():\n    assert add(1, 2) == 3\n\ndef test_zero():\n    assert add(0, 0) == 0\n"
+  },
+  "expected_mode": "impacted",
+  "relevant_tests": ["tests/test_calculator.py"],
+  "minimum_precision": 1.0,
+  "minimum_recall": 1.0
+}
