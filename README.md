@@ -411,6 +411,9 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   beside the development TIA fixtures. It records training/holdout hashes,
   mean and worst-case precision/recall, fault types and minimum-corpus status;
   it never weakens the authoritative full suite.
+- **`receipt_mutation_benchmark.py`** — mutates complete high-risk admission
+  evidence across stale, malformed, duplicate, unknown and non-pass cases;
+  CI records the fail-closed rate and blocks on any unsafe survivor.
 - **`staging_dispatch.py`** — verifies the current staging base and candidate
   head against eligibility, attaches the PR intelligence evidence, and plans
   the survivor-to-staging PR. It is dry-run by default; `--create` opens the
