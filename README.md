@@ -111,6 +111,14 @@ artifact, escapes comment controls and suppresses mentions before updating one
 idempotent bot comment. This is advisory telemetry, not authenticated admission
 or a correctness score. See [task 0047](.docs/tasks/0047-feat-pr-intelligence-panel.md).
 
+Task 0048 gives the distributable core an explicit release identity. A sync now
+writes `.claude/.agentic-core-release.json` with core release version, exact
+source commit and supported contract versions, and includes that file in drift
+protection. `scripts/core_version.py` validates the metadata without inferring
+compatibility from arbitrary copied files. This is provenance only: signed
+releases, immutable tags and consumer rollout remain separate work. See [task
+0048](.docs/tasks/0048-feat-core-version-contract.md).
+
 Task 0014 emits a deterministic `.docs/quality-reports/scorecard.json` from
 the risk report and admission receipts. It records schema/provenance, risk and
 fan-out, required/passed gate counts, evidence completeness, observed pass rate,

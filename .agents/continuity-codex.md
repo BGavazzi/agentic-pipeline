@@ -205,3 +205,12 @@
   controls/suppresses mentions and updates one idempotent PR comment.
 - This remains advisory telemetry; no trusted admission, branch protection or
   external infrastructure was changed.
+
+## 2026-09-17 — Task 0048, versioned core release contract
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0048` from task 0047,
+  branch `feat/0048-core-version-contract`.
+- Added `core_version.py` and core-sync release metadata with exact source
+  commit, supported contract inventory and drift protection. Added validation
+  and sync tests. No consumer repo was mass-synced and no signed release or
+  infrastructure state was changed.

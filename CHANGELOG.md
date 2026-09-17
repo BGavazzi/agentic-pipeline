@@ -1,6 +1,18 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Add versioned core release metadata (task 0048)
+### Added
+- `core_version.py` defines the core release independently from receipt schemas
+  and validates installed source/contract metadata.
+- `core_sync.py` writes `.claude/.agentic-core-release.json` with release,
+  exact source commit and supported contract inventory, protected by drift
+  detection.
+### Not activated
+- No signed release, immutable tag, consumer migration or mass portfolio sync
+  was performed; metadata is provenance, not cryptographic supply-chain proof.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Surface risk and HITL intelligence at the top of PRs (task 0047)
 ### Added
 - Blast-radius, contact-surface and sensitive-surface measurements in the

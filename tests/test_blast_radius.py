@@ -199,6 +199,21 @@ def test_high_risk_gate_script_path(sandbox: Path):
     assert "gate-script" in result["risk_triggers"]
 
 
+def test_core_version_contract_is_high_risk(sandbox: Path):
+    """Changing compatibility metadata must trigger the gate-script tier."""
+    write(sandbox, "scripts/core_version.py", "CORE_RELEASE_VERSION = '0.1.0'\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed version contract")
+    git(sandbox, "checkout", "-q", "-b", "feat/version-contract")
+    write(sandbox, "scripts/core_version.py", "CORE_RELEASE_VERSION = '0.2.0'\n")
+    git(sandbox, "commit", "-q", "-am", "edit version contract")
+
+    result = blast_radius.classify(sandbox, "0107", base="master", branch="feat/version-contract")
+
+    assert result["risk_level"] == "high"
+    assert "gate-script" in result["risk_triggers"]
+
+
 def test_agent_skill_change_requires_meta_test(sandbox: Path):
     write(sandbox, ".claude/skills/builder/SKILL.md", "# builder\n")
     git(sandbox, "add", "-A")
