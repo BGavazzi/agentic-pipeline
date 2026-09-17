@@ -170,14 +170,14 @@ def _dr(stdout: str, stderr: str = "", returncode: int = 0) -> "scan_gate.Docker
 
 def test_classify_gate_blocks_on_introduced_high_severity():
     runs = [scan_gate.ToolRun(tool="semgrep", status="ok", findings=[_finding(file="app/x.py")])]
-    result = scan_gate.classify_gate(runs, changed=["app/x.py"])
+    result = scan_gate.classify_gate(runs, changed=["app/x.py"], required_tools=("semgrep",))
     assert result["verdict"] == "block"
     assert result["findings_introduced_blocking"] == 1
 
 
 def test_classify_gate_passes_when_finding_is_pre_existing():
     runs = [scan_gate.ToolRun(tool="semgrep", status="ok", findings=[_finding(file="app/other.py")])]
-    result = scan_gate.classify_gate(runs, changed=["app/x.py"])
+    result = scan_gate.classify_gate(runs, changed=["app/x.py"], required_tools=("semgrep",))
     assert result["verdict"] == "pass"
     assert result["findings_introduced_blocking"] == 0
 
@@ -185,7 +185,7 @@ def test_classify_gate_passes_when_finding_is_pre_existing():
 def test_classify_gate_medium_introduced_does_not_block():
     runs = [scan_gate.ToolRun(tool="semgrep", status="ok",
                                findings=[_finding(file="app/x.py", severity="medium")])]
-    result = scan_gate.classify_gate(runs, changed=["app/x.py"])
+    result = scan_gate.classify_gate(runs, changed=["app/x.py"], required_tools=("semgrep",))
     assert result["verdict"] == "pass"
     assert result["findings_introduced"] == 1
 
@@ -196,7 +196,7 @@ def test_classify_gate_degraded_when_all_tools_skipped():
         scan_gate.ToolRun(tool="trivy", status="skipped", reason="docker unavailable"),
     ]
     result = scan_gate.classify_gate(runs, changed=["app/x.py"])
-    assert result["verdict"] == "degraded"
+    assert result["verdict"] == "error"
     assert result["degraded"] is True
     assert result["ran_any_scanner"] is False
 
@@ -221,7 +221,8 @@ def test_docker_run_bind_mounts_extra_paths_and_creates_them(sandbox: Path, tmp_
     assert cache_dir.exists()  # created before the mount, not left for docker to fail on
     cmd = captured_cmd["cmd"]
     assert f"{cache_dir}:/root/.cache/trivy" in cmd
-    assert f"{sandbox}:/src" in cmd
+    assert f"{sandbox}:/src:ro" in cmd
+    assert cmd[cmd.index("-w") + 1] == "/src"
 
 
 def test_run_trivy_mounts_a_cache_dir_by_default(sandbox: Path, monkeypatch):
@@ -285,10 +286,7 @@ def test_run_all_scanners_isolates_one_tool_erroring(sandbox: Path, monkeypatch)
 
 
 def test_run_all_scanners_surfaces_stderr_on_unparseable_output(sandbox: Path, monkeypatch):
-    """Task 0007: empty/unparseable stdout must carry the *why* from stderr,
-    not just the bare JSONDecodeError — this is what made PR #6's live trivy
-    failure require pulling the CI artifact to diagnose instead of being
-    readable from the gate's own error message."""
+    """Task 0009: invalid output blocks without republishing raw stderr."""
     monkeypatch.setattr(
         scan_gate, "run_trivy",
         lambda repo, targets: _dr("", stderr="FATAL: unable to update vulnerability DB: "
@@ -301,8 +299,10 @@ def test_run_all_scanners_surfaces_stderr_on_unparseable_output(sandbox: Path, m
                                        enable_dependency_check=False)
     trivy_run = {r.tool: r for r in runs}["trivy"]
     assert trivy_run.status == "error"
-    assert "unparseable output" in trivy_run.reason
-    assert "unable to update vulnerability DB" in trivy_run.reason
+    assert "invalid scanner report" in trivy_run.reason
+    assert "unable to update vulnerability DB" not in trivy_run.reason
+    assert "diagnostic=trivy-db-download" in trivy_run.reason
+    assert "stderr_sha256_16=" in trivy_run.reason
 
 
 def test_run_all_scanners_notes_empty_stderr_too_when_stdout_is_empty(sandbox: Path, monkeypatch):
@@ -317,12 +317,18 @@ def test_run_all_scanners_notes_empty_stderr_too_when_stdout_is_empty(sandbox: P
                                        enable_dependency_check=False)
     trivy_run = {r.tool: r for r in runs}["trivy"]
     assert trivy_run.status == "error"
-    assert "empty stderr" in trivy_run.reason
     assert "137" in trivy_run.reason
+    assert "diagnostic=stderr-empty" in trivy_run.reason
+
+
+def test_stderr_diagnostic_redacts_unknown_contents():
+    reason = scan_gate._stderr_diagnostic("secret-looking-token-123")
+    assert reason.startswith("stderr-present;stderr_sha256_16=")
+    assert "secret-looking-token" not in reason
 
 
 def test_run_all_scanners_skips_dependency_check_by_default(sandbox: Path):
-    runs = scan_gate.run_all_scanners(sandbox, changed=[], docker_available=True,
+    runs = scan_gate.run_all_scanners(sandbox, changed=[], docker_available=False,
                                        enable_dependency_check=False)
     assert "dependency-check" not in {r.tool for r in runs}
 
@@ -396,5 +402,117 @@ def test_scan_degrades_cleanly_without_fabricating_a_pass(sandbox: Path, monkeyp
     monkeypatch.setattr(scan_gate, "check_docker_available", lambda: False)
     summary, _ = scan_gate.scan(sandbox, "0002", base=None, branch="master", enable_dependency_check=False)
     assert summary["degraded"] is True
-    assert summary["verdict"] == "degraded"
-    assert summary["findings_total"] == 0
+    assert summary["verdict"] == "error"
+
+
+@pytest.mark.parametrize("status", ["skipped", "error", "unknown"])
+def test_one_unsuccessful_scanner_blocks(status):
+    runs = [scan_gate.ToolRun(t, "ok") for t in scan_gate.REQUIRED_TOOLS]
+    runs[-1].status = status
+    assert scan_gate.classify_gate(runs, [])["verdict"] == "error"
+
+
+@pytest.mark.parametrize("runs", [[], [scan_gate.ToolRun("semgrep", "ok")]])
+def test_missing_required_scanner_blocks(runs):
+    assert scan_gate.classify_gate(runs, [])["verdict"] == "error"
+
+
+@pytest.mark.parametrize("code", [1, 2, 125, 137])
+def test_gitleaks_failed_empty_stdout_is_not_clean(sandbox, monkeypatch, code):
+    monkeypatch.setattr(scan_gate, "run_semgrep", lambda *a: _dr('{"results": []}'))
+    monkeypatch.setattr(scan_gate, "run_trivy", lambda *a: _dr('{"Results": []}'))
+    monkeypatch.setattr(scan_gate, "run_gitleaks", lambda *a: _dr("", returncode=code))
+    runs = scan_gate.run_all_scanners(sandbox, [], True, False)
+    assert runs[-1].status == "error"
+    assert scan_gate.classify_gate(runs, [])["verdict"] == "error"
+
+
+def test_gitleaks_findings_exit_is_valid_and_absolute_path_blocks(sandbox, monkeypatch):
+    monkeypatch.setattr(scan_gate, "run_semgrep", lambda *a: _dr('{"results": []}'))
+    monkeypatch.setattr(scan_gate, "run_trivy", lambda *a: _dr('{"Results": []}'))
+    monkeypatch.setattr(scan_gate, "run_gitleaks", lambda *a: _dr(
+        '[{"RuleID":"synthetic","File":"/src/config.py"}]', returncode=1))
+    runs = scan_gate.run_all_scanners(sandbox, ["config.py"], True, False)
+    assert runs[-1].status == "ok"
+    assert scan_gate.classify_gate(runs, ["config.py"])["verdict"] == "block"
+
+
+@pytest.mark.parametrize("tool,raw", [("semgrep", "{}"), ("semgrep", '{"results": [], "errors": [{}]}'),
+                                     ("trivy", "[]"), ("trivy", "{}"), ("gitleaks", "{}")])
+def test_invalid_report_shape_rejected(tool, raw):
+    with pytest.raises(ValueError):
+        scan_gate.PARSERS[tool](raw)
+
+
+def test_no_docker_cli_exits_nonzero_and_writes_diagnostic(sandbox, monkeypatch):
+    monkeypatch.setattr(scan_gate, "check_docker_available", lambda: False)
+    monkeypatch.setattr(sys, "argv", ["scan_gate.py", "0009", "--repo", str(sandbox),
+                                     "--base", "HEAD", "--branch", "HEAD"])
+    assert scan_gate.main() == 2
+    report = json.loads((sandbox / ".docs/scan-reports/0009.json").read_text())
+    assert report["verdict"] == "error"
+
+
+def test_skipped_scanner_is_unsuccessful_in_sarif():
+    report = scan_gate.build_sarif([scan_gate.ToolRun("trivy", "skipped")])
+    assert report["runs"][0]["invocations"][0]["executionSuccessful"] is False
+
+
+def test_trivy_uses_one_tree_target(sandbox, monkeypatch):
+    captured = {}
+    monkeypatch.setattr(scan_gate, "_docker_run", lambda image, args, repo, **kw:
+                        captured.update(args=args) or _dr('{"Results": []}'))
+    scan_gate.run_trivy(sandbox, ["deleted.py", "--bad-flag"])
+    assert captured["args"][-1] == "."
+    assert "deleted.py" not in captured["args"]
+    assert "--bad-flag" not in captured["args"]
+
+
+def test_dependency_check_reads_report_file(sandbox, monkeypatch):
+    def fake_docker(image, args, repo, extra_mounts):
+        output_dir, mount = extra_mounts[0]
+        assert mount == "/reports"
+        (output_dir / "dependency-check-report.json").write_text(DEPENDENCY_CHECK_SAMPLE)
+        return _dr("console output, not JSON")
+    monkeypatch.setattr(scan_gate, "_docker_run", fake_docker)
+    result = scan_gate.run_dependency_check(sandbox, "0009")
+    assert result.stdout == DEPENDENCY_CHECK_SAMPLE
+
+
+def test_dependency_check_missing_report_blocks(sandbox, monkeypatch):
+    monkeypatch.setattr(scan_gate, "_docker_run", lambda *a, **kw: _dr("logs"))
+    with pytest.raises(RuntimeError, match="readable report"):
+        scan_gate.run_dependency_check(sandbox, "0009")
+
+
+def test_gitleaks_reads_report_file_not_stdout(sandbox, monkeypatch):
+    def fake_docker(image, args, repo, extra_mounts):
+        directory, mount = extra_mounts[0]
+        assert mount == "/reports"
+        assert args[:2] == ["dir", "/src"]
+        assert "--no-git" not in args
+        assert (repo / "config.py").read_text() == "seed\n"
+        (directory / "gitleaks.json").write_text('[{"RuleID":"synthetic","File":"config.py"}]')
+        return _dr("", returncode=1)
+    monkeypatch.setattr(scan_gate, "_docker_run", fake_docker)
+    (sandbox / "config.py").write_text("seed\n")
+    result = scan_gate.run_gitleaks(sandbox, ["config.py"])
+    assert result.returncode == 1
+    assert len(scan_gate.parse_gitleaks(result.stdout)) == 1
+
+
+def test_gitleaks_missing_report_is_error_even_on_zero_exit(sandbox, monkeypatch):
+    monkeypatch.setattr(scan_gate, "_docker_run", lambda *a, **kw: _dr(""))
+    with pytest.raises(RuntimeError, match="readable report"):
+        scan_gate.run_gitleaks(sandbox, [])
+
+
+@pytest.mark.parametrize("tool", ["semgrep", "trivy"])
+def test_valid_json_with_failed_exit_is_not_pass(sandbox, monkeypatch, tool):
+    monkeypatch.setattr(scan_gate, "run_semgrep", lambda *a: _dr('{"results": []}'))
+    monkeypatch.setattr(scan_gate, "run_trivy", lambda *a: _dr('{"Results": []}'))
+    monkeypatch.setattr(scan_gate, "run_gitleaks", lambda *a: _dr(""))
+    raw = '{"results": []}' if tool == "semgrep" else '{"Results": []}'
+    monkeypatch.setattr(scan_gate, "run_" + tool, lambda *a: _dr(raw, returncode=2))
+    runs = scan_gate.run_all_scanners(sandbox, [], True, False)
+    assert scan_gate.classify_gate(runs, [])["verdict"] == "error"

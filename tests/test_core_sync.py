@@ -219,6 +219,48 @@ def test_sync_conventions_skips_drifted_file(source: Path, target: Path):
     assert (target / ".docs/conventions/git-pr-workflow.md").read_text() == "hand-edited\n"
 
 
+# --- sync_vendor_metadata ---------------------------------------------------
+
+def test_sync_vendor_metadata_describes_canonical_source_and_inventory(source: Path, target: Path):
+    manifest = {}
+    core_sync.sync_skills(source, target, None, False, manifest)
+    core_sync.sync_gate_scripts(source, target, False, manifest)
+    result = core_sync.sync_vendor_metadata(source, target, dry_run=False, manifest=manifest)
+
+    path = target / ".claude/skills/VENDORED.md"
+    content = path.read_text()
+    assert result.drifted == []
+    assert "BGavazzi/agentic-pipeline" in content
+    assert "guidelines_IA" not in content
+    assert "builder" in content
+    assert "scripts/validate_task.py" in content
+    assert manifest[".claude/skills/VENDORED.md"] == core_sync._sha256(path)
+
+
+def test_sync_vendor_metadata_detects_and_force_replaces_stale_provenance(
+    source: Path, target: Path,
+):
+    manifest = {}
+    core_sync.sync_vendor_metadata(source, target, dry_run=False, manifest=manifest)
+    write(target, ".claude/skills/VENDORED.md", "legacy guidelines_IA provenance\n")
+
+    result = core_sync.sync_vendor_metadata(source, target, dry_run=False, manifest=manifest)
+    assert result.drifted == [".claude/skills/VENDORED.md"]
+    assert "guidelines_IA" in (target / ".claude/skills/VENDORED.md").read_text()
+
+    result = core_sync.sync_vendor_metadata(
+        source, target, dry_run=False, manifest=manifest, force=True,
+    )
+    assert result.drifted == []
+    assert "guidelines_IA" not in (target / ".claude/skills/VENDORED.md").read_text()
+
+
+def test_sync_vendor_metadata_dry_run_writes_nothing(source: Path, target: Path):
+    result = core_sync.sync_vendor_metadata(source, target, dry_run=True)
+    assert result.synced == [".claude/skills/VENDORED.md"]
+    assert not (target / ".claude/skills/VENDORED.md").exists()
+
+
 # --- manifest persistence + _is_drifted -------------------------------------
 
 def test_load_manifest_returns_empty_dict_when_absent(target: Path):

@@ -10,6 +10,30 @@ permissions:
   contents: read
 
 jobs:
+  live-scanner-contracts:
+    needs: route
+    # Candidate code exercises scanners; keep it off production-adjacent hosts.
+    # This is a regression job, NOT an independent admission receipt issuer.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PIPELINE_LIVE_SCANNERS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pytest pyyaml
+      - name: Exercise live clean and planted scanner fixtures
+        run: python -m pytest tests/test_live_scanners.py -v --junitxml=.docs/test-reports/live-scanners.xml
+      - name: Upload scanner contract results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-scanner-contracts
+          path: .docs/test-reports/live-scanners.xml
+          if-no-files-found: warn
+
   # ---------------------------------------------------------------------------
   # Runner routing.
   #
@@ -27,21 +51,39 @@ jobs:
   # ---------------------------------------------------------------------------
   route:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       runner: ${{ steps.pick.outputs.runner }}
+      integration_allowed: ${{ steps.review.outputs.allowed }}
     steps:
       - id: pick
         run: |
-          if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
-            echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-            echo "Fork PR -> GitHub-hosted runner (untrusted code)."
-          elif [ "${{ vars.USE_HOMELAB_POOL }}" = "true" ]; then
-            echo 'runner=["self-hosted","linux","x64","homelab-pool"]' >> "$GITHUB_OUTPUT"
-            echo "Trusted event + pool enabled -> homelab pool."
-          else
-            echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-            echo "Pool disabled (USE_HOMELAB_POOL != true) -> GitHub-hosted."
-          fi
+          echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+          echo "Pool quarantined pending external trusted bootstrap and verified host teardown."
+      - id: review
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Only a completed default-branch metadata workflow for this exact
+            // pair permits costly candidate execution. Unit/scanner diagnostics
+            // remain available while review is pending.
+            const pr = context.payload.pull_request;
+            let allowed = false;
+            try {
+              const {data} = await github.rest.actions.listWorkflowRuns({
+                ...context.repo, workflow_id: 'early-review.yml', event: 'pull_request_target', per_page: 100
+              });
+              const matching = data.workflow_runs.filter(run =>
+                run.path === '.github/workflows/early-review.yml' && run.head_sha === pr.base.sha &&
+                run.pull_requests.some(p => p.number === pr.number && p.head.sha === pr.head.sha && p.base.sha === pr.base.sha));
+              const latest = matching.sort((a, b) => b.id - a.id)[0];
+              allowed = latest?.conclusion === 'success';
+            } catch (error) { core.warning('Trusted early-review workflow is not installed or not readable.'); }
+            core.setOutput('allowed', String(allowed));
+            if (!allowed) core.notice('Integration held: exact-head trusted early review required; rerun CI after it passes.');
 
   test:
     needs: route
@@ -54,17 +96,191 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Worker trust preflight
+        env:
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
+          USE_HOMELAB_POOL: 'false'
+          RUNNER_TEMP_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p .docs/worker-reports
+          fork_args=()
+          [[ "$FORK_PR" == "true" ]] && fork_args+=(--fork-pr)
+          if [[ "$FORK_PR" == "true" || "$USE_HOMELAB_POOL" != "true" ]]; then
+            python scripts/worker_preflight.py --worker-kind github-hosted \
+              "${fork_args[@]}" --output .docs/worker-reports/test.json
+          else
+            facts="$RUNNER_TEMP_DIR/homelab-worker-facts.json"
+            test -f "$facts"
+            python scripts/worker_preflight.py --facts "$facts" \
+              "${fork_args[@]}" --output .docs/worker-reports/test.json
+          fi
+
       - name: Install dependencies
         run: pip install pytest pyyaml
 
       - name: Run test suite
-        run: pytest tests/ -v
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Keep imports deterministic across pytest/import-mode differences in
+          # clean hosted and homelab workers.
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set +e
+          mkdir -p .docs/test-reports
+          python -m pytest tests/ -v --junitxml=.docs/test-reports/unit.xml
+          rc=$?
+          RC="$rc" python -c 'import json,os; from pathlib import Path; Path(".docs/test-reports/unit.exit").write_text(json.dumps(dict(schema_version=1,base_sha=os.environ["BASE_SHA"],head_sha=os.environ["HEAD_SHA"],exit_code=int(os.environ["RC"]))),encoding="utf-8")'
+          exit "$rc"
+
+      - name: Upload unit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-result
+          path: |
+            .docs/test-reports/
+            .docs/worker-reports/
+          if-no-files-found: warn
 
       - name: Validate task schema (dogfood)
         run: python scripts/validate_task.py .docs/tasks
 
       - name: Validate closure law compliance (dogfood)
         run: python scripts/validate_closure.py .docs/tasks
+
+      - name: Run deterministic harness self-test corpus
+        run: python scripts/harness_selftest.py --output .docs/test-reports/harness-selftest.json
+
+      - name: Run test-impact precision/recall benchmark
+        run: python scripts/impact_benchmark.py --output .docs/test-reports/impact-benchmark.json
+
+  # ---------------------------------------------------------------------------
+  # Clean-room integration evidence. This deliberately repeats execution in a
+  # git-archive workspace so a passing unit job cannot be confused with proof
+  # that the committed candidate works without checkout-local residue.
+  # ---------------------------------------------------------------------------
+  integration:
+    needs: route
+    if: github.event_name == 'pull_request' && needs.route.outputs.integration_allowed == 'true'
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Worker trust preflight
+        env:
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
+          USE_HOMELAB_POOL: 'false'
+          RUNNER_TEMP_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p .docs/worker-reports
+          fork_args=()
+          [[ "$FORK_PR" == "true" ]] && fork_args+=(--fork-pr)
+          if [[ "$FORK_PR" == "true" || "$USE_HOMELAB_POOL" != "true" ]]; then
+            python scripts/worker_preflight.py --worker-kind github-hosted \
+              "${fork_args[@]}" --output .docs/worker-reports/integration.json
+          else
+            facts="$RUNNER_TEMP_DIR/homelab-worker-facts.json"
+            test -f "$facts"
+            python scripts/worker_preflight.py --facts "$facts" \
+              "${fork_args[@]}" --output .docs/worker-reports/integration.json
+          fi
+
+      - name: Install dependencies
+        run: pip install pytest pyyaml
+
+      - name: Derive task id from branch
+        id: task
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          id=$(echo "$HEAD_REF" | grep -oE '[0-9]{4}' | head -1)
+          echo "id=${id:-0000}" >> "$GITHUB_OUTPUT"
+
+      - name: Run clean-room integration gate
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+        run: |
+          mkdir -p .docs/integration-reports
+          python scripts/integration_gate.py "$TASK_ID" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output ".docs/integration-reports/$TASK_ID.json" \
+            --command python -m pytest tests/ -q
+
+      - name: Upload integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-artifacts-${{ steps.task.outputs.id }}
+          path: |
+            .docs/integration-reports/
+            .docs/worker-reports/
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # Test-impact shadow evidence. The full integration job remains authoritative;
+  # this job measures the conservative optimization before any future promotion.
+  # ---------------------------------------------------------------------------
+  impact-shadow:
+    needs: route
+    if: github.event_name == 'pull_request' && needs.route.outputs.integration_allowed == 'true'
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pytest pyyaml
+
+      - name: Derive task id from branch
+        id: task
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          id=$(echo "$HEAD_REF" | grep -oE '[0-9]{4}' | head -1)
+          echo "id=${id:-0000}" >> "$GITHUB_OUTPUT"
+
+      - name: Run test-impact shadow worker
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+        run: |
+          mkdir -p .docs/impact-reports
+          python scripts/impact_runner.py "$TASK_ID" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output .docs/impact-reports/shadow.json \
+            --impact-output .docs/impact-reports/selection.json
+
+      - name: Upload test-impact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: impact-shadow-artifacts-${{ github.run_id }}
+          path: .docs/impact-reports/
+          if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
   # Diff-scoped gates. These need the full history to compute a base..head diff,
@@ -83,10 +299,33 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Use the proposed head, not GitHub's synthetic merge commit, so
+          # risk/scan reports bind to the SHA the admission job evaluates.
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Worker trust preflight
+        env:
+          FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
+          USE_HOMELAB_POOL: 'false'
+          RUNNER_TEMP_DIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p .docs/worker-reports
+          fork_args=()
+          [[ "$FORK_PR" == "true" ]] && fork_args+=(--fork-pr)
+          if [[ "$FORK_PR" == "true" || "$USE_HOMELAB_POOL" != "true" ]]; then
+            python scripts/worker_preflight.py --worker-kind github-hosted \
+              "${fork_args[@]}" --output .docs/worker-reports/gates.json
+          else
+            facts="$RUNNER_TEMP_DIR/homelab-worker-facts.json"
+            test -f "$facts"
+            python scripts/worker_preflight.py --facts "$facts" \
+              "${fork_args[@]}" --output .docs/worker-reports/gates.json
+          fi
 
       - name: Install dependencies
         run: pip install pytest pyyaml
@@ -135,6 +374,31 @@ jobs:
             --base "origin/$BASE_REF" \
             --branch HEAD
 
+      - name: Policy integrity receipt
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+        run: |
+          mkdir -p .docs/policy-reports
+          python scripts/policy_integrity.py \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --policy-ref "$BASE_SHA" \
+            --output ".docs/policy-reports/$TASK_ID.json"
+
+      - name: Infrastructure dry-run gate
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+        run: |
+          mkdir -p .docs/infra-reports
+          python scripts/infra_dry_run.py "$TASK_ID" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output ".docs/infra-reports/$TASK_ID.json"
+
       - name: Upload gate artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -143,6 +407,9 @@ jobs:
           path: |
             .docs/blast-reports/
             .docs/scan-reports/
+            .docs/policy-reports/
+            .docs/infra-reports/
+            .docs/worker-reports/
           if-no-files-found: ignore
 
       # scan_gate emits SARIF 2.1.0 — feed it to GitHub code scanning so
@@ -153,3 +420,175 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: .docs/scan-reports/${{ steps.task.outputs.id }}.sarif
+
+  # Receipt aggregation is deliberately separate from the test/scanner jobs.
+  # It cannot turn a failed job green: missing artifacts and missing high-risk
+  # obligations remain non-admitted. Until this workflow is protected from PR
+  # edits, this is a consistency check, not a cryptographic trust boundary.
+  admission:
+    needs: [test, gates, integration, impact-shadow]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # A pull_request checkout otherwise lands on GitHub's synthetic merge
+          # commit. Gate receipts must identify the actual proposed head SHA.
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download gate evidence
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gate-artifacts-*
+          merge-multiple: true
+      - name: Download unit evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-result
+          path: .docs/test-reports
+          merge-multiple: true
+      - name: Download integration evidence
+        # A held integration lane has no artifact. Aggregate the absence as
+        # missing/blocking evidence instead of losing the entire risk summary.
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: integration-artifacts-*
+          merge-multiple: true
+      - name: Download test-impact evidence
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: impact-shadow-artifacts-*
+          path: .docs/impact-reports
+          merge-multiple: true
+      - name: Build and evaluate admission receipt
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # download-artifact strips the uploaded .docs/ prefix when the
+          # artifact has multiple path roots; accept both layouts so admission
+          # remains independent of artifact normalization.
+          risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          scan=$(find .docs/scan-reports scan-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          infra=$(find .docs/infra-reports infra-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*.json' -name '*visual*.json' -print -quit 2>/dev/null || true)
+          meta_test=$(find .docs/meta-test-reports meta-test-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          unit=$(find .docs/test-reports test-reports -maxdepth 2 -type f -name 'unit.exit' -print -quit 2>/dev/null || true)
+          test -n "$risk" && test -n "$scan" && test -n "$policy" && test -n "$unit"
+          args=(
+            --risk "$risk"
+            --scan "$scan"
+            --unit-exit "$unit"
+            --policy-report "$policy"
+            --base-sha "$BASE_SHA"
+            --head-sha "$HEAD_SHA"
+            --output .docs/admission-receipt.json
+          )
+          if test -n "$integration"; then
+            args+=(--integration-report "$integration")
+          fi
+          if test -n "$infra"; then
+            args+=(--infra-report "$infra")
+          fi
+          if test -n "$visual"; then
+            args+=(--visual-report "$visual")
+          fi
+          if test -n "$meta_test"; then
+            args+=(--meta-test-report "$meta_test")
+          fi
+          python scripts/ci_receipts.py "${args[@]}"
+          python scripts/admission_gate.py \
+            --risk "$risk" \
+            --receipts .docs/admission-receipt.json \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA"
+      - name: Build deterministic quality scorecard
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*visual*.json' -print -quit 2>/dev/null || true)
+          meta_test=$(find .docs/meta-test-reports meta-test-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          test -n "$risk" && test -f .docs/admission-receipt.json
+          args=(
+            --risk "$risk"
+            --receipts .docs/admission-receipt.json
+            --base-sha "$BASE_SHA"
+            --head-sha "$HEAD_SHA"
+            --output .docs/quality-reports/scorecard.json
+          )
+          if test -n "$integration"; then
+            args+=(--integration-report "$integration")
+          fi
+          if test -n "$visual"; then
+            args+=(--visual-report "$visual")
+          fi
+          if test -n "$meta_test"; then
+            args+=(--meta-test-report "$meta_test")
+          fi
+          python scripts/quality_scorecard.py "${args[@]}"
+      - name: Build PR intelligence summary
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          test -n "$risk" && test -f .docs/admission-receipt.json
+          impact=$(find .docs/impact-reports impact-reports -maxdepth 1 -type f -name 'selection.json' -print -quit 2>/dev/null || true)
+          impact_args=()
+          if test -n "$impact"; then
+            impact_args+=(--impact-report "$impact")
+          fi
+          python scripts/pr_intelligence.py \
+            --repo . \
+            --risk "$risk" \
+            --receipts .docs/admission-receipt.json \
+            "${impact_args[@]}" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output .docs/quality-reports/pr-intelligence.json \
+            --markdown-output .docs/quality-reports/pr-intelligence.md
+          cat .docs/quality-reports/pr-intelligence.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Evaluate autonomous staging eligibility
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          test -n "$integration" || integration=.docs/integration-reports/missing.json
+          python scripts/staging_gate.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --scorecard .docs/quality-reports/scorecard.json \
+            --integration-report "$integration" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --output .docs/staging-reports/eligibility.json
+      - name: Upload admission evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admission-evidence
+          path: |
+            .docs/admission-receipt.json
+            .docs/quality-reports/
+            .docs/staging-reports/
+          if-no-files-found: warn

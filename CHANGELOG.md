@@ -1,6 +1,370 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Repair reviewed evidence and trust boundaries (task 0042)
+### Fixed
+- Preserve scanner vetoes; require commit-bound unit receipts and execute exact
+  candidate/base merge trees instead of labeling arbitrary HEAD execution.
+- Strict worker facts, fresh host teardown and independent meta-test observations;
+  quarantine unverified homelab routing and separate PR publisher permissions.
+- Remote staging identity, draft-only handoff, visual artifact/hash consistency,
+  complete policy surfaces and exact-head protected review.
+- Conservative TIA deletion/import handling and benchmark/subset binding;
+  truthful sync inventories, deduplicated metrics and atomic journal retries.
+### Added
+- Adversarial review regressions and a platform activation runbook. Actual branch
+  protection, independent approval and homelab isolation remain deployment gates,
+  not claims inferred from unit tests.
+**Author**: Codex (agent); pending independent review.
+
+## [2026-09-16] - Add append-only local quality receipt journal (task 0041)
+### Added
+- `scripts/receipt_journal.py` stores immutable receipt events in SQLite WAL,
+  making identical retries idempotent and conflicting event IDs an error.
+- Replayable summaries expose event counts, candidate pairs, statuses and time
+  range without turning telemetry into an admission decision.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add denominator-first quality metrics dashboard (task 0040)
+### Added
+- `scripts/quality_metrics_dashboard.py` aggregates PR-intelligence receipts
+  into JSON and Markdown risk, HITL, evidence, churn and test-impact metrics.
+- Small cohorts are labeled calibration-only, invalid receipts remain counted,
+  and limitations are explicit; the dashboard cannot override admission.
+### Changed
+- PR intelligence now exposes required-gate count and evidence completeness
+  so aggregate measurements retain their denominators.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add safe survivor-to-staging dispatcher (task 0039)
+### Added
+- `scripts/staging_dispatch.py` verifies the current base/head refs against the
+  staging eligibility receipt, composes the review body with PR intelligence,
+  and defaults to a no-write dry run.
+- `--create` is the explicit human-review handoff; the adapter never merges,
+  approves, deploys, or pushes.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add trusted meta-test dispatcher boundary (task 0038)
+### Added
+- `scripts/meta_test_dispatch.py` composes the disposable agent-skill fixture
+  suite with the one-shot worker supervisor and emits one exact-SHA-bound
+  `meta-test` receipt carrying lifecycle evidence.
+- Missing worker output, unsafe facts, failed cleanup or failed deregistration
+  remain non-pass; the adapter never fabricates agent or teardown evidence.
+### Changed
+- The runtime handoff is now explicit: a protected homelab dispatcher can
+  upload the combined receipt without the core selecting a model or opening a
+  remote connection.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add commit-bound PR intelligence for early HITL routing (task 0037)
+### Added
+- `scripts/pr_intelligence.py` emits JSON and Markdown with deterministic risk,
+  diff-churn, contact-surface, gate-evidence and test-impact measurements.
+- The summary derives explicit human-review checkpoints without changing the
+  fail-closed admission policy, and is published to the CI job summary plus an
+  idempotent PR comment when GitHub permits comment writes.
+### Changed
+- The admission job now exposes the evidence reviewers need before staging;
+  fork PRs still retain the job-summary/artifact fallback when comment writes
+  are permission-restricted.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Implement the read-only debt ledger runner (task 0036)
+### Added
+- `scripts/debt_ledger.py` emits deterministic Markdown and JSON ledgers for
+  TODO/FIXME/HACK/XXX/ponytail markers, prioritizing no-trigger debt and
+  reporting scan errors and marker metrics.
+- Generated/dependency/archive directories are skipped by default; docs are
+  opt-in through `--include-docs`.
+### Changed
+- The `debt-ledger` skill now points at the executable runner instead of an
+  unimplemented `runner.py` placeholder.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Migrate reusable pipeline skills (task 0035)
+### Added
+- Portable `integration-pilot`, `frontend-refactor-pr`, and `debt-ledger`
+  skills are now canonical, scrubbed of company-specific structure.
+- The migration preserves reversible integration-only merge/revert rules,
+  per-location visual proof, and the no-trigger debt distinction.
+### Changed
+- The application-specific speaker-to-ClickUp skill remains explicitly
+  excluded rather than introducing FIS entities or company workflow into the
+  generic pipeline.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add test-impact promotion eligibility receipt (task 0034)
+### Added
+- `scripts/impact_promotion.py` combines versioned benchmark, candidate
+  selection, shadow execution, and authoritative full-suite evidence into a
+  commit-bound eligibility decision.
+- The receipt measures benchmark precision/recall, selection ratio, tests
+  avoided, shadow/full durations, and observed duration savings while keeping
+  full-suite authority explicit.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Enforce one-shot homelab worker lifecycle (task 0033)
+### Added
+- `scripts/worker_supervisor.py` now blocks unsafe self-hosted facts before
+  launch, runs one bounded argv-only worker, scrubs obvious credential
+  variables, and requires post-run cleanup/deregistration facts.
+- Lifecycle receipts expose queue wait, worker age, mounted-secret count,
+  cleanup, deregistration, duration, and exit metrics; failures remain
+  non-pass.
+### Changed
+- The supervisor is included in canonical sync and the high-risk policy
+  surface; the homelab runbook now documents the pre/post facts contract.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add the agent-skill meta-test integration gate (task 0032)
+### Added
+- `scripts/meta_test.py` runs runtime-supplied agent workers against disposable
+  fixture repositories and emits a schema-v1 receipt with deterministic checks
+  for branch/commit discipline, task state, file scope, Closure Law markers,
+  trajectory, and bounded timing/count metrics.
+- A committed builder happy-path fixture is now executable under
+  `tests/skills/fixtures/001-trivial-readme-edit/`.
+- Skill changes are classified as `agent-skill` and require `meta-test` in the
+  high-risk gate set; receipts are carried into admission and scorecard metrics
+  only when bound to the exact candidate commit pair.
+### Changed
+- The `meta-test` skill and README now describe an implemented worker contract,
+  not a design-only feature.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add staging-review PR handoff adapter (task 0031)
+### Added
+- `scripts/staging_pr.py` validates eligible receipts, exact candidate SHA,
+  open-PR idempotency, and emits a dry-run plan before invoking `gh pr create`.
+- The adapter is synced/classified as a high-risk policy surface and cannot
+  merge or approve a PR.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Carry visual receipts through admission (task 0030)
+### Added
+- Admission and scorecard adapters now recognize optional `visual` receipts,
+  bind them to exact base/head SHAs, and expose diff/comparison metrics.
+- CI discovers visual receipts when a consumer workflow supplies them without
+  forcing browser dependencies on the core repository.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add safe scanner failure diagnostics (task 0029)
+### Added
+- Scanner parse failures now emit a bounded diagnostic category and short
+  stderr digest instead of raw tool logs, preserving actionable telemetry
+  without publishing paths or accidental secrets.
+- Live Docker smoke evidence: Semgrep, Trivy, and Gitleaks passed clean and
+  planted synthetic contracts (`3 passed`); task 0007 remains open because the
+  original transient Trivy root cause was not reproduced.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Close transitive test-impact gap (task 0028)
+### Changed
+- Test-impact analysis now traverses a conservative reverse Python import
+  closure and correctly handles absolute `ImportFrom` statements.
+- The versioned benchmark moved to `0.2`; transitive recall is now `1.000`,
+  mean recall is `1.000`, and the benchmark reports `promotion_ready=true`.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Implement infrastructure dry-run gate (task 0027)
+### Added
+- `scripts/infra_dry_run.py` detects infrastructure changes and runs an
+  explicit argv-only dry-run profile in a clean committed candidate archive.
+- CI now produces and aggregates the infrastructure receipt; absent profiles
+  fail closed while ordinary code changes remain explicitly not applicable.
+### Changed
+- The infrastructure gate is part of the canonical sync and high-risk policy
+  surface.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Wire worker preflight into CI execution lanes (task 0026)
+### Added
+- CI runs the worker trust preflight before unit, clean-room integration, and
+  deterministic gate commands, and uploads the resulting receipts.
+- Self-hosted jobs now require a supervisor-provided facts file; hosted/fork
+  jobs use an explicit safe default.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add machine-checkable homelab worker preflight (task 0025)
+### Added
+- `scripts/worker_preflight.py` emits a fail-closed worker trust receipt with
+  ephemeral, cleanup, worker-age, mounted-secret, Docker, and fork-routing
+  metrics.
+- The homelab runbook now documents the preflight invocation and its limits.
+### Changed
+- Worker preflight is part of the canonical synced/high-risk gate surface.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add autonomous-to-staging promotion gate (task 0024)
+### Added
+- `scripts/staging_gate.py` converts an admitted quality scorecard plus a
+  passing isolated integration receipt into a versioned staging-review
+  eligibility receipt with blockers and metrics.
+- CI now uploads staging eligibility evidence; missing or failed evidence stays
+  blocked instead of becoming a green result.
+### Changed
+- The staging gate is part of the canonical synced/high-risk gate surface.
+  It never creates or merges a PR; human review remains the next stage.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Make core sync provenance canonical and self-describing (task 0023)
+### Added
+- `core_sync.py` now generates `.claude/skills/VENDORED.md` with the canonical
+  source URL plus the complete skill and gate inventory.
+- Provenance metadata participates in the existing manifest/drift contract and
+  has tests for clean sync, dry-run, drift detection, and forced repair.
+### Changed
+- Consumer Quick Start documentation now explains that stale
+  `guidelines_IA` provenance is retired and should be replaced by the generated
+  canonical receipt.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add protected reusable policy workflow (task 0021)
+### Added
+- Added a reusable policy-integrity workflow that checks out a pinned core
+  implementation and emits a policy receipt without inheriting secrets.
+- Added a rollout runbook requiring immutable SHA pinning and branch protection.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add policy-integrity admission receipt (task 0020)
+### Added
+- `scripts/policy_integrity.py` fingerprints the trusted base policy surface and
+  reports workflow/gate-script changes as `review_required`.
+### Changed
+- Admission now requires a policy receipt in addition to unit, scanner, and
+  risk-selected gates; policy changes cannot be silently auto-admitted.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add versioned test-impact benchmark (task 0019)
+### Added
+- `scripts/impact_benchmark.py` materializes before/after git fixtures and
+  reports precision, recall, fallback behavior, and `promotion_ready`.
+### Changed
+- CI now runs the benchmark as a deterministic harness metric. The corpus keeps
+  test-impact shadow-only and makes the known transitive-import gap explicit.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add test-impact shadow execution (task 0018)
+### Added
+- `scripts/impact_runner.py` executes conservative impacted-test selections in
+  the clean-room boundary and emits non-authoritative selection/execution
+  metrics.
+### Changed
+- CI now publishes test-impact shadow evidence while full-suite integration
+  remains the correctness authority; task-derived shell arguments are routed via
+  environment variables.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add visual-regression receipt contract (task 0016)
+### Added
+- `scripts/visual_receipt.py` validates screenshot/viewport evidence, baseline
+  provenance, pixel metrics, thresholds, and exact candidate identity before
+  normalizing a visual PASS/FAIL receipt.
+### Changed
+- Visual receipt validation is now part of the synced/high-risk gate surface.
+  The core remains honest: consuming frontend repos provide the Playwright
+  producer; missing browser evidence is not a pass.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add conservative test-impact analysis (task 0015)
+### Added
+- `scripts/test_impact.py` emits schema-v1 changed-file, selected-test,
+  fallback-reason, and selection-ratio metrics using Python AST/path evidence.
+### Changed
+- Unknown/non-Python/unresolved changes explicitly fall back to the full test
+  suite. Test-impact output is advisory until precision/recall benchmarking
+  proves it safe to replace full clean-room execution.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add deterministic quality scorecard (task 0014)
+### Added
+- `scripts/quality_scorecard.py` emits provenance-bound metrics for risk,
+  evidence completeness, gate pass rate, change fan-out, integration duration,
+  isolation, and reviewer independence.
+- PR admission CI uploads the scorecard alongside the receipt. The scorecard
+  mirrors the admission result and cannot create a green result from incomplete
+  evidence.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Define ephemeral homelab worker boundary (task 0013)
+### Changed
+- Expanded the homelab runbook with a trust matrix, ephemeral/JIT lifecycle,
+  credential and workspace isolation rules, revocation procedure, preflight,
+  and measurable pool acceptance metrics.
+- Explicitly retained fork-PR routing on GitHub-hosted workers and prohibited
+  persistent workers for public PR validation. No credentials or confidential
+  repository data are included.
+**Author**: Codex (agent); pending human review and host-side execution.
+
+## [2026-09-16] - Add isolated ultrareview worker runner (task 0012)
+### Added
+- `scripts/ultrareview_runner.py` executes an explicit reviewer argv in a
+  temporary committed-HEAD workspace, supplies a base/head diff context, and
+  normalizes JSON through the ultrareview receipt contract.
+- Worker timeout, non-zero exit, malformed output, and unavailable execution
+  produce explicit error evidence rather than a fabricated PASS.
+### Changed
+- Core sync and blast-radius gate-surface classification now include the
+  worker runner. Homelab routing, network/credential isolation, and evidence
+  authentication remain deployment follow-ups.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add ultrareview receipt contract (task 0011)
+### Added
+- `scripts/ultrareview_receipt.py` validates independent reviewer reports and
+  emits canonical schema-v1 PASS/BLOCK receipts with exact commit identity,
+  invocation identity, evidence citations, findings, and metrics.
+### Changed
+- Receipt aggregation can now consume validated ultrareview evidence; malformed
+  or stale review reports remain errors, and absent evidence still blocks
+  high-risk admission. The adapter does not perform or impersonate the LLM
+  review; protected reviewer execution remains a follow-up.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-16] - Add clean-room integration evidence (task 0010)
+### Added
+- `scripts/integration_gate.py` stages the committed HEAD into a temporary
+  git-archive workspace and runs an explicit argv integration command without a
+  shell. It emits schema-v1 identity, status, isolation, exit-code, duration,
+  and output-size metrics; staging, timeout, and non-zero execution are never
+  reported as pass.
+- Independent PR `integration` job and artifact aggregation into the admission
+  receipt. Core-sync and blast-radius now treat the integration producer as a
+  gate script/high-risk surface.
+### Changed
+- Admission receipts now carry integration evidence when the producer emits
+  it, while preserving missing-evidence fail-closed behavior for high-risk
+  changes. Ultrareview evidence remains a separate follow-up.
+**Author**: Codex (agent); pending human review.
+
+## [2026-09-15] - Start fail-closed admission hardening (task 0009)
+### Changed
+- Live Docker verification fixed Semgrep auto-config/telemetry incompatibility
+  and Gitleaks report capture; required scanner images are pinned by digest.
+- Hosted CI exposed Gitleaks `detect --no-git` traversing checkout metadata and
+  timing out; use its explicit directory scanner instead.
+- A second hosted run showed whole-tree directory scanning still timed out;
+  Gitleaks now receives an isolated temporary tree containing only changed files.
+- Hosted run 35018028766 showed the Docker readiness probe was too short for a
+  cold runner and that artifact download strips the `.docs/` prefix; readiness
+  now allows 60 seconds, admission accepts either artifact layout, and the
+  gates checkout the actual PR head SHA instead of GitHub's synthetic merge.
+- Scanner absence, incomplete output and unexpected exit codes now return failure.
+- Correct scan working directory and Trivy target, make source mount read-only,
+  read Dependency-Check's report file, and avoid publishing raw stderr.
+### Added
+- Real clean/planted scanner contract fixtures and a GitHub-hosted CI job.
+- Schema-v1 CI receipt aggregation for unit and scanner evidence, plus a final
+  admission job bound to the pull request base/head SHAs. It intentionally does
+  not claim authenticity until workflow/policy protection is configured.
+- Schema-v1 admission consistency checker with required-gate/commit checks and
+  completeness metrics, adversarial regression tests, and function catalog.
+- Admission gate is included in core sync and classified high-risk when edited.
+  Protected CI receipt production remains pending; this is not a deployed service.
+**Author**: Codex (agent); pending human review.
+
 ## [2026-09-07] - Fix merge-artifact corruption in this file
 ### Fixed
 - A stray, unmatched `=======` conflict marker had landed between the

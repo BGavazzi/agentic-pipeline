@@ -79,8 +79,10 @@ HIGH_RISK_PATH_PATTERNS = [
     # Without this, a PR deleting the whole `gates` job classifies as `low` and
     # is waved through on unit tests alone.
     (r"^\.github/workflows/.*\.ya?ml$", "ci-workflow"),
-    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate)\.py$", "gate-script"),
+    (r"^\.claude/skills/.+/SKILL\.md$", "agent-skill"),
+    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|ci_receipts|integration_gate|impact_runner|impact_benchmark|impact_promotion|harness_selftest|meta_test|policy_integrity|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt|staging_gate|worker_preflight|worker_supervisor|infra_dry_run|staging_pr)\.py$", "gate-script"),
     (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
+    (r"^scripts/(meta_test_dispatch|staging_dispatch|pr_intelligence|quality_metrics_dashboard|receipt_journal)\.py$", "gate-script"),
 ]
 
 
@@ -261,6 +263,8 @@ def required_gates_for(risk_level: str, triggered: list[str]) -> list[str]:
         return ["unit", "integration", "sast", "sca"]
     # high
     gates = ["unit", "integration", "sast", "sca", "ultrareview"]
+    if "agent-skill" in triggered:
+        gates.append("meta-test")
     infra_labels = {"ansible", "helm", "fleet", "terraform", "rancher-or-nexus"}
     if infra_labels & set(triggered):
         gates.append("infra-dry-run")
@@ -283,10 +287,18 @@ def classify(repo: Path, task_id: str, base: str | None, branch: str | None) -> 
     risk_level, triggered = classify_risk(changed, affected)
     gates = required_gates_for(risk_level, triggered)
 
+    # Bind the report to the exact tree that downstream admission evaluates.
+    # A branch name can move; a full object id cannot.
+    base_sha = run(["git", "rev-parse", resolved_base], cwd=repo).strip()
+    head_sha = run(["git", "rev-parse", resolved_branch], cwd=repo).strip()
+
     return {
+        "schema_version": 1,
         "task": task_id,
         "base": resolved_base,
         "branch": resolved_branch,
+        "base_sha": base_sha,
+        "head_sha": head_sha,
         "changed_files": sorted(changed),
         "affected_modules": sorted(affected),
         "risk_level": risk_level,

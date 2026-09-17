@@ -6,24 +6,27 @@ tools: Bash, Read, Glob, Agent
 
 # meta-test
 
-**Status: design spec, not yet implemented.** No fixture has been built and no
-`tests/skills/` directory exists in this repo yet — everything below describes
-the target architecture, not something that has run. Don't cite this skill's
-tables as evidence of test coverage until at least one fixture under "How to
-add a fixture" has actually been committed and passed.
+**Status: implemented contract runner.** `scripts/meta_test.py` runs the
+fixture corpus in disposable git sandboxes and emits a schema-v1 receipt with
+versioned metrics. A runtime supplies the worker command, so the same contract
+can run a local fake worker, a homelab agent worker, or another isolated
+adapter without granting the runner a real checkout or remote.
 
 For coverage that *does* exist today, see `tests/test_blast_radius.py` — a
 plain pytest suite (no Agent-subagent sandboxing) that unit-tests
 `scripts/blast_radius.py` directly. It's a different, simpler testing
 approach than the one this skill describes.
 
-**Runtime: open Claude Code session.** Skill for **testing skills** — no API tokens, no CI gate-on-PR; use manually after changing any `.claude/skills/<X>/SKILL.md` or periodically via `/loop /test-builder`.
+**Runtime: isolated worker process.** The runner does not call an agent API
+itself; a pool dispatcher supplies the worker command. Use
+`python scripts/meta_test.py` after changing any `.claude/skills/<X>/SKILL.md`
+or from a trusted integration lane.
 
 "Tests in-session" architecture:
-- Each fixture is an **isolated subagent** spawned via `Agent` tool.
-- Subagent inherits the parent session context, receives a lean prompt pointing to the seed task.
-- Parent session validates: git state + task.md state + trajectory (from subagent report) vs `expected.yaml`.
-- No external process, no direct API calls — all within the session.
+- Each fixture is an **isolated worker process** launched by the runtime.
+- The worker receives the sandbox and task through `PIPELINE_META_TEST_*` environment variables.
+- The runner validates git state + task state + trajectory against `expected.yaml`.
+- No remote is configured and no shell is invoked by the runner.
 
 ## When to invoke
 
@@ -33,12 +36,12 @@ approach than the one this skill describes.
 
 ## What it tests today
 
-Nothing yet — zero fixtures exist in this repo. The table below is the
-planned first-batch coverage, not current state.
+The first fixture is executable and committed. The remaining rows are
+intentionally backlog.
 
 | Skill | Planned fixtures | Status |
 |---|---|---|
-| `builder` | 001-trivial-readme-edit | not implemented |
+| `builder` | 001-trivial-readme-edit | implemented |
 | `tester` | — | not planned yet |
 | `notifier` | — | not planned yet |
 
@@ -47,33 +50,16 @@ Each fixture should cover a distinct case: happy path, decision-tree branch, ant
 ## Main loop
 
 ```
-1. Glob: tests/skills/fixtures/*/expected.yaml
-   → list of executable fixtures
+1. Run `scripts/meta_test.py --fixtures tests/skills/fixtures --base-sha ...
+   --head-sha ... --output .docs/meta-test-reports/<task>.json --command ...`.
+   The worker receives `PIPELINE_META_TEST_SANDBOX`, `..._FIXTURE`,
+   `..._SKILL`, and `..._TASK` environment variables.
 
-2. For each fixture:
-   a. Bash: tests/skills/lib/setup.sh <fixture_name>
-      → creates /tmp/test-<fixture_name>/ with extracted seed-repo
-      → returns absolute path of the sandbox
+2. For each fixture, the runner creates a fresh git repository, launches the
+   worker in it, compares observable results against `expected.yaml`, and
+   tears the sandbox down even when the fixture fails.
 
-   b. Agent tool spawn:
-      subagent_type: general-purpose
-      description: "Test <skill> via <fixture_name>"
-      prompt: see "Subagent prompt template" §below
-
-   c. Subagent returns text describing what it did:
-      - list of tool calls in order
-      - commits created (sha + msg)
-      - final task status
-      - any errors encountered
-
-   d. Bash: tests/skills/lib/assert.sh <fixture_name> <sandbox_path>
-      → compares git state + task.md vs expected.yaml
-      → returns 0 (pass) or 1 (fail) + human-readable diff
-
-   e. Bash: tests/skills/lib/teardown.sh <fixture_name> (cleans sandbox)
-      ← OPTIONAL: skip teardown if TESTS_KEEP=1 (debug)
-
-3. Output: summary table
+3. Output: a schema-v1 receipt with metrics and a case table
    fixture | skill | pass | duration | notes
    001     | builder | ✅ | 45s | -
    002     | builder | ❌ | 32s | §Condition [3] not marked
@@ -233,11 +219,11 @@ Failed details:
 
 ## Fixture roadmap
 
-None of these have been built yet — this is a backlog, not a status report.
+These remain backlog items, not claims of coverage.
 
 | Fixture | Covers | Status |
 |---|---|---|
-| `001-trivial-readme-edit` | simplest happy path — edits 1 file, 1 commit | not implemented |
+| `001-trivial-readme-edit` | simplest happy path — edits 1 file, 1 commit | implemented |
 | `002-failing-test-regression` | trap: pre-existing test breaks during implementation — Builder must STOP + create fix-task + blocked_by | not implemented |
 | `003-files-afetados-drift` | trap: §What To Do needs a file outside §Affected Files — Builder updates contract first | not implemented |
 | `004-never-delete-archive-instead` | trap: task asks to "remove" but AGENTS §2 forbids delete — Builder uses `mv .archive/` | not implemented |

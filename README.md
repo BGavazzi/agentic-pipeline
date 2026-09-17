@@ -1,5 +1,133 @@
 # agentic-pipeline
 
+> **Task 0042 security compatibility update:** the reviewed stack now rejects
+> stale/contradictory evidence, tests exact base/head merge trees, and requires
+> host-observed worker teardown. Homelab routing is quarantined until real
+> isolation is verified. Read [review remediation and activation](.docs/runbooks/review-remediation.md)
+> before consuming the changed unit, visual, worker, meta-test or staging CLIs.
+> Trusted workflows must be installed on the protected default branch and made
+> mandatory externally; an unmerged PR is not active security enforcement.
+
+## Quality admission hardening (task 0009, in progress)
+
+`scan_gate.py` now fails closed: exit 0 means every required scanner succeeded
+and no blocking introduced finding was reported; exit 1 means blocking findings;
+exit 2 means incomplete/error execution or invalid usage. Diagnostic JSON/SARIF
+is still written when Docker is unavailable. Raw scanner stderr is not published
+because it may contain secrets. This is an intentional change from success on
+degraded runs. Source mounts are read-only; findings retain the existing
+changed-file approximation, not a true base/head differential.
+
+`scripts/admission_gate.py` is a new **consistency checker**, not yet a protected
+CI admission service. It requires trusted JSON inputs with `schema_version: 1`,
+full `base_sha` and `head_sha`. The risk document also contains `risk_level`,
+`risk_triggers`, and `required_gates`; the receipt document contains `gates`, a
+list of `{ "gate": "unit", "status": "pass" }` entries. Existing blast reports
+are not schema-v1 receipts and cannot be fed directly without a trusted adapter.
+
+```bash
+python scripts/admission_gate.py --risk risk-v1.json --receipts receipts-v1.json \
+  --base-sha <full-base-sha> --head-sha <full-head-sha>
+```
+
+All risk obligations plus SAST/SCA/secrets must pass. Missing/duplicate/unknown
+gates, invalid identities and non-pass states cannot qualify. Exit codes: 0
+admitted, 1 unmet obligation, 2 invalid input. JSON includes required/passed
+counts and evidence completeness. This does not authenticate candidate-written
+JSON; independent producers and protected policy loading are pending. See
+[task 0009](.docs/tasks/0009-fix-fail-closed-admission.md) for remaining work.
+
+Task 0010 adds the first executable integration layer:
+`scripts/integration_gate.py` archives the committed candidate HEAD into a
+temporary clean workspace, runs an explicit argv command without a shell, and
+emits `.docs/integration-reports/<NNNN>.json` with exact commit identity,
+pass/fail/error status, exit code, duration, and output-size metrics. The PR
+workflow runs this as an independent `integration` job and uploads evidence on
+failure as well as success. It is deliberately a clean-room execution
+boundary, not yet a containerized service topology or cryptographic trust
+boundary; see [task 0010](.docs/tasks/0010-feat-clean-room-integration-evidence.md).
+
+Task 0011 adds `scripts/ultrareview_receipt.py`, a deterministic adapter for
+the independent `ultrareview` agent. It requires exact commit identity, an
+independence marker, reviewer invocation id, evidence citations, metrics, and
+findings when blocking. It validates and normalizes a reviewer report; it does
+not perform or impersonate the LLM review. Missing ultrareview evidence still
+blocks high-risk admission. See [task 0011](.docs/tasks/0011-feat-ultrareview-receipt-contract.md).
+
+Task 0012 adds `scripts/ultrareview_runner.py`: a worker-side adapter that
+archives committed HEAD, writes a base/head diff context, invokes an explicit
+reviewer argv in a temporary workspace, and validates its JSON through the
+ultrareview receipt contract. Worker timeout, non-zero exit, malformed output,
+or unavailable execution produces an error receipt—not PASS. It does not carry
+LLM credentials or choose a worker host; trusted-event routing and homelab
+credential isolation remain deployment work. See [task 0012](.docs/tasks/0012-feat-ultrareview-worker-runner.md).
+
+Task 0014 emits a deterministic `.docs/quality-reports/scorecard.json` from
+the risk report and admission receipts. It records schema/provenance, risk and
+fan-out, required/passed gate counts, evidence completeness, observed pass rate,
+integration duration/isolation, and reviewer independence when available. The
+scorecard mirrors admission (`green` or `blocked`) but does not replace the
+admission policy or turn partial evidence into a pass.
+
+Task 0015 adds conservative `scripts/test_impact.py`. It uses committed diff
+and Python AST import/path evidence to select impacted tests only when reliable;
+unknown file types, unresolved modules, and empty selections fall back to the
+full suite. The report is optimization-only until a precision/recall benchmark
+proves it safe to wire into execution.
+
+Task 0018 adds `scripts/impact_runner.py` as a shadow-mode test-impact worker.
+It executes the conservative selection inside the same clean-room boundary as
+`integration_gate.py`, records selection and execution metrics, and keeps
+`authoritative: false`. The full-suite integration job remains the correctness
+authority until a precision/recall benchmark justifies promotion.
+
+Task 0019 adds a versioned benchmark under `tests/impact/fixtures/`. It creates
+small before/after git histories, measures selection precision and recall, and
+reports `promotion_ready` separately from benchmark execution status. The
+current corpus intentionally exposes a transitive-import recall gap, so impact
+analysis remains shadow-only until that metric is improved.
+
+Task 0020 adds `scripts/policy_integrity.py`. Every PR now emits a receipt bound
+to the protected base policy version; edits to workflows or gate scripts become
+`review_required` and therefore block automatic admission, while ordinary
+product changes pass the policy check. This is explicit provenance, not a claim
+that a candidate-edited workflow is itself a trust boundary.
+
+Task 0021 adds `.github/workflows/policy-gate-reusable.yml` and a rollout
+runbook. Consuming repositories can pin the final policy execution to an
+immutable core commit and require that protected check in branch protection;
+candidate-local CI remains diagnostic, while the protected reusable workflow
+becomes the admission trust anchor.
+
+Task 0016 adds the core visual-regression evidence contract in
+`scripts/visual_receipt.py`. A consuming frontend runner (typically Playwright)
+must provide screenshot paths, viewport, baseline provenance, pixel counts,
+diff ratio, and threshold. The contract normalizes PASS/FAIL and rejects
+missing screenshots or baselines; this repo still does not launch a browser by
+itself. That keeps the generic core honest while making visual evidence
+machine-admissible for repos such as PortalApp or a future Bluemagic frontend.
+
+Task 0013 defines the homelab boundary: fork PRs stay on GitHub-hosted runners;
+trusted same-repo jobs may use the pool only after ephemeral/JIT workers,
+disposable workspaces, zero host-secret mounts, cleanup, revocation, and pool
+metrics are verified. See [the ephemeral worker runbook](.docs/runbooks/homelab-runner-pool.md).
+
+Live scanner contracts (synthetic fixtures only; downloads images/rules/DBs):
+
+```powershell
+$env:PIPELINE_LIVE_SCANNERS = '1'
+python -m pytest tests/test_live_scanners.py -v
+```
+
+These fixtures check clean and planted cases with real Semgrep, Trivy and
+Gitleaks. CI has a GitHub-hosted regression job for them; regular local pytest
+skips them unless opted in. Required images are pinned by digest in
+`SCANNER_IMAGES`; rule/database updates are not yet pinned. Semgrep uses an
+explicit security-audit ruleset with telemetry disabled. Gitleaks JSON is read
+from a dedicated report file, not `/dev/stdout`. Optional Dependency-Check is
+not part of these live fixtures.
+
+
 [![CI](https://github.com/BGavazzi/agentic-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/BGavazzi/agentic-pipeline/actions/workflows/ci.yml)
 
 Minimal agentic task-processing pipeline for Claude Code — skills, task lifecycle, and deterministic gates you can drop into any repo.
@@ -110,7 +238,10 @@ A glossary for terms that recur across `AGENTS.md`, `GDFRSBT.md`, and every `SKI
   notifier/              ← posts structured comments to GitHub PR + ClickUp
   grill-me/              ← relentless plan/design interview (gate before build)
   codebase-audit/        ← read-only audit of repo against its own rules
-  meta-test/             ← design spec for fixture-based skill tests (not yet implemented — see SKILL.md)
+  meta-test/             ← isolated fixture-based skill tests with versioned receipts
+  integration-pilot/     ← reversible integration-branch merge/watch/revert protocol
+  frontend-refactor-pr/  ← reachability + build + per-location visual-proof playbook
+  debt-ledger/            ← read-only no-trigger shortcut ledger
   clickup-api/           ← generic ClickUp API v2 reference (auth, rate limit, discovery) — BYO credentials
   clickup-grounding/     ← enriches a single ClickUp task with its own list/comment/blocker context
   clickup-audit/         ← read-only audit of a ClickUp workspace against its own conventions
@@ -127,6 +258,7 @@ scripts/
   validate_closure.py    ← validates Closure Law §3 compliance post-librarian
   blast_radius.py        ← diff-scoped blast-radius + risk-tier classifier
   scan_gate.py           ← SAST/SCA/secret-scan gate (Trivy/Semgrep/gitleaks/OWASP-DC via Docker), gated behind blast_radius's sast/sca required_gates
+  debt_ledger.py         ← read-only TODO/FIXME/HACK ledger with no-trigger and tracked-debt metrics
 
 tests/
   test_blast_radius.py   ← real pytest unit tests for blast_radius.py (run in CI)
@@ -163,7 +295,10 @@ GDFRSBT.md               ← the full 8-practice methodology this repo operation
 | `librarian` | branch + green tester report | Closure Law §3 commits, updated PR body | `notifier` |
 | `notifier` | an event + payload | GitHub PR comment (always) + ClickUp comment (opt-in) | end of cycle |
 | `codebase-audit` | a repo's own constitution | violation report (10 dimensions, 5 implemented) | human triage |
-| `meta-test` | fixtures under `tests/skills/fixtures/` | pass/fail table per fixture | **design spec — no fixture exists yet, see its `SKILL.md`** |
+| `meta-test` | fixtures under `tests/skills/fixtures/` | schema-v1 receipt with fixture/trajectory metrics | `scripts/meta_test.py` |
+| `integration-pilot` | open PRs targeting reversible integration | merge/watch/revert report | supervised integration branch |
+| `frontend-refactor-pr` | component reachability + visual surface | refactor PR with per-location proof | human visual review |
+| `debt-ledger` | source markers and revisit-task references | read-only ledger of tracked/no-trigger shortcuts | builder task creation |
 
 **ClickUp adapters** (need `CLICKUP_API_KEY`):
 
@@ -201,9 +336,33 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`blast_radius.py`** — computes `risk_level` + `required_gates` from a git diff (see §Concepts: Blast radius). Deliberately imprecise: unions three cheap signals (hand-maintained `module-owners.md`, an import/grep heuristic, and historical co-change from git log) rather than building a real dependency graph.
 - **`validate_closure.py`** — checks Closure Law §3 compliance on a task file before `librarian` (or a human) marks it `done`. Catches the "0/7 items, rest `[N/A]`" rubber-stamp pattern specifically.
 - **`quota_gate.py`** — the STOP/CONTINUE authority for `/loop /dispatcher` (see §Concepts: Quota gate).
-- **`scan_gate.py`** — the deterministic SAST/SCA/secret-scan half of what a paid tool like CodeRabbit/SonarQube would otherwise cover (the LLM-judgment half is `ultrareview`). Runs Semgrep, Trivy, and gitleaks as Docker images (`docker run --rm -v <repo>:/src <image> ...` — the BYO footprint is "has Docker," not four separate package-manager installs); OWASP Dependency-Check is opt-in only (`--enable-dependency-check`) since its vulnerability database needs an API key to sync at a usable speed. Normalizes all findings into a SARIF file plus a verdict JSON (`.docs/scan-reports/<NNNN>.{sarif,json}`) that `tester` reads as a required step whenever `blast_radius.py` marked the diff `sast`/`sca`. A `critical`/`high` finding on a changed file blocks (exit 1); Docker/scanners unavailable degrades honestly (`"degraded": true`, exit 0, no fabricated pass) rather than erroring or silently passing.
+- **`scan_gate.py`** — the deterministic SAST/SCA/secret-scan half of what a paid tool like CodeRabbit/SonarQube would otherwise cover (the LLM-judgment half is `ultrareview`). Runs Semgrep, Trivy, and Gitleaks as Docker images (`docker run --rm -v <repo>:/src <image> ...` — the BYO footprint is "has Docker," not four separate package-manager installs); OWASP Dependency-Check is opt-in only (`--enable-dependency-check`) since its vulnerability database needs an API key to sync at a usable speed. Normalizes all findings into a SARIF file plus a verdict JSON (`.docs/scan-reports/<NNNN>.{sarif,json}`) that `tester` reads as a required step whenever `blast_radius.py` marked the diff `sast`/`sca`. Semgrep/Trivy scan the working tree; Gitleaks stages only changed files because introduced findings are the blocking policy and scanning checkout metadata caused hosted-runner timeouts. A `critical`/`high` finding on a changed file blocks (exit 1); missing/error scanners block admission (exit 2).
+- **`meta_test.py`** — the agent-skill integration gate. Runs a runtime-supplied worker against disposable fixture repositories, then deterministically checks task status, branch/commit discipline, touched-file scope, Closure Law markers, and reported tool trajectory. A skill change triggers `meta-test` as a high-risk obligation; the receipt is bound to the exact base/head pair before admission.
+- **`worker_supervisor.py`** — the homelab lifecycle boundary. Rejects unsafe
+  self-hosted facts before launch, runs one argv-only worker, and requires
+  post-run proof of one job, cleanup, zero mounted secrets, and deregistration.
+- **`meta_test_dispatch.py`** — the trusted runtime adapter that composes the
+  one-shot worker lifecycle with `meta_test.py`, producing one SHA-bound
+  `meta-test` receipt. The agent command and post-facts producer remain
+  operator-supplied; missing cleanup proof cannot become a pass.
+- **`impact_promotion.py`** — combines the versioned TIA benchmark, impacted
+  selection, shadow execution, and authoritative full-suite evidence into an
+  explicit eligibility receipt with recall, precision, tests-avoided, and
+  observed-duration-savings metrics. It never makes a full-suite fallback
+  eligible.
+- **`staging_dispatch.py`** — verifies the current staging base and candidate
+  head against eligibility, attaches the PR intelligence evidence, and plans
+  the survivor-to-staging PR. It is dry-run by default; `--create` opens the
+  human-review PR but never merges or deploys.
+- **`quality_metrics_dashboard.py`** — aggregates PR-intelligence receipts
+  with explicit denominators, invalid-input counts and a calibration-only flag
+  for cohorts below 30 changes. It is telemetry, never an admission score.
+- **`receipt_journal.py`** — stores quality receipts in a local append-only
+  SQLite/WAL journal with transactional idempotency, conflict rejection and
+  replayable status/time metrics. It has no network behavior and cannot
+  override admission.
 
-All five are covered by real pytest tests (`tests/test_blast_radius.py`, `tests/test_scan_gate.py` — both CI-run) — the only skill-adjacent things in this repo with actual automated test coverage today; `meta-test` describes the target architecture for testing the *skills themselves* but hasn't been built yet. One honest caveat on `scan_gate.py` specifically: its normalization/severity/degrade logic is unit-tested against canned tool-output fixtures, but the actual `docker run` invocations haven't been exercised against a live Docker daemon in this pipeline yet (no environment this was developed in had one reachable) — see the test file's own module docstring.
+The deterministic gate modules and the meta-test runner are covered by real pytest tests and run in CI. `meta-test` now exercises a committed builder fixture in a disposable git sandbox; its worker command is deliberately runtime-supplied so trusted homelab agents can participate without granting the harness a real checkout or push remote. The live scanner contract has also been exercised with a reachable Docker daemon on 2026-09-16: Semgrep, Trivy, and Gitleaks all passed clean/planted synthetic fixtures (`3 passed`). That proves the current pinned invocation and cache path work; it does **not** reproduce or confirm the historical first-run Trivy failure, which remains honestly tracked in task 0007.
 
 ---
 
@@ -262,7 +421,10 @@ python scripts/core_sync.py /path/to/your-repo
 This copies `.claude/skills/` (or a `--skills a,b,c` subset), the gate
 scripts (`validate_task.py`, `validate_closure.py`, `blast_radius.py`,
 `scan_gate.py`, `quota_gate.py`) into `<target>/scripts/`, and
-`.docs/conventions/*.md` — and seeds `AGENTS.md` from a generic template
+`.docs/conventions/*.md`. It also writes
+`.claude/skills/VENDORED.md`, a generated provenance/inventory receipt that
+points agents at this canonical repository instead of the retired
+`guidelines_IA` subtree flow — and seeds `AGENTS.md` from a generic template
 **only if the target has none yet** (an existing `AGENTS.md` is repo-specific
 and is never overwritten). Use `--dry-run` to preview first. Re-run it any
 time the core changes to re-sync; skills and gate scripts are meant to be
@@ -278,6 +440,45 @@ Every synced file is fingerprinted in `<target>/.claude/.core-sync-manifest.json
 longer matches its recorded hash (someone hand-edited it locally, violating
 "core is read-only"), the next sync skips it and exits `1` instead of
 silently clobbering the edit; `--force` overwrites it anyway.
+
+### Autonomous integration → staging review
+
+The PR workflow runs the candidate in a clean-room integration workspace and
+builds an admission-backed quality scorecard. `scripts/staging_gate.py` then
+emits `.docs/staging-reports/eligibility.json`: only an admitted green
+scorecard with a passing isolated integration is eligible for a staging-review
+PR. The gate reports evidence completeness, integration duration, risk level,
+and blockers. It does not create or merge a PR; human review remains mandatory.
+
+Homelab workers also have a machine-checkable preflight contract:
+`scripts/worker_preflight.py` blocks persistent, dirty, stale, secret-bearing,
+mislabelled, or fork-routed self-hosted workers before candidate execution.
+In CI, the homelab supervisor supplies runtime facts through
+`$RUNNER_TEMP/homelab-worker-facts.json`; a missing facts file blocks the
+self-hosted lane rather than silently downgrading its trust assumptions.
+
+Infrastructure changes have a separate `scripts/infra_dry_run.py` obligation:
+the gate runs a repository-supplied argv profile in a clean committed archive.
+No profile means a changed infrastructure tree stays blocked; ordinary code
+changes receive an explicit `not_applicable` receipt.
+
+The test-impact benchmark is versioned and conservative: v0.2 includes a
+reverse-import closure for transitive dependencies and reports precision,
+recall, closure size, and `promotion_ready`. `scripts/impact_promotion.py`
+combines that evidence with the shadow and full-suite receipts to make a
+commit-bound optimization decision; it never makes a fallback eligible and
+the full clean-room integration suite remains authoritative.
+
+Visual producers are consumer-owned: a frontend runs Playwright/Storybook and
+emits the validated `visual` receipt; the core admission and scorecard adapters
+carry that receipt, bind it to the candidate SHAs, and block supplied visual
+failures. Repositories without a deterministic browser surface do not receive
+a fabricated visual pass.
+
+When the autonomous lane is eligible for human review, use
+`scripts/staging_pr.py` to perform the explicit handoff. It validates the
+receipt and exact head SHA, avoids duplicating an open PR, supports `--dry-run`,
+and only creates a staging PR; approval and merge remain human actions.
 
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
@@ -313,7 +514,7 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 | `dispatcher`, `librarian` | `gh` CLI, authenticated — both open/edit PRs via `gh pr create` / `gh pr edit` |
 | `dispatcher`, `librarian` | `scripts/` (this repo's) copied into your target repo, or `PIPELINE_SCRIPTS_DIR` set |
 | `validate_task.py`, `validate_closure.py` | Python 3 + `pyyaml` (`pip install pyyaml`) |
-| `scan_gate.py` | Docker (daemon reachable, e.g. `docker info` succeeds) to run Semgrep/Trivy/gitleaks as containers — no native binaries needed. `--enable-dependency-check` additionally needs an NVD API key synced into the OWASP Dependency-Check image's data volume (slow without one — opt-in for a reason). Missing Docker degrades the gate honestly rather than erroring. |
+| `scan_gate.py` | Docker (daemon reachable, e.g. `docker info` succeeds) to run Semgrep/Trivy/gitleaks as containers — no native binaries needed. `--enable-dependency-check` additionally needs an NVD API key synced into the OWASP Dependency-Check image's data volume (slow without one — opt-in for a reason). Missing Docker is a diagnostic failure and cannot qualify admission. |
 | `dispatcher` (`/loop` unattended mode only) | `.claude/statusline_quota.py` writing `.claude/quota-state.json` from Claude Code's `rate_limits` injection (Pro/Max only), wired via `.claude/settings.json`'s `statusLine`. **Not bundled in this repo — you write it.** Without it, `quota_gate.py` fails safe (STOP) and `/loop` can't run unattended; interactive single-task use (step 4, top block) doesn't need this at all. |
 | `notifier` | GitHub token (`GITHUB_TOKEN`) for PR comments; ClickUp token optional |
 | `grill-me` | ClickUp API key (`CLICKUP_API_KEY`) for poll/per-task modes; interactive mode works without |
@@ -324,6 +525,25 @@ cp .docs/tasks/000-template.md .docs/tasks/0001-my-first-task.md
 | `zap-comms`, `whatsapp-clickup` | A self-hosted [Evolution API](https://github.com/EvolutionAPI/evolution-api) instance (`EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE_NAME`); `whatsapp-clickup` additionally needs `clickup-api`'s vars |
 
 Every skill above sits idle (and costs nothing) until its own env vars are set — none of them guess, degrade silently, or fabricate a result when a credential is missing. Each `SKILL.md` documents its own precondition check and prints setup instructions instead.
+
+### PR intelligence and early HITL
+
+Every pull request also receives a commit-bound quality-intelligence summary
+when the admission artifacts are available. `scripts/pr_intelligence.py`
+combines the deterministic risk report with diff churn, contact surfaces,
+gate evidence and test-impact state. It emits JSON for dashboards and Markdown
+for the GitHub job summary/PR comment. The summary explicitly labels the
+earliest recommended human checkpoint (for example, `before integration` for
+high-risk or non-pass evidence). This is advisory routing: it cannot override
+the fail-closed admission decision, and it never treats a weighted score as a
+substitute for a required gate.
+
+On pull requests, CI aggregates unit, clean-room integration, scanner, and—when
+the independent reviewer has run—ultrareview evidence into a schema-v1 receipt
+and runs `admission_gate.py` against the exact base/head SHAs. Missing
+artifacts, failed scanners and absent high-risk obligations remain non-admitted.
+The final job is currently a consistency check: branch/ruleset protection and
+signed policy ownership are required before treating it as a trust boundary.
 
 ## License
 

@@ -39,8 +39,13 @@ logs/
 # their own instance tasks locally instead (they're project-specific, not
 # part of the shared core).
 .docs/test-reports/
+.docs/policy-reports/
 .docs/blast-reports/
 .docs/scan-reports/
+.docs/integration-reports/
+.docs/quality-reports/
+.docs/impact-reports/
+.docs/test-reports/
 
 # scan_gate.py's trivy vulnerability-DB cache (task 0007) — host-side mount,
 # not scan output; kept out of git the same way node_modules/.venv are.
