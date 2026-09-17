@@ -44,6 +44,8 @@ def test_worker_returns_valid_pass_receipt(tmp_path):
     assert result["status"] == "pass"
     assert result["metrics"]["reviewed_files"] == 1
     assert result["metrics"]["worker_duration_seconds"] >= 0
+    assert result["producer"]["kind"] == "ultrareview-producer"
+    assert result["producer"]["execution"] == "separate-process-clean-room"
 
 
 def test_worker_rejects_nonzero_reviewer(tmp_path):
@@ -82,3 +84,20 @@ def test_cli_writes_receipt(tmp_path):
     )
     assert result.returncode == 0
     assert json.loads(output.read_text(encoding="utf-8"))["status"] == "pass"
+
+
+def test_reviewer_does_not_inherit_obvious_secret_environment(tmp_path, monkeypatch):
+    repo, base, head = fixture_repo(tmp_path)
+    monkeypatch.setenv("PIPELINE_TEST_SECRET", "must-not-cross-boundary")
+    command = [sys.executable, "-c", (
+        "import json, os; "
+        "print(json.dumps({'schema_version':1,'task':'0012','base_sha':os.environ['PIPELINE_REVIEW_BASE_SHA'],"
+        "'head_sha':os.environ['PIPELINE_REVIEW_HEAD_SHA'],'verdict':'block','independent':True,"
+        "'reviewer':{'kind':'worker','invocation_id':'test-run'},"
+        "'evidence':[{'kind':'diff','citation':'context'}],"
+        "'findings':[{'kind':'environment','detail':str('PIPELINE_TEST_SECRET' in os.environ)}],"
+        "'metrics':{'reviewed_files':1}}))"
+    )]
+    result = ultrareview_runner.run_reviewer(repo, "0012", base, head, command)
+    assert result["status"] == "fail"
+    assert result["findings"][0]["detail"] == "False"

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import uuid
@@ -32,6 +33,20 @@ except ImportError:  # pragma: no cover
 
 SCHEMA_VERSION = 1
 SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+PRODUCER_VERSION = 1
+
+
+def _argv_digest(command: list[str] | None) -> str | None:
+    if command is None:
+        return None
+    return hashlib.sha256(json.dumps(command, separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
+
+
+def _corpus_digest(fixtures: Path) -> str:
+    return hashlib.sha256(b"".join(
+        p.relative_to(fixtures).as_posix().encode() + p.read_bytes()
+        for p in sorted(fixtures.rglob("*")) if p.is_file()
+    )).hexdigest()
 
 
 def dispatch(
@@ -50,6 +65,7 @@ def dispatch(
     source_repo: Path | None = None,
     boundary_facts: Path | None = None,
     require_boundary: bool = False,
+    require_observer: bool = False,
 ) -> dict[str, Any]:
     if not SHA_RE.fullmatch(base_sha) or not SHA_RE.fullmatch(head_sha):
         raise ValueError("base/head must be full hexadecimal commit SHAs")
@@ -72,6 +88,40 @@ def dispatch(
         raise ValueError("candidate skills contain uncommitted changes")
 
     attempt = uuid.uuid4().hex
+    producer = {
+        "schema_version": PRODUCER_VERSION,
+        "kind": "meta-test-producer",
+        "adapter": "scripts/meta_test_dispatch.py",
+        "invocation_id": attempt,
+        "roles": {
+            "worker": "candidate-runtime",
+            "observer": "trusted-independent-observer" if observer_command else None,
+        },
+        "observer_required": require_observer,
+        "observer_execution": "separate-process" if observer_command else "none",
+        "worker_command_sha256": _argv_digest(worker_command),
+        "observer_command_sha256": _argv_digest(observer_command),
+        "fixture_corpus_sha256": _corpus_digest(fixtures),
+        "runtime": {
+            "python": sys.version.split()[0],
+            "ci": os.environ.get("CI") == "1",
+        },
+    }
+    if require_observer and observer_command is None:
+        report = {
+            "schema_version": SCHEMA_VERSION,
+            "gate": "meta-test",
+            "base_sha": base_sha,
+            "head_sha": head_sha,
+            "status": "error",
+            "metrics": {"fixtures_total": 0, "fixtures_passed": 0,
+                        "observer_present": False},
+            "producer": producer,
+            "error": "independent observer is required",
+        }
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        return report
     meta_output = output.with_name(output.stem + f".{attempt}.worker.json")
     lifecycle_output = output.with_name(output.stem + f".{attempt}.lifecycle.json")
     meta_command = [
@@ -120,9 +170,9 @@ def dispatch(
             report.setdefault("errors", []).append("worker lifecycle did not pass")
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    report["fixture_corpus_sha256"] = hashlib.sha256(b"".join(
-        p.relative_to(fixtures).as_posix().encode() + p.read_bytes()
-        for p in sorted(fixtures.rglob("*")) if p.is_file())).hexdigest()
+    report["fixture_corpus_sha256"] = producer["fixture_corpus_sha256"]
+    report["producer"] = producer
+    report.setdefault("metrics", {})["observer_present"] = observer_command is not None
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 
@@ -143,6 +193,8 @@ def main() -> int:
     parser.add_argument("--boundary-facts", type=Path,
                         help="external sandbox attestation for a real self-hosted run")
     parser.add_argument("--require-boundary", action="store_true")
+    parser.add_argument("--require-observer", action="store_true",
+                        help="fail unless an independent observer command is supplied")
     parser.add_argument("--worker-command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
     command = list(args.worker_command)
@@ -155,7 +207,8 @@ def main() -> int:
                           meta_timeout=args.meta_timeout, cleanup_command=args.cleanup_command,
                           observer_command=args.observer_command, source_repo=args.source_repo,
                           boundary_facts=args.boundary_facts,
-                          require_boundary=args.require_boundary)
+                          require_boundary=args.require_boundary,
+                          require_observer=args.require_observer)
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"ERROR: meta-test dispatcher failed: {type(exc).__name__}", file=sys.stderr)
         return 2

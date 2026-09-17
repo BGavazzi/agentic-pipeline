@@ -172,3 +172,14 @@
 - Added `visual_receipt.py` and adversarial tests for thresholds, screenshot /
   baseline provenance, comparison counts, and stale identity. No browser or
   credential is introduced in the generic core.
+
+## 2026-09-17 — Task 0045, independent meta-test and review producers
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0045` from task 0044,
+  branch `feat/0045-meta-test-producers`.
+- Added producer envelopes and observer-required mode to meta-test dispatch;
+  added bounded, credential-filtered clean-room provenance to ultrareview.
+- Receipt aggregation now rejects producer-less meta-test/ultrareview evidence.
+- Expanded the synthetic skill corpus with forbidden-write, closure-lie and
+  repository-prompt-injection controls. No real agent runtime or homelab state
+  was touched; real pool execution remains an activation condition.

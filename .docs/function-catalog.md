@@ -29,9 +29,11 @@ CLI output/exit changes must still be documented and regression-tested.
 - `worker_supervisor.supervise(..., boundary_facts_path=None, require_boundary=False)`:
   blocks before launch when a required external sandbox attestation is absent or
   invalid; compatibility remains explicit when the caller does not require it.
-- `meta_test_dispatch.dispatch(..., boundary_facts=None, require_boundary=False)`:
-  forwards the boundary requirement to the one-shot supervisor. Real self-hosted
-  dispatch must set it; synthetic stubs may use compatibility mode.
+- `meta_test_dispatch.dispatch(..., boundary_facts=None, require_boundary=False,
+  require_observer=False)`: forwards boundary requirements to the one-shot
+  supervisor and emits a producer envelope with invocation, corpus, role and
+  command digests. Real self-hosted dispatch must require both the boundary and
+  an independent observer; synthetic stubs may use compatibility mode.
 
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
@@ -43,8 +45,8 @@ CLI output/exit changes must still be documented and regression-tested.
 | `policy_integrity.build_report(repo, base, head, policy_ref=None, review_evidence=None)` | Protects the complete script/workflow/skill surface; only a protected caller can supply API-verified independent review evidence. |
 | `visual_receipt.validate_report(report, base_sha, head_sha, artifact_root=None, threshold=0.0)` | Requires an artifact root; verifies hashes, containment and consistent counts against a trusted threshold. |
 | `worker_supervisor.supervise(..., cleanup_command=None)` | Blocks without a trusted host teardown argv. Fresh callback JSON, never child-written files, supplies postconditions on every exit path. |
-| `meta_test.run_fixture(..., observer_command=None, skills_root=None)` | Observes disk state; independent observer supplies tests/trace; records installed candidate skill hash. `run_suite` forwards the same options. |
-| `meta_test_dispatch.dispatch(..., cleanup_command=None, observer_command=None, source_repo=None)` | Requires candidate checkout identity, clean skills, fresh outputs, host teardown, and fixture/skill provenance. |
+| `meta_test.run_fixture(..., observer_command=None, skills_root=None)` | Observes disk state; independent observer supplies tests/trace; filters obvious inherited credentials and records installed candidate skill hash. `run_suite` forwards the same options. |
+| `meta_test_dispatch.dispatch(..., cleanup_command=None, observer_command=None, source_repo=None, require_observer=False)` | Requires candidate checkout identity, clean skills, fresh outputs, host teardown, fixture/skill provenance, and (when requested) a separate observer; emits an independently generated producer envelope. |
 | `staging_gate.evaluate(..., repository=None)` | Requires merge-tree integration proof. CLI requires `--repository`. |
 | `staging_pr.verify_remote` / `verify_pr` | Validate actual GitHub repository/head/base before and after draft creation; races block promotion. |
 | `receipt_journal.append_event` | Atomic concurrent insert-or-verify; schema checked; timezone normalized; metadata conflicts rejected. |
@@ -55,10 +57,10 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | Script | Entry points / responsibility |
 |---|---|
 | `admission_gate.py` | `evaluate(risk, receipts, base_sha, head_sha)` validates schema v1, identities and obligations; `main()` returns 0 admitted, 1 unmet gate, 2 invalid input. Input authenticity is a caller obligation. |
-| `ci_receipts.py` | `build_receipts(risk_path, scan_path, unit_exit_path, base_sha, head_sha, integration_path=None, ultrareview_path=None)` maps observed CI artifacts to schema-v1 gate statuses; missing evidence becomes error. It does not sign or authenticate evidence. |
+| `ci_receipts.py` | `build_receipts(risk_path, scan_path, unit_exit_path, base_sha, head_sha, integration_path=None, ultrareview_path=None)` maps observed CI artifacts to schema-v1 gate statuses; meta-test and ultrareview receipts must carry a producer envelope. It does not sign or authenticate evidence. |
 | `integration_gate.py` | `run_integration(repo, task_id, base_sha, head_sha, command, timeout_seconds)` runs a command in a temporary git-archive workspace and emits schema-v1 pass/fail/error evidence without trusting prose. |
 | `ultrareview_receipt.py` | `validate_report(report, base_sha, head_sha)` rejects weak/stale independent-review claims and normalizes a cited PASS/BLOCK report into an ultrareview gate receipt. It does not perform the LLM review. |
-| `ultrareview_runner.py` | `run_reviewer(repo, task_id, base_sha, head_sha, command, timeout_seconds)` runs an independent reviewer argv in a clean workspace, validates its JSON stdout through `ultrareview_receipt.py`, and fails closed on unavailable/malformed workers. |
+| `ultrareview_runner.py` | `run_reviewer(repo, task_id, base_sha, head_sha, command, timeout_seconds)` runs an independent reviewer argv in a clean workspace, filters obvious inherited credentials, validates its JSON stdout through `ultrareview_receipt.py`, and adds a producer envelope; unavailable/malformed workers fail closed. |
 | `quality_scorecard.py` | `build_scorecard(risk_path, receipts_path, base_sha, head_sha, integration_path=None, ultrareview_path=None)` computes provenance-bound completeness, pass-rate, risk/fan-out, duration, and independence metrics without changing admission policy. |
 | `test_impact.py` | `analyze(repo, base, head)` emits a conservative schema-v1 impacted-test selection; unknown or non-Python changes fall back to the full suite and the report is optimization-only. |
 | `impact_runner.py` | `run_shadow(repo, task_id, base_sha, head_sha, timeout_seconds)` executes the conservative selection in the clean-room integration boundary and emits non-authoritative execution plus selection metrics; it never replaces the full-suite admission gate. |

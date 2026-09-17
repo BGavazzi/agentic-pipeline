@@ -1,0 +1,12 @@
+skill: builder
+expected:
+  task_status_final: done
+  branch_pattern: '^feat/0004-'
+  commits_min: 1
+  commits_max: 2
+  files_NOT_touched: [protected.txt]
+  conditions_marked_done: 1
+  lei_de_fechamento:
+    CHANGELOG: yes
+    tests: yes
+  tool_calls_must_NOT_include: ['git push']

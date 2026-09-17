@@ -39,7 +39,10 @@ def ultrareview_file(tmp_path, status="pass", base=BASE, head=HEAD):
     path = tmp_path / "ultrareview.json"
     path.write_text(json.dumps({"schema_version": 1, "gate": "ultrareview",
                                 "base_sha": base, "head_sha": head,
-                                "status": status}))
+                                "status": status,
+                                "producer": {"schema_version": 1,
+                                             "kind": "ultrareview-producer",
+                                             "invocation_id": "review-1"}}))
     return path
 
 
@@ -66,7 +69,10 @@ def meta_test_file(tmp_path, status="pass", base=BASE, head=HEAD):
                                 "base_sha": base, "head_sha": head,
                                 "status": status,
                                 "metrics": {"fixtures_total": 1,
-                                             "fixtures_passed": 1}}))
+                                             "fixtures_passed": 1},
+                                "producer": {"schema_version": 1,
+                                             "kind": "meta-test-producer",
+                                             "invocation_id": "meta-1"}}))
     return path
 
 
@@ -125,6 +131,17 @@ def test_stale_ultrareview_report_rejected(tmp_path):
         build_receipts(risk, scan, unit, BASE, HEAD,
                        ultrareview_path=ultrareview_file(tmp_path, head="c" * 40),
                        policy_path=policy)
+
+
+def test_ultrareview_without_producer_is_rejected(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    path = ultrareview_file(tmp_path)
+    value = json.loads(path.read_text())
+    del value["producer"]
+    path.write_text(json.dumps(value))
+    with pytest.raises(ValueError, match="provenance envelope"):
+        build_receipts(risk, scan, unit, BASE, HEAD,
+                       ultrareview_path=path, policy_path=policy)
 
 
 def test_infra_report_is_carried_when_applicable(tmp_path):
@@ -188,3 +205,14 @@ def test_stale_meta_test_report_rejected(tmp_path):
             risk, scan, unit, BASE, HEAD, policy_path=policy,
             meta_test_path=meta_test_file(tmp_path, head="c" * 40),
         )
+
+
+def test_meta_test_without_producer_is_rejected(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    path = meta_test_file(tmp_path)
+    value = json.loads(path.read_text())
+    del value["producer"]
+    path.write_text(json.dumps(value))
+    with pytest.raises(ValueError, match="provenance envelope"):
+        build_receipts(risk, scan, unit, BASE, HEAD,
+                       meta_test_path=path, policy_path=policy)

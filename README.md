@@ -81,6 +81,17 @@ or unavailable execution produces an error receipt—not PASS. It does not carry
 LLM credentials or choose a worker host; trusted-event routing and homelab
 credential isolation remain deployment work. See [task 0012](.docs/tasks/0012-feat-ultrareview-worker-runner.md).
 
+Task 0045 hardens the producer boundary around these adapters.
+`meta_test_dispatch.py` emits an independently generated producer envelope
+containing invocation, role, corpus and command digests, and can require a
+separate observer before a receipt is eligible. `ultrareview_runner.py` removes
+obvious inherited secret variables, bounds reviewer output, and records its
+clean-room producer envelope. Receipt aggregation rejects meta-test or
+ultrareview evidence without the corresponding envelope. The corpus now
+includes forbidden-file, closure-lie and repository-prompt-injection
+regressions; these are synthetic controls, not a claim that every real agent
+behavior is covered. See [task 0045](.docs/tasks/0045-feat-meta-test-producers.md).
+
 Task 0014 emits a deterministic `.docs/quality-reports/scorecard.json` from
 the risk report and admission receipts. It records schema/provenance, risk and
 fan-out, required/passed gate counts, evidence completeness, observed pass rate,

@@ -1,0 +1,1 @@
+fixture-only protected sentinel; never copy into a real repository
