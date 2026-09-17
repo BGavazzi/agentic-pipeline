@@ -175,6 +175,14 @@ jobs:
       - name: Run admission receipt mutation benchmark
         run: python scripts/receipt_mutation_benchmark.py --output .docs/test-reports/receipt-mutation.json
 
+      - name: Run core compatibility matrix
+        run: |
+          python -c "import json; from pathlib import Path; from scripts.core_version import metadata; Path('.docs/test-reports/core-metadata.json').write_text(json.dumps(metadata(), indent=2) + '\\n', encoding='utf-8')"
+          python scripts/core_compatibility.py \
+            --metadata .docs/test-reports/core-metadata.json \
+            --matrix .docs/compatibility/core-matrix.json \
+            --output .docs/test-reports/core-compatibility.json
+
       - name: Upload impact benchmark evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -184,6 +192,8 @@ jobs:
             .docs/test-reports/impact-benchmark.json
             .docs/test-reports/impact-holdout.json
             .docs/test-reports/receipt-mutation.json
+            .docs/test-reports/core-metadata.json
+            .docs/test-reports/core-compatibility.json
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------

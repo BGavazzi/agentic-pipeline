@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "matrix_version": "1.0",
+  "consumers": [
+    {
+      "name": "agentic-pipeline-self",
+      "minimum_core_release": "0.1.0",
+      "required_contracts": {
+        "receipt_schema": 1,
+        "core_sync_manifest": 1,
+        "producer_envelope": 1
+      }
+    }
+  ]
+}

@@ -156,6 +156,7 @@ GATE_SCRIPTS = [
     "impact_benchmark.py",
     "impact_holdout.py",
     "receipt_mutation_benchmark.py",
+    "core_compatibility.py",
     "policy_integrity.py",
     "visual_receipt.py",
     "playwright_visual_producer.py",

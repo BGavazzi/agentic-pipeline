@@ -234,3 +234,11 @@
   explicit blocked/unsafe/fail-closed metrics; CI uploads the report.
 - This tests the gate's failure behavior only. It does not claim fuzzing,
   producer authenticity or production security, and no infrastructure changed.
+
+## 2026-09-17 — Task 0051, core release compatibility matrix
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0051` from task 0050,
+  branch `feat/0051-core-compatibility-matrix`.
+- Added a versioned consumer matrix, minimum-release/contract evaluator and a
+  synthetic self-consumer CI report. Incompatible inputs fail closed; no real
+  consumer was mass-synced and no infrastructure changed.
