@@ -24,6 +24,7 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 
 | Script | Entry points / responsibility |
 |---|---|
+| `cli_contract_benchmark.py` | `build_cases(repo)` derives bounded help/missing-input cases from the canonical gate registry; `run_benchmark(repo, timeout)` executes them through credential-free, shell-free subprocesses and returns JSON metrics. |
 | `admission_gate.py` | `evaluate(risk, receipts, base_sha, head_sha)` validates schema v1, identities and obligations; `main()` returns 0 admitted, 1 unmet gate, 2 invalid input. Input authenticity is a caller obligation. |
 | `ci_receipts.py` | `build_receipts(risk_path, scan_path, unit_exit_path, base_sha, head_sha, integration_path=None, ultrareview_path=None)` maps observed CI artifacts to schema-v1 gate statuses; missing evidence becomes error. It does not sign or authenticate evidence. |
 | `integration_gate.py` | `run_integration(repo, task_id, base_sha, head_sha, command, timeout_seconds)` runs a command in a temporary git-archive workspace and emits schema-v1 pass/fail/error evidence without trusting prose. |

@@ -1,5 +1,19 @@
 # Continuity — Codex
 
+## 2026-09-17 — Task 0053, bounded core CLI contract benchmark
+
+- Started `D:\VIBES\agentic-pipeline` from refreshed `origin/master` at
+  `c5803e4`, branch `test/0053-cli-contract-benchmark`; the prior local
+  `fix/changelog-merge-artifact` branch already had merged PR #13 and was not
+  reused. Pre-existing local changes from that branch remain in the stash.
+- Added a subprocess-only benchmark for the 23 scripts in
+  `core_sync.GATE_SCRIPTS`: 21 `--help` cases and 23 missing-input exit-code
+  cases. Each child has a bounded timeout, `shell=False`, and a minimal
+  non-secret environment; no scanner, network, credential, or mutation path is
+  supplied. CI registration is one test-job step with a JSON artifact.
+- Verification and handoff are in progress; the task remains `in_progress`
+  until the draft PR is opened and later human review occurs. Do not merge.
+
 ## 2026-09-16 — Task 0042, reviewed stack remediation
 
 - User explicitly requested fixes for review findings across open PRs #14–#44.
@@ -140,3 +154,20 @@
 - Added `visual_receipt.py` and adversarial tests for thresholds, screenshot /
   baseline provenance, comparison counts, and stale identity. No browser or
   credential is introduced in the generic core.
+
+## 2026-09-17 — W12 activation-blocker audit
+
+- User requested a read-only audit and docs-only implementation map for trusted
+  admission, isolated workers/homelab, signed release, and the Playwright visual
+  producer.
+- Added `.docs/tasks/0052-audit-w12-activation-blockers.md`.
+- Evidence boundary: checked-out `fix/changelog-merge-artifact` at `04229cb`
+  plus the clean local implementation stack
+  `feat/0051-core-compatibility-matrix` at `6bc1951` in
+  `D:\VIBES\agentic-pipeline-0051`. No confidential repos, homelab state,
+  GitHub protections/variables, credentials, or PRs were touched.
+- The packet records the current conclusion as implemented offline,
+  activation-blocked: protected ownership/live pilots are missing for
+  admission and workers; signed immutable release/consumer rollout is missing;
+  and the Playwright producer still needs a real approved frontend/browser/
+  baseline pilot.
