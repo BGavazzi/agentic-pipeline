@@ -218,6 +218,9 @@ def build_intelligence(repo: Path, risk_path: Path, base_sha: str, head_sha: str
             raise ValueError("optional impact evidence is stale or invalid")
     impact = impact_metrics(impact_report, promotion_report)
     review = human_review(paths, risk, stats, gate, surfaces_map, impact)
+    sensitive_labels = {"CI/workflow", "harness/policy", "security/identity",
+                        "data/schema", "infrastructure"}
+    sensitive_surfaces = sorted(sensitive_labels & set(surfaces_map))
     return {
         "schema_version": SCHEMA_VERSION,
         "intelligence_version": 1,
@@ -228,6 +231,13 @@ def build_intelligence(repo: Path, risk_path: Path, base_sha: str, head_sha: str
             "triggers": risk.get("risk_triggers", []),
             "affected_module_count": len(risk.get("affected_modules", [])),
             "required_gate_count": len(risk.get("required_gates", [])),
+            "blast_radius": {
+                "changed_file_count": len(paths),
+                "affected_module_count": len(risk.get("affected_modules", [])),
+                "contact_surface_count": len(surfaces_map),
+                "sensitive_surface_count": len(sensitive_surfaces),
+                "sensitive_surfaces": sensitive_surfaces,
+            },
         },
         "diff": {key: value for key, value in stats.items() if key != "file_stats"},
         "contact_surfaces": {label: {"file_count": len(files), "files": files}
@@ -248,6 +258,13 @@ def markdown(report: dict[str, Any]) -> str:
     gate = report["gates"]
     hitl = report["human_review"]
     impact = report["test_impact"]
+    blast = risk.get("blast_radius", {
+        "changed_file_count": diff.get("changed_file_count", 0),
+        "affected_module_count": risk.get("affected_module_count", 0),
+        "contact_surface_count": len(report.get("contact_surfaces", {})),
+        "sensitive_surface_count": 0,
+        "sensitive_surfaces": [],
+    })
     lines = [
         "<!-- agentic-pipeline-pr-intelligence -->",
         "## Agentic quality intelligence",
@@ -255,14 +272,18 @@ def markdown(report: dict[str, Any]) -> str:
         f"**HITL checkpoint:** `{hitl['checkpoint']}`  ",
         f"**Review decision:** `{hitl['decision']}`  ",
         f"**Risk:** `{risk['level']}` ({len(risk['triggers'])} classifier trigger(s))",
+        f"**Evidence identity:** `{report['base_sha']}` → `{report['head_sha']}`",
         "",
         "| Measurement | Value |",
         "|---|---:|",
         f"| Changed files | {diff['changed_file_count'] if 'changed_file_count' in diff else 'n/a'} |",
         f"| Diff churn | {diff['churn']} lines (+{diff['additions']} / -{diff['deletions']}) |",
         f"| Affected modules | {risk['affected_module_count']} |",
-        f"| Required gates | {risk['required_gate_count']} |",
+        f"| Blast radius | {blast['changed_file_count']} files / {blast['affected_module_count']} modules / {blast['contact_surface_count']} contact surfaces |",
+        f"| Sensitive surfaces | {blast['sensitive_surface_count']} ({', '.join(blast['sensitive_surfaces']) or 'none'}) |",
+        f"| Required gates | {gate.get('required_count', risk['required_gate_count'])} |",
         f"| Gate evidence | {gate['passed_count']}/{gate['observed_count']} observed pass; `{gate['status']}` |",
+        f"| Missing required gates | {', '.join(gate.get('missing_required', [])) or 'none'} |",
         f"| Test/source file ratio | {diff.get('test_to_source_file_ratio', 'n/a')} |",
         f"| Test-impact evidence | `{impact.get('status', 'missing')}` |",
         "",
@@ -276,7 +297,7 @@ def markdown(report: dict[str, Any]) -> str:
     if gate.get("failed_or_nonpass"):
         lines += ["", "### Non-pass evidence", ""]
         lines.extend(f"- `{item}`" for item in gate["failed_or_nonpass"])
-    lines += ["", f"_Evidence identity: `{report['base_sha'][:12]}...` → `{report['head_sha'][:12]}...`; this summary is advisory and cannot override admission._", ""]
+    lines += ["", "_This is a bounded diagnostic summary. It is advisory and cannot override admission._", ""]
     return "\n".join(lines)
 
 

@@ -194,3 +194,14 @@
   synthetic identical/changed/mismatch tests.
 - No frontend, browser fleet, baseline store, customer fixture or homelab state
   was touched; the real Playwright pilot remains an activation condition.
+
+## 2026-09-17 — Task 0047, top-of-PR intelligence panel
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0047` from task 0046,
+  branch `feat/0047-pr-intelligence-panel`.
+- Expanded `pr_intelligence.py` with explicit blast-radius and sensitive-surface
+  metrics, exact identity and missing-gate fields. The workflow publisher now
+  downloads the completed run's bounded diagnostic panel, escapes comment
+  controls/suppresses mentions and updates one idempotent PR comment.
+- This remains advisory telemetry; no trusted admission, branch protection or
+  external infrastructure was changed.

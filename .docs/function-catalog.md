@@ -45,6 +45,17 @@ CLI output/exit changes must still be documented and regression-tested.
   producer envelope. It does not authenticate the caller or approve baseline
   updates.
 
+## Task 0047 PR intelligence v1
+
+- `pr_intelligence.build_intelligence(repo, risk_path, base_sha, head_sha,
+  receipts_path=None, impact_path=None, promotion_path=None)`: binds diff
+  statistics, risk triggers, contact/sensitive surfaces, gate completeness and
+  advisory HITL decision to an exact commit pair. It does not authenticate
+  candidate artifacts or change admission.
+- `pr_intelligence.markdown(report)`: renders a bounded human-readable panel
+  with exact identity, blast radius, surfaces and missing/non-pass evidence;
+  its output is diagnostic and cannot override admission.
+
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
 | API | Current contract |
