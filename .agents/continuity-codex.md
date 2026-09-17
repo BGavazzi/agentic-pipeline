@@ -225,3 +225,12 @@
   development benchmark.
 - The full suite remains authoritative; no dispatcher now skips tests and no
   production repository or infrastructure was changed.
+
+## 2026-09-17 — Task 0050, receipt-mutation benchmark
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0050` from task 0049,
+  branch `feat/0050-receipt-mutation-benchmark`.
+- Added a nine-case deterministic mutation corpus for admission evidence and
+  explicit blocked/unsafe/fail-closed metrics; CI uploads the report.
+- This tests the gate's failure behavior only. It does not claim fuzzing,
+  producer authenticity or production security, and no infrastructure changed.

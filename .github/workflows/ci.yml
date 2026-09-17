@@ -172,6 +172,9 @@ jobs:
       - name: Run independent seeded-fault holdout benchmark
         run: python scripts/impact_holdout.py --output .docs/test-reports/impact-holdout.json
 
+      - name: Run admission receipt mutation benchmark
+        run: python scripts/receipt_mutation_benchmark.py --output .docs/test-reports/receipt-mutation.json
+
       - name: Upload impact benchmark evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -180,6 +183,7 @@ jobs:
           path: |
             .docs/test-reports/impact-benchmark.json
             .docs/test-reports/impact-holdout.json
+            .docs/test-reports/receipt-mutation.json
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------

@@ -2,6 +2,14 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-17] - Add deterministic receipt-mutation benchmark (task 0050)
+### Added
+- `scripts/receipt_mutation_benchmark.py` mutates a complete high-risk evidence
+  fixture across nine stale, malformed, duplicate, unknown and non-pass cases.
+- CI now publishes the mutation result with explicit blocked/unsafe counts and
+  a fail-closed rate; any unsafe admitted mutation fails the benchmark.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Add held-out seeded-fault TIA benchmark (task 0049)
 ### Added
 - `scripts/impact_holdout.py` evaluates test-impact selection against a separate
