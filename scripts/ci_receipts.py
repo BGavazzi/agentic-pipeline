@@ -82,6 +82,7 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         visual = read_json(visual_path)
         if visual.get("schema_version") != 1 or visual.get("gate") != "visual":
             raise ValueError("invalid visual receipt")
+        _require_producer(visual, "visual-producer")
         if visual.get("base_sha") != base_sha or visual.get("head_sha") != head_sha:
             raise ValueError("visual report is for a different commit pair")
 

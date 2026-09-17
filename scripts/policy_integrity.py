@@ -44,6 +44,7 @@ POLICY_PATHS = (
     "scripts/validate_closure.py",
     "scripts/validate_task.py",
     "scripts/visual_receipt.py",
+    "scripts/playwright_visual_producer.py",
 )
 
 

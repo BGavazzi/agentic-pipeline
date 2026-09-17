@@ -84,6 +84,7 @@ HIGH_RISK_PATH_PATTERNS = [
     (r"^\.docs/intent/.*\.json$", "intent-policy"),
     (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
     (r"^scripts/(meta_test_dispatch|staging_dispatch|pr_intelligence|quality_metrics_dashboard|receipt_journal|sota_audit|provenance_verify|flake_gate|environment_fingerprint|junit_history|ci_telemetry|merge_group_contract|release_health_gate|local_integration_loop|agent_eval_corpus|trusted_policy)\.py$", "gate-script"),
+    (r"^scripts/(meta_test_dispatch|staging_dispatch|pr_intelligence|quality_metrics_dashboard|receipt_journal|sota_audit|provenance_verify|flake_gate|environment_fingerprint|junit_history|ci_telemetry|merge_group_contract|release_health_gate|local_integration_loop|agent_eval_corpus|trusted_policy|playwright_visual_producer)\.py$", "gate-script"),
 ]
 
 
