@@ -183,6 +183,9 @@ jobs:
             --matrix .docs/compatibility/core-matrix.json \
             --output .docs/test-reports/core-compatibility.json
 
+      - name: Run bounded receipt fuzz benchmark
+        run: python scripts/receipt_fuzz_benchmark.py --output .docs/test-reports/receipt-fuzz.json
+
       - name: Upload impact benchmark evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -194,6 +197,7 @@ jobs:
             .docs/test-reports/receipt-mutation.json
             .docs/test-reports/core-metadata.json
             .docs/test-reports/core-compatibility.json
+            .docs/test-reports/receipt-fuzz.json
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------

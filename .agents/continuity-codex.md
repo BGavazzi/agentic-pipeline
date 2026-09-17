@@ -1,5 +1,22 @@
 # Continuity — Codex
 
+## 2026-09-17 — Task 0052, bounded receipt fuzz benchmark W10
+
+- Started a dedicated worktree `D:\VIBES\agentic-pipeline-0052` from the open
+  W9 tip `feat/0051-core-compatibility-matrix` at `6bc1951`; the shared main
+  checkout was left untouched because another task had it checked out.
+- Added a deterministic, bounded property-style generator for malformed nested
+  authoritative admission fields. Default corpus is 128 cases, hard cap 512,
+  default payload depth 3, hard depth cap 6. Unsafe admission is a benchmark
+  failure.
+- This is synthetic fuzz evidence only. It does not authenticate producers,
+  runners, CI artifacts or platform boundaries, and it does not prove universal
+  parser safety. Full suite, integration, scanner and protected policy gates
+  remain authoritative.
+- Pre-existing dirty changes from the original checkout were preserved in the
+  named stash `preserve pre-W10 user changes` and are intentionally outside
+  this stacked PR.
+
 ## 2026-09-17 — Task 0043, trusted evidence W1
 
 - PR #45 merged as c5803e4; superseded stack is closed/merged and preserved.

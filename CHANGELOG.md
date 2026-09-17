@@ -2,6 +2,16 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-17] - Add bounded receipt fuzz benchmark (task 0052)
+### Added
+- `scripts/receipt_fuzz_benchmark.py` generates a deterministic bounded corpus
+  of malformed nested authoritative receipt fields and reports rejected,
+  blocked and unsafe-admitted outcomes.
+- CI publishes the fuzz report beside the W9 hand-authored mutation benchmark.
+  This is synthetic fail-closed evidence, not authenticity proof.
+**Author**: Codex (agent); pending independent review.
+
+
 ## [2026-09-17] - Add core release compatibility matrix (task 0051)
 ### Added
 - `core_compatibility.py` checks each consumer's minimum core release and
