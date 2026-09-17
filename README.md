@@ -156,6 +156,12 @@ immutable core commit and require that protected check in branch protection;
 candidate-local CI remains diagnostic, while the protected reusable workflow
 becomes the admission trust anchor.
 
+Task 0052 adds `scripts/receipt_fuzz_benchmark.py`, a bounded seeded corpus of
+malformed nested authoritative receipt fields. It measures rejected, blocked
+and unsafe-admitted cases without changing admission policy. The evidence is
+synthetic and deterministic; it is not authenticity proof or a substitute for
+protected external producers. See the [W10 benchmark boundary note](.docs/analysis/receipt-fuzz-benchmark-2026-09.md).
+
 Task 0016 adds the core visual-regression evidence contract in
 `scripts/visual_receipt.py`. A consuming frontend runner (typically Playwright)
 must provide screenshot paths, viewport, baseline provenance, pixel counts,
