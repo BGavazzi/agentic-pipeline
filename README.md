@@ -102,6 +102,15 @@ frontend or customer fixture dependency; a real frontend pilot still chooses
 the pinned browser/OS/font environment and protected baseline store. See [task
 0046](.docs/tasks/0046-feat-playwright-visual-producer.md).
 
+Task 0047 promotes the existing deterministic PR intelligence into a visible
+top-of-PR panel. It shows the exact base/head pair, classifier triggers, blast
+radius (files/modules/contact surfaces), sensitive surfaces, required/passed/
+missing gates, test-impact state and the earliest HITL checkpoint. The
+`workflow_run` publisher downloads only the bounded completed-run diagnostic
+artifact, escapes comment controls and suppresses mentions before updating one
+idempotent bot comment. This is advisory telemetry, not authenticated admission
+or a correctness score. See [task 0047](.docs/tasks/0047-feat-pr-intelligence-panel.md).
+
 Task 0014 emits a deterministic `.docs/quality-reports/scorecard.json` from
 the risk report and admission receipts. It records schema/provenance, risk and
 fan-out, required/passed gate counts, evidence completeness, observed pass rate,

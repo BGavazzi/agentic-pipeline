@@ -1,6 +1,22 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Surface risk and HITL intelligence at the top of PRs (task 0047)
+### Added
+- Blast-radius, contact-surface and sensitive-surface measurements in the
+  deterministic PR intelligence artifact, with exact base/head identity and
+  required/passed/missing gate counts.
+- Workflow publisher downloads the bounded completed-run diagnostic panel and
+  updates one idempotent bot comment.
+### Changed
+- Early HITL checkpoint and advisory decision are now visible without opening
+  CI artifacts; artifact text is bounded, comment markers escaped and mentions
+  neutralized. Admission remains authoritative and separate.
+### Not activated
+- Calibration against labeled PR outcomes and authenticated trusted artifact
+  provenance remain open; no admission or branch protection was changed.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Add a real Playwright visual producer (task 0046)
 ### Added
 - `playwright_visual_producer.py` runs a protected runtime-supplied browser

@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "pr_intelligence.py"
+sys.path.insert(0, str(SCRIPT.parent))
 spec = importlib.util.spec_from_file_location("pr_intelligence", SCRIPT)
 module = importlib.util.module_from_spec(spec)
 sys.modules["pr_intelligence"] = module
@@ -82,6 +83,8 @@ def test_build_binds_diff_stats_and_optional_receipts(tmp_path: Path):
     assert report["diff"]["source_file_count"] == 1
     assert report["gates"]["status"] == "complete"
     assert report["human_review"]["decision"] == "recommended"
+    assert report["risk"]["blast_radius"]["changed_file_count"] == 1
+    assert report["risk"]["blast_radius"]["contact_surface_count"] >= 1
 
 
 def test_stale_risk_identity_is_rejected(tmp_path: Path):
@@ -121,3 +124,6 @@ def test_markdown_never_claims_admission_from_advisory_summary():
     assert "required_before_staging" in text
     assert "cannot override admission" in text
     assert "policy:fail" in text
+    assert "Evidence identity" in text
+    assert "Blast radius" in text
+    assert "Missing required gates" in text

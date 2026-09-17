@@ -13,9 +13,19 @@ jobs:
     timeout-minutes: 5
     steps:
       # No checkout and no execution of candidate scripts or artifact content.
+      - name: Download bounded diagnostic artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: admission-evidence
+          path: .pr-intelligence
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
       - uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
+            const path = require('path');
             const run = context.payload.workflow_run;
             if (run.event !== 'pull_request' || run.repository.full_name !== `${context.repo.owner}/${context.repo.repo}`) return;
             for (const candidate of run.pull_requests) {
@@ -23,7 +33,23 @@ jobs:
               const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: candidate.number});
               if (pr.state !== 'open' || pr.head.sha !== run.head_sha) continue;
               const marker = '<!-- agentic-pipeline-pr-intelligence -->';
-              const body = `${marker}\n## Agentic quality evidence\n\nCommit: \`${run.head_sha}\`\n\nCI conclusion: **${run.conclusion}**. [Risk, blast radius, contact surfaces and gate receipts](${run.html_url}).\n\nThis links candidate-run diagnostics; only trusted required checks can authorize promotion.`;
+              let panel = '';
+              const candidates = [];
+              function walk(dir) {
+                if (!fs.existsSync(dir)) return;
+                for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+                  const full = path.join(dir, entry.name);
+                  if (entry.isDirectory()) walk(full);
+                  else if (entry.name === 'pr-intelligence.md') candidates.push(full);
+                }
+              }
+              walk('.pr-intelligence');
+              if (candidates.length) {
+                panel = fs.readFileSync(candidates[0], 'utf8').slice(0, 12000)
+                  .replace(/<!--/g, '&lt;!--').replace(/-->/g, '--&gt;')
+                  .replace(/@/g, '@' + String.fromCharCode(0x200b));
+              }
+              const body = `${marker}\n## Agentic quality intelligence\n\nCommit: \`${run.head_sha}\`\n\nCI conclusion: **${run.conclusion}**. [Run evidence](${run.html_url}).\n\n${panel || '_Diagnostic scorecard artifact was not available for this run._'}\n\nThis panel is bounded diagnostic evidence; only trusted required checks can authorize promotion.`;
               const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number: pr.number, per_page: 100});
               const existing = comments.find(c => c.user.login === 'github-actions[bot]' && c.body?.includes(marker));
               const {data: latest} = await github.rest.pulls.get({owner, repo, pull_number: pr.number});
