@@ -11,8 +11,11 @@
   identity, visual hash/count validation, policy coverage and least privilege,
   conservative TIA and benchmark/subset binding, provenance and telemetry fixes.
 - Full regression run including live Docker clean/planted scanner contracts:
-  265 passed, no skips. Worker/event-facts focused rerun: 53 passed. Final
-  committed-tree verification follows before PR handoff.
+  265 passed, no skips. Worker/event-facts focused rerun: 53 passed.
+  Committed candidate 95ccc93 passed actual base/head merge-tree integration
+  and all three live scanners (zero findings). Final CI diagnostic follow-up
+  preserves missing integration evidence as blocking rather than suppressing
+  the risk summary; the final commit is reverified before PR handoff.
 - Critical deployment fact: GitHub master has no branch protection. Trusted
   workflows and immutable policy pin are not activated just by opening this PR.
   Do not claim enforced security or bypass review/other absent evidence.

@@ -454,11 +454,15 @@ jobs:
           path: .docs/test-reports
           merge-multiple: true
       - name: Download integration evidence
+        # A held integration lane has no artifact. Aggregate the absence as
+        # missing/blocking evidence instead of losing the entire risk summary.
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: integration-artifacts-*
           merge-multiple: true
       - name: Download test-impact evidence
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: impact-shadow-artifacts-*
