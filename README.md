@@ -414,6 +414,9 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`receipt_mutation_benchmark.py`** — mutates complete high-risk admission
   evidence across stale, malformed, duplicate, unknown and non-pass cases;
   CI records the fail-closed rate and blocks on any unsafe survivor.
+- **`core_compatibility.py`** — checks a versioned consumer matrix against the
+  installed core release and supported contracts; CI exercises the synthetic
+  self-consumer without mass-syncing or deploying any repository.
 - **`staging_dispatch.py`** — verifies the current staging base and candidate
   head against eligibility, attaches the PR intelligence evidence, and plans
   the survivor-to-staging PR. It is dry-run by default; `--create` opens the

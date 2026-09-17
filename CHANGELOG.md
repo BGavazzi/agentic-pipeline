@@ -2,6 +2,14 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-17] - Add core release compatibility matrix (task 0051)
+### Added
+- `core_compatibility.py` checks each consumer's minimum core release and
+  required contract versions, failing closed on incompatible entries.
+- A self-consumer matrix and CI report make version compatibility measurable
+  without mass-syncing any repository.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Add deterministic receipt-mutation benchmark (task 0050)
 ### Added
 - `scripts/receipt_mutation_benchmark.py` mutates a complete high-risk evidence

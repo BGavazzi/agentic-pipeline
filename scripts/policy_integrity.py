@@ -27,6 +27,7 @@ POLICY_PATHS = (
     "scripts/impact_benchmark.py",
     "scripts/impact_holdout.py",
     "scripts/receipt_mutation_benchmark.py",
+    "scripts/core_compatibility.py",
     "scripts/impact_runner.py",
     "scripts/impact_promotion.py",
     "scripts/integration_gate.py",
