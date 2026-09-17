@@ -130,7 +130,7 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: pip install pytest pyyaml
+        run: pip install pytest pyyaml Pillow
 
       - name: Run test suite
         env:
@@ -210,7 +210,7 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: pip install pytest pyyaml
+        run: pip install pytest pyyaml Pillow
 
       - name: Derive task id from branch
         id: task
