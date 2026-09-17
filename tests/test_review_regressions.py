@@ -135,7 +135,7 @@ def test_meta_test_prefers_disk_and_counts_uncommitted_forbidden_changes(tmp_pat
     assert metrics["files_touched"] == 1
 
 
-@pytest.mark.parametrize("path", ["scripts/new_dispatcher.py", ".github/workflows/new-policy.yml", ".claude/skills/new/SKILL.md"])
+@pytest.mark.parametrize("path", ["scripts/new_dispatcher.py", "scripts/core_version.py", ".github/workflows/new-policy.yml", ".claude/skills/new/SKILL.md"])
 def test_policy_protects_new_acceptance_files(tmp_path, path):
     root, _, base = repo(tmp_path / "repo")
     target = root / path

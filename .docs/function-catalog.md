@@ -56,6 +56,16 @@ CLI output/exit changes must still be documented and regression-tested.
   with exact identity, blast radius, surfaces and missing/non-pass evidence;
   its output is diagnostic and cannot override admission.
 
+## Task 0048 core release metadata v1
+
+- `core_version.metadata(source_commit=None)`: emits the core release and
+  supported contract inventory for a source revision.
+- `core_version.validate(value)`: rejects malformed or unsupported installed
+  metadata; it does not verify signatures.
+- `core_sync.sync_release_metadata(source, target, dry_run, manifest=None,
+  force=False)`: writes exact source/release/contract metadata and protects it
+  through the existing drift manifest.
+
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
 | API | Current contract |
@@ -93,6 +103,7 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `scan_gate.py` | `scan(repo, task_id, base, branch, enable_dependency_check)` returns summary/SARIF; `classify_gate(runs, changed, required_tools=REQUIRED_TOOLS)` checks required coverage and findings; `main()` returns 0 pass, 1 finding block, 2 incomplete/error. |
 | `blast_radius.py` | `classify(repo, task_id, base, branch)` produces risk and obligations; `required_gates_for(risk_level, triggered)` supplies the gate minimum. |
 | `core_sync.py` | `main()` vendors whitelisted scripts/skills/conventions and fingerprints them; drift handling is documented in README. |
+| `core_version.py` | `metadata()` and `validate()` describe/check the installed core release and contract inventory; CLI is diagnostic and fail-closed. |
 | `validate_task.py` | `main()` validates task schema; does not execute acceptance conditions. |
 | `validate_closure.py` | `main()` validates documentation structure; does not certify human approval or runtime correctness. |
 | `quota_gate.py` | `main()` evaluates local quota state for STOP/CONTINUE; not a worker scheduler. |

@@ -261,6 +261,21 @@ def test_sync_vendor_metadata_dry_run_writes_nothing(source: Path, target: Path)
     assert not (target / ".claude/skills/VENDORED.md").exists()
 
 
+def test_release_metadata_is_drift_protected(source: Path, target: Path):
+    manifest = {}
+    first = core_sync.sync_release_metadata(source, target, dry_run=False, manifest=manifest)
+    assert first.drifted == []
+    release = target / ".claude/.agentic-core-release.json"
+    release.write_text("local override\n", encoding="utf-8")
+    second = core_sync.sync_release_metadata(source, target, dry_run=False, manifest=manifest)
+    assert second.drifted == [".claude/.agentic-core-release.json"]
+    assert release.read_text() == "local override\n"
+    third = core_sync.sync_release_metadata(source, target, dry_run=False,
+                                            manifest=manifest, force=True)
+    assert third.drifted == []
+    assert "core_release_version" in release.read_text()
+
+
 # --- manifest persistence + _is_drifted -------------------------------------
 
 def test_load_manifest_returns_empty_dict_when_absent(target: Path):
@@ -377,6 +392,9 @@ def test_main_writes_a_manifest_after_a_real_run(monkeypatch, target: Path):
     assert manifest_path.exists()
     manifest = core_sync.load_manifest(target)
     assert "scripts/validate_task.py" in manifest
+    release = target / ".claude" / ".agentic-core-release.json"
+    assert release.exists()
+    assert core_sync.load_manifest(target)[".claude/.agentic-core-release.json"]
 
 
 def test_main_dry_run_writes_no_manifest(monkeypatch, target: Path):

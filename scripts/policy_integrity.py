@@ -22,6 +22,7 @@ POLICY_PATHS = (
     "scripts/blast_radius.py",
     "scripts/ci_receipts.py",
     "scripts/core_sync.py",
+    "scripts/core_version.py",
     "scripts/harness_selftest.py",
     "scripts/impact_benchmark.py",
     "scripts/impact_runner.py",

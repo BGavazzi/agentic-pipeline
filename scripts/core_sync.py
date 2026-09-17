@@ -89,6 +89,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 MANIFEST_RELPATH = Path(".claude") / ".core-sync-manifest.json"
+RELEASE_RELPATH = Path(".claude") / ".agentic-core-release.json"
 
 
 @dataclass
@@ -99,6 +100,14 @@ class SyncResult:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _source_commit(source: Path) -> str | None:
+    import subprocess
+    result = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"],
+                            capture_output=True, text=True, check=False)
+    value = result.stdout.strip()
+    return value if result.returncode == 0 and len(value) == 40 else None
 
 
 def load_manifest(target: Path) -> dict[str, str]:
@@ -154,6 +163,7 @@ GATE_SCRIPTS = [
     "staging_pr.py",
     "meta_test.py",
     "meta_test_dispatch.py",
+    "core_version.py",
     "worker_supervisor.py",
     "worker_boundary.py",
     "impact_promotion.py",
@@ -448,6 +458,33 @@ are not claimed as verified. Local edits require explicit --force to overwrite.
     return SyncResult(synced=[relpath])
 
 
+def sync_release_metadata(source: Path, target: Path, dry_run: bool,
+                          manifest: dict[str, str] | None = None,
+                          force: bool = False) -> SyncResult:
+    """Write the release/contract inventory next to the drift manifest."""
+    manifest = {} if manifest is None else manifest
+    relpath = RELEASE_RELPATH.as_posix()
+    if _is_drifted(target, manifest, relpath) and not force:
+        return SyncResult(drifted=[relpath])
+    content = {
+        "metadata_schema_version": 1,
+        "core_release_version": "0.1.0",
+        "source_repository": "BGavazzi/agentic-pipeline",
+        "source_commit": _source_commit(source),
+        "supported_contracts": {
+            "receipt_schema": 1,
+            "core_sync_manifest": 1,
+            "producer_envelope": 1,
+        },
+    }
+    if not dry_run:
+        dst = target / RELEASE_RELPATH
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(json.dumps(content, indent=2) + "\n", encoding="utf-8")
+        manifest[relpath] = _sha256(dst)
+    return SyncResult(synced=[relpath])
+
+
 def seed_agents_md(target: Path, dry_run: bool) -> str | None:
     dst = target / "AGENTS.md"
     if dst.exists():
@@ -493,6 +530,7 @@ def main() -> int:
     scripts = sync_gate_scripts(source, target, args.dry_run, manifest, args.force)
     conventions = sync_conventions(source, target, args.dry_run, manifest, args.force)
     vendor_metadata = sync_vendor_metadata(source, target, args.dry_run, manifest, args.force)
+    release_metadata = sync_release_metadata(source, target, args.dry_run, manifest, args.force)
     agents_md = seed_agents_md(target, args.dry_run)
     save_manifest(target, manifest, args.dry_run)
 
@@ -510,13 +548,17 @@ def main() -> int:
     print(f"  provenance:   {len(vendor_metadata.synced)}")
     for s in vendor_metadata.synced:
         print(f"    {s}")
+    print(f"  core release: {len(release_metadata.synced)}")
+    for s in release_metadata.synced:
+        print(f"    {s}")
     if agents_md:
         verb = "would create" if args.dry_run else "created"
         print(f"  AGENTS.md: {verb} — {agents_md}")
     else:
         print("  AGENTS.md: already exists, left untouched")
 
-    all_drifted = skills.drifted + scripts.drifted + conventions.drifted + vendor_metadata.drifted
+    all_drifted = (skills.drifted + scripts.drifted + conventions.drifted +
+                   vendor_metadata.drifted + release_metadata.drifted)
     if all_drifted:
         print(f"  DRIFTED (skipped, hand-edited locally since last sync): {len(all_drifted)}")
         for d in all_drifted:
