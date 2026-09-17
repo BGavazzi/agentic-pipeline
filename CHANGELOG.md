@@ -1,6 +1,16 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Add bounded core CLI contract benchmark (task 0053)
+### Added
+- `scripts/cli_contract_benchmark.py` runs 44 bounded subprocess cases across
+  the 23 registered core gate scripts: `--help` contracts and missing-input
+  exit-code contracts, with no shell, network, or credential forwarding.
+- `tests/test_cli_contract_benchmark.py` and
+  `.docs/benchmarks/core-cli-contract.md` document and verify the benchmark;
+  CI writes its JSON metrics to `.docs/test-reports/cli-contract.json`.
+**Author**: Codex (agent); draft PR pending human review.
+
 ## [2026-09-16] - Repair reviewed evidence and trust boundaries (task 0042)
 ### Fixed
 - Preserve scanner vetoes; require commit-bound unit receipts and execute exact

@@ -119,6 +119,9 @@ jobs:
       - name: Install dependencies
         run: pip install pytest pyyaml
 
+      - name: Run core CLI contract benchmark
+        run: python scripts/cli_contract_benchmark.py --output .docs/test-reports/cli-contract.json
+
       - name: Run test suite
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
