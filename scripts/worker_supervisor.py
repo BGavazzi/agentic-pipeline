@@ -30,8 +30,10 @@ from typing import Any
 
 try:
     from .worker_preflight import evaluate
+    from .worker_boundary import validate as validate_boundary
 except ImportError:  # pragma: no cover - direct CLI execution.
     from worker_preflight import evaluate
+    from worker_boundary import validate as validate_boundary
 
 SCHEMA_VERSION = 1
 DEFAULT_TIMEOUT_SECONDS = 3600
@@ -99,6 +101,8 @@ def supervise(
     require_docker: bool = False,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     cleanup_command: list[str] | None = None,
+    boundary_facts_path: Path | None = None,
+    require_boundary: bool = False,
 ) -> dict[str, Any]:
     started = time.monotonic()
     if not command:
@@ -123,6 +127,18 @@ def supervise(
         report["blockers"] = preflight["blockers"]
         report["metrics"]["worker_duration_seconds"] = 0.0
         return report
+
+    if require_boundary and boundary_facts_path is None:
+        report.update(status="blocked", blockers={"boundary": "external sandbox attestation required"})
+        return report
+    boundary = None
+    if boundary_facts_path is not None:
+        try:
+            boundary = validate_boundary(_facts(boundary_facts_path))
+        except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            report.update(status="blocked", blockers={"boundary": type(exc).__name__})
+            return report
+        report["boundary"] = boundary
 
     if not cleanup_command:
         report.update(status="blocked", blockers={"cleanup": "trusted host cleanup command required"})
@@ -213,6 +229,10 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--cleanup-command", nargs="+", required=True,
                         help="trusted host teardown argv; must return fresh attempt-bound JSON")
+    parser.add_argument("--boundary-facts", type=Path,
+                        help="external host sandbox attestation; required with --require-boundary")
+    parser.add_argument("--require-boundary", action="store_true",
+                        help="block unless an external sandbox attestation is provided")
     parser.add_argument("--command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
     command = list(args.command)
@@ -224,6 +244,8 @@ def main() -> int:
             fork_pr=args.fork_pr, require_docker=args.require_docker,
             timeout_seconds=args.timeout,
             cleanup_command=args.cleanup_command,
+            boundary_facts_path=args.boundary_facts.resolve() if args.boundary_facts else None,
+            require_boundary=args.require_boundary,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

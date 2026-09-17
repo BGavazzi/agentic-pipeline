@@ -19,6 +19,20 @@ CLI output/exit changes must still be documented and regression-tested.
   valid observation, **not approval** (status may be review_required); exit 2
   replaces output with blocking error evidence. Requires gh and read API access.
 
+## Task 0044 worker boundary v1
+
+- `worker_boundary.validate(facts, attempt_id=None)`: accepts only a bounded
+  container/VM attestation with no host mounts/socket/privilege, explicit network
+  policy, no host secrets, trusted external ownership, resource limits and
+  destroy/revoke lifecycle. Returns a non-secret metrics receipt; it does not
+  inspect or secure the host.
+- `worker_supervisor.supervise(..., boundary_facts_path=None, require_boundary=False)`:
+  blocks before launch when a required external sandbox attestation is absent or
+  invalid; compatibility remains explicit when the caller does not require it.
+- `meta_test_dispatch.dispatch(..., boundary_facts=None, require_boundary=False)`:
+  forwards the boundary requirement to the one-shot supervisor. Real self-hosted
+  dispatch must set it; synthetic stubs may use compatibility mode.
+
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
 | API | Current contract |

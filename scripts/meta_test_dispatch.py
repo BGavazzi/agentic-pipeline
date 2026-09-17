@@ -48,6 +48,8 @@ def dispatch(
     cleanup_command: list[str] | None = None,
     observer_command: list[str] | None = None,
     source_repo: Path | None = None,
+    boundary_facts: Path | None = None,
+    require_boundary: bool = False,
 ) -> dict[str, Any]:
     if not SHA_RE.fullmatch(base_sha) or not SHA_RE.fullmatch(head_sha):
         raise ValueError("base/head must be full hexadecimal commit SHAs")
@@ -89,6 +91,8 @@ def dispatch(
         facts_path.resolve(), post_facts_path.resolve(), meta_command,
         timeout_seconds=worker_timeout,
         cleanup_command=cleanup_command,
+        boundary_facts_path=boundary_facts,
+        require_boundary=require_boundary,
     )
     lifecycle_output.parent.mkdir(parents=True, exist_ok=True)
     lifecycle_output.write_text(json.dumps(lifecycle, indent=2) + "\n", encoding="utf-8")
@@ -136,6 +140,9 @@ def main() -> int:
     parser.add_argument("--cleanup-command", nargs="+", required=True)
     parser.add_argument("--observer-command", nargs="+")
     parser.add_argument("--source-repo", type=Path)
+    parser.add_argument("--boundary-facts", type=Path,
+                        help="external sandbox attestation for a real self-hosted run")
+    parser.add_argument("--require-boundary", action="store_true")
     parser.add_argument("--worker-command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
     command = list(args.worker_command)
@@ -146,7 +153,9 @@ def main() -> int:
                           args.base_sha, args.head_sha, command,
                           worker_timeout=args.worker_timeout,
                           meta_timeout=args.meta_timeout, cleanup_command=args.cleanup_command,
-                          observer_command=args.observer_command, source_repo=args.source_repo)
+                          observer_command=args.observer_command, source_repo=args.source_repo,
+                          boundary_facts=args.boundary_facts,
+                          require_boundary=args.require_boundary)
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"ERROR: meta-test dispatcher failed: {type(exc).__name__}", file=sys.stderr)
         return 2
