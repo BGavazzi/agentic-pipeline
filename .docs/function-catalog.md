@@ -3,6 +3,22 @@
 Initial catalog, 2026-09-15. Core script APIs are internal Python interfaces;
 CLI output/exit changes must still be documented and regression-tested.
 
+## Task 0043 policy envelope v1
+
+- `trusted_policy.identity(repository, number, base, head, pin)`: strict GitHub
+  subject identity (40-hex SHAs; positive integer PR).
+- `evaluate_review(pr, files, reviews, permissions)`: deterministic current-metadata
+  HITL decision; independent authorization, latest substantive reviews, objections.
+- `produce(api, subject, run_id, attempt)`: metadata-only policy envelope, not an
+  execution receipt. Approved producer SHA checked by CLI and workflow.
+- `consume(api, subject)`: discovers latest exact-subject producer; verifies live
+  workflow/run/attempt, archive digest/payload, tree and current reviews; never
+  falls back to an older success. Caller must use an externally pinned verifier.
+- CLI `trusted_policy.py produce|consume --repository OWNER/REPO --pr N
+  --base-sha SHA --head-sha SHA --policy-sha SHA --output FILE`: exit 0 means a
+  valid observation, **not approval** (status may be review_required); exit 2
+  replaces output with blocking error evidence. Requires gh and read API access.
+
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
 | API | Current contract |

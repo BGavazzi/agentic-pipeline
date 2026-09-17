@@ -5,6 +5,12 @@ name: Trusted early review
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Explicit metadata-only refresh after reviews; never run PR review-event code.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        required: true
+        type: string
 permissions:
   contents: read
   pull-requests: read
@@ -18,25 +24,29 @@ jobs:
         with:
           script: |
             const {owner, repo} = context.repo;
-            const number = context.payload.pull_request.number;
+            const number = Number(context.payload.pull_request?.number || context.payload.inputs?.pr_number);
+            if (!Number.isSafeInteger(number) || number <= 0) throw new Error('Invalid PR number');
             const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            if (pr.state !== 'open') throw new Error('PR is not open');
             const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number: number, per_page: 100});
             if (files.length !== pr.changed_files) throw new Error('Incomplete diff inventory');
             const sensitive = /(^scripts\/|^\.github\/|^\.claude\/skills\/|(^|\/)(auth|security|infra|terraform|migrations|schema)(\/|\.)|\.tf$)/i;
             const impactful = files.some(f => sensitive.test(f.filename) || sensitive.test(f.previous_filename || '')) || pr.additions + pr.deletions >= 400;
             core.summary.addHeading('Pre-execution HITL').addRaw(`Candidate: ${pr.head.sha}\n\nRisk: ${impactful ? 'elevated; approval required' : 'ordinary'}\n\nFiles: ${files.length}; churn: ${pr.additions + pr.deletions}.\n`).write();
-            if (!impactful) return;
             const reviews = await github.paginate(github.rest.pulls.listReviews, {owner, repo, pull_number: number, per_page: 100});
             const latest = new Map();
-            for (const review of reviews) {
+            for (const review of reviews.sort((a, b) => a.id - b.id)) {
               if (['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(review.state)) latest.set(review.user.login, review);
             }
             let approved = false;
+            let objections = false;
             for (const review of latest.values()) {
-              if (review.state !== 'APPROVED' || review.commit_id !== pr.head.sha || review.user.type !== 'User' || review.user.login === pr.user.login) continue;
+              if (review.user.type !== 'User' || review.user.login === pr.user.login) continue;
               const {data} = await github.rest.repos.getCollaboratorPermissionLevel({owner, repo, username: review.user.login});
-              if (['admin', 'maintain', 'write'].includes(data.permission)) approved = true;
+              if (!['admin', 'maintain', 'write'].includes(data.permission)) continue;
+              if (review.state === 'CHANGES_REQUESTED') objections = true;
+              if (review.state === 'APPROVED' && review.commit_id === pr.head.sha) approved = true;
             }
             const {data: current} = await github.rest.pulls.get({owner, repo, pull_number: number});
-            if (current.head.sha !== pr.head.sha || current.base.sha !== pr.base.sha) throw new Error('Candidate/base moved during review');
-            if (!approved) core.setFailed('Exact-head independent maintainer approval required. Rerun this trusted workflow after approval.');
+            if (current.state !== 'open' || current.head.sha !== pr.head.sha || current.base.sha !== pr.base.sha) throw new Error('Candidate/base moved during review');
+            if (objections || (impactful && !approved)) core.setFailed('Independent exact-head approval required and outstanding objections must be resolved. Refresh trusted-policy after review, then rerun CI.');

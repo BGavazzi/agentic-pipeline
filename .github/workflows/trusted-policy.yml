@@ -1,0 +1,60 @@
+name: Trusted policy producer
+run-name: policy-pr-${{ inputs.pr_number }}-${{ inputs.base_sha }}-${{ inputs.head_sha }}
+
+# Controlled refresh after approval/dismissal/base movement. No candidate checkout.
+# Activation requires a reviewed full-SHA TRUSTED_POLICY_SHA, not a candidate input.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      base_sha:
+        required: true
+        type: string
+      head_sha:
+        required: true
+        type: string
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require approved producer source
+        env:
+          PIN: ${{ vars.TRUSTED_POLICY_SHA }}
+          SOURCE: ${{ github.sha }}
+          PR: ${{ inputs.pr_number }}
+          BASE: ${{ inputs.base_sha }}
+          HEAD: ${{ inputs.head_sha }}
+        run: |
+          [[ "$PIN" =~ ^[0-9a-f]{40}$ && "$SOURCE" == "$PIN" ]] || exit 1
+          [[ "$PR" =~ ^[1-9][0-9]*$ && "$BASE" =~ ^[0-9a-f]{40}$ && "$HEAD" =~ ^[0-9a-f]{40}$ ]] || exit 1
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Observe GitHub metadata and issue envelope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIN: ${{ vars.TRUSTED_POLICY_SHA }}
+          PR: ${{ inputs.pr_number }}
+          BASE: ${{ inputs.base_sha }}
+          HEAD: ${{ inputs.head_sha }}
+        run: |
+          python scripts/trusted_policy.py produce --repository "$GITHUB_REPOSITORY" \
+            --pr "$PR" --base-sha "$BASE" --head-sha "$HEAD" --policy-sha "$PIN" \
+            --output .docs/trusted-policy/envelope.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trusted-policy-${{ inputs.pr_number }}-${{ inputs.head_sha }}-${{ github.run_attempt }}
+          path: .docs/trusted-policy/envelope.json
+          if-no-files-found: error
+          retention-days: 7

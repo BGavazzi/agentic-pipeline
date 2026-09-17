@@ -38,52 +38,65 @@ jobs:
   # Runner routing.
   #
   # This repo is PUBLIC. A self-hosted runner executing a fork PR would run
-  # untrusted code on the homelab box (which also hosts WhatsApp/Evolution
-  # credentials and the clawdinha stack), so fork PRs are pinned to
-  # GitHub-hosted runners. Everything else (pushes, same-repo PRs) goes to the
-  # homelab pool via the `homelab-pool` label.
-  #
-  # The pool is opt-in via the repo variable USE_HOMELAB_POOL. A job pinned to a
-  # label with no registered runner queues until it times out rather than
-  # failing fast, so the default stays GitHub-hosted; set the variable to
-  # 'true' (gh variable set USE_HOMELAB_POOL --body true) only once the pool
-  # workers are actually online. See .docs/runbooks/homelab-runner-pool.md.
+  # untrusted code on a production-adjacent host. ALL candidate jobs remain
+  # GitHub-hosted until the host-side isolation/observer/teardown is verified.
+  # USE_HOMELAB_POOL alone cannot enable routing. See the pool runbook.
   # ---------------------------------------------------------------------------
   route:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: read
+      pull-requests: read
     outputs:
       runner: ${{ steps.pick.outputs.runner }}
-      integration_allowed: ${{ steps.review.outputs.allowed }}
+      integration_allowed: ${{ steps.policy.outputs.allowed }}
     steps:
       - id: pick
         run: |
           echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
           echo "Pool quarantined pending external trusted bootstrap and verified host teardown."
-      - id: review
+      - id: configured
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        env:
+          PIN: ${{ vars.TRUSTED_POLICY_SHA }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p .docs/trusted-policy
+          python -c 'import json,os; from pathlib import Path; Path(".docs/trusted-policy/policy.json").write_text(json.dumps(dict(schema_version=1,gate="policy",status="error",base_sha=os.environ["BASE"],head_sha=os.environ["HEAD"],error="trusted producer not configured or unavailable")))'
+          if [[ "$PIN" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo 'Integration held: externally approved policy pin is missing.'
+          fi
+      - uses: actions/checkout@v4
+        if: steps.configured.outputs.enabled == 'true'
         with:
-          script: |
-            // Only a completed default-branch metadata workflow for this exact
-            // pair permits costly candidate execution. Unit/scanner diagnostics
-            // remain available while review is pending.
-            const pr = context.payload.pull_request;
-            let allowed = false;
-            try {
-              const {data} = await github.rest.actions.listWorkflowRuns({
-                ...context.repo, workflow_id: 'early-review.yml', event: 'pull_request_target', per_page: 100
-              });
-              const matching = data.workflow_runs.filter(run =>
-                run.path === '.github/workflows/early-review.yml' && run.head_sha === pr.base.sha &&
-                run.pull_requests.some(p => p.number === pr.number && p.head.sha === pr.head.sha && p.base.sha === pr.base.sha));
-              const latest = matching.sort((a, b) => b.id - a.id)[0];
-              allowed = latest?.conclusion === 'success';
-            } catch (error) { core.warning('Trusted early-review workflow is not installed or not readable.'); }
-            core.setOutput('allowed', String(allowed));
-            if (!allowed) core.notice('Integration held: exact-head trusted early review required; rerun CI after it passes.');
+          ref: ${{ vars.TRUSTED_POLICY_SHA }}
+          path: .trusted-policy
+          persist-credentials: false
+      - id: policy
+        if: steps.configured.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIN: ${{ vars.TRUSTED_POLICY_SHA }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python .trusted-policy/scripts/trusted_policy.py consume --repository "$GITHUB_REPOSITORY" \
+            --pr "$PR" --base-sha "$BASE" --head-sha "$HEAD" --policy-sha "$PIN" \
+            --output .docs/trusted-policy/policy.json
+          python -c 'import json,os; from pathlib import Path; p=json.loads(Path(".docs/trusted-policy/policy.json").read_text()); allowed=p["status"]=="pass" and p["early_review"]["allowed"] is True; f=open(os.environ["GITHUB_OUTPUT"],"a"); f.write("allowed="+str(allowed).lower()+"\n"); f.close()'
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'pull_request'
+        with:
+          name: trusted-policy-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .docs/trusted-policy/policy.json
+          if-no-files-found: error
 
   test:
     needs: route
@@ -374,7 +387,8 @@ jobs:
             --base "origin/$BASE_REF" \
             --branch HEAD
 
-      - name: Policy integrity receipt
+      - name: Diagnostic policy inventory (not an approval producer)
+        continue-on-error: true
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -432,6 +446,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -453,6 +469,11 @@ jobs:
           name: unit-test-result
           path: .docs/test-reports
           merge-multiple: true
+      - name: Download independently verified policy observation
+        uses: actions/download-artifact@v4
+        with:
+          name: trusted-policy-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .docs/trusted-policy
       - name: Download integration evidence
         # A held integration lane has no artifact. Aggregate the absence as
         # missing/blocking evidence instead of losing the entire risk summary.
@@ -468,6 +489,38 @@ jobs:
           pattern: impact-shadow-artifacts-*
           path: .docs/impact-reports
           merge-multiple: true
+      - name: Invalidate earlier policy observation before revalidation
+        # The aggregation job remains candidate-side diagnostics, not mandatory
+        # protected enforcement. Reverify via the pinned adapter immediately
+        # before consuming evidence, including review dismissal during tests.
+        id: review_configure
+        env:
+          PIN: ${{ vars.TRUSTED_POLICY_SHA }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python -c 'import json,os; from pathlib import Path; Path(".docs/trusted-policy/policy.json").write_text(json.dumps(dict(schema_version=1,gate="policy",status="error",base_sha=os.environ["BASE"],head_sha=os.environ["HEAD"],error="policy must be reverified")))'
+          if [[ "$PIN" =~ ^[0-9a-f]{40}$ ]]; then echo 'enabled=true' >> "$GITHUB_OUTPUT"; fi
+      - name: Checkout approved verifier
+        if: steps.review_configure.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.TRUSTED_POLICY_SHA }}
+          path: .trusted-policy
+          persist-credentials: false
+      - name: Reverify protected policy against current GitHub state
+        if: steps.review_configure.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIN: ${{ vars.TRUSTED_POLICY_SHA }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python .trusted-policy/scripts/trusted_policy.py consume --repository "$GITHUB_REPOSITORY" \
+            --pr "$PR" --base-sha "$BASE" --head-sha "$HEAD" --policy-sha "$PIN" \
+            --output .docs/trusted-policy/policy.json
       - name: Build and evaluate admission receipt
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -480,7 +533,8 @@ jobs:
           risk=$(find .docs/blast-reports blast-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           scan=$(find .docs/scan-reports scan-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
-          policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          # Never substitute the candidate-local diagnostic policy inventory.
+          policy=.docs/trusted-policy/policy.json
           infra=$(find .docs/infra-reports infra-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*.json' -name '*visual*.json' -print -quit 2>/dev/null || true)
           meta_test=$(find .docs/meta-test-reports meta-test-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)

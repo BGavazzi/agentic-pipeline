@@ -1,6 +1,23 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Verify trusted policy evidence and review freshness (task 0043)
+### Added
+- Metadata-only, read-only GitHub policy producer and versioned envelope bound
+  to repository/PR/base/head/tree, approved implementation, run/attempt and digest.
+- API-backed consumer rejects stale/replayed/tampered evidence and rechecks current
+  independent approvals, objections and permissions before admission diagnostics.
+- Offline lifecycle/negative fixtures including execution of the actual early
+  review workflow's JavaScript; explicit controlled refresh and activation guide.
+### Changed
+- CI consumes protected policy observations, never candidate-local inventory as
+  approval. Missing pin/producer remains an explicit blocking error receipt.
+- No inference from pull_request_target run head to PR base; early review supports
+  metadata-only manual refresh and respects outstanding authorized objections.
+### Not activated
+- Required protected admission, reviewer identities, policy pin and homelab routing
+  remain operator-controlled; this change does not claim full trusted enforcement.
+
 ## [2026-09-16] - Repair reviewed evidence and trust boundaries (task 0042)
 ### Fixed
 - Preserve scanner vetoes; require commit-bound unit receipts and execute exact

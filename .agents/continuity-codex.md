@@ -1,5 +1,25 @@
 # Continuity — Codex
 
+## 2026-09-17 — Task 0043, trusted evidence W1
+
+- PR #45 merged as c5803e4; superseded stack is closed/merged and preserved.
+- User authorized beginning the next handoff packet. New clean worktree
+  `D:\VIBES\agentic-pipeline-0043`, branch `feat/0043-trusted-evidence`.
+- Implemented read-only metadata policy producer, versioned envelope, live API
+  run/artifact/current-review verifier, and CI routing/aggregation consumption.
+  Removed inference that pull_request_target run head equals PR base.
+- Added explicit workflow_dispatch refresh; no privileged review-event trigger.
+  Actual early-review JS and adversarial platform fixtures are tested offline.
+- No protection/variable/account/homelab changes. A real pinned-producer pilot
+  and independent reviewer setup remain activation requirements, not local tests.
+- Candidate CI remains diagnostics, not final immutable enforcement. Next work
+  must preserve this distinction and leave missing independent evidence blocking.
+- Verification before commit: full suite including live scanners 316 passed;
+  task/closure/YAML/diff checks and 4/4 harness fixtures passed. Read-only probe
+  of real artifact 10478935080 confirmed API ZIP size/digest against downloaded
+  bytes. Additional negative cases and final committed-tree proof follow below
+  in the PR record; no producer activation was performed.
+
 ## 2026-09-16 — Task 0042, reviewed stack remediation
 
 - User explicitly requested fixes for review findings across open PRs #14–#44.

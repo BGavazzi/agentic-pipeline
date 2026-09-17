@@ -1,5 +1,15 @@
 # agentic-pipeline
 
+## Trusted policy producer (task 0043)
+
+`trusted-policy.yml` observes GitHub metadata from an approved immutable source;
+`scripts/trusted_policy.py consume` verifies run/attempt/artifact provenance and
+current review state. CI uses that receipt, not candidate-local policy inventory.
+Absent pin/producer or stale review remains blocking. This authenticates the
+policy producer only: final protected admission and the other independent
+producers still require activation. See the [controlled refresh and pilot
+checklist](.docs/runbooks/protected-policy-workflow.md#task-0043-controlled-producer-and-api-verifier).
+
 > **Task 0042 security compatibility update:** the reviewed stack now rejects
 > stale/contradictory evidence, tests exact base/head merge trees, and requires
 > host-observed worker teardown. Homelab routing is quarantined until real
