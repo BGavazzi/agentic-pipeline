@@ -147,6 +147,7 @@ GATE_SCRIPTS = [
     "impact_benchmark.py",
     "policy_integrity.py",
     "visual_receipt.py",
+    "playwright_visual_producer.py",
     "staging_gate.py",
     "worker_preflight.py",
     "infra_dry_run.py",

@@ -183,3 +183,14 @@
 - Expanded the synthetic skill corpus with forbidden-write, closure-lie and
   repository-prompt-injection controls. No real agent runtime or homelab state
   was touched; real pool execution remains an activation condition.
+
+## 2026-09-17 — Task 0046, Playwright visual producer
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0046` from task 0045,
+  branch `feat/0046-playwright-visual-producer`.
+- Added a runtime-supplied clean-room browser/capture adapter that decodes
+  baseline/candidate PNGs, computes changed pixels, emits diff artifacts and
+  records a producer envelope. Added protected exact-view baseline matching and
+  synthetic identical/changed/mismatch tests.
+- No frontend, browser fleet, baseline store, customer fixture or homelab state
+  was touched; the real Playwright pilot remains an activation condition.

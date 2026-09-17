@@ -35,6 +35,16 @@ CLI output/exit changes must still be documented and regression-tested.
   command digests. Real self-hosted dispatch must require both the boundary and
   an independent observer; synthetic stubs may use compatibility mode.
 
+## Task 0046 visual producer v1
+
+- `playwright_visual_producer.run_producer(repo, task_id, base_sha, head_sha,
+  baseline_manifest, baseline_root, output, threshold, command)`: runs a
+  runtime-supplied browser/capture argv in an exact candidate archive, requires
+  an exact protected baseline view set, decodes PNGs with Pillow, computes
+  changed/total pixels, writes diff artifacts and emits a visual receipt with a
+  producer envelope. It does not authenticate the caller or approve baseline
+  updates.
+
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
 | API | Current contract |
@@ -68,6 +78,7 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `impact_benchmark.py` | `run_benchmark(fixtures_dir)` materializes versioned before/after git fixtures, measures test-impact precision/recall and fallback behavior, and reports whether impacted-mode promotion is safe; it never changes admission. |
 | `policy_integrity.py` | `build_report(repo, base, head, policy_ref)` hashes the trusted policy surface, identifies policy-file changes, and emits a provenance-bound PASS or review-required receipt; it does not claim workflow immutability. |
 | `visual_receipt.py` | `validate_report(report, base_sha, head_sha)` validates screenshot, baseline, viewport, pixel-diff threshold, and exact identity before normalizing a visual PASS/FAIL receipt; it does not launch Playwright. |
+| `playwright_visual_producer.py` | `run_producer(...)` executes a trusted argv in an exact candidate tree, decodes and compares PNGs against a protected baseline manifest, emits diff artifacts and provenance; it fails closed on missing/mismatched views. |
 | `scan_gate.py` | `scan(repo, task_id, base, branch, enable_dependency_check)` returns summary/SARIF; `classify_gate(runs, changed, required_tools=REQUIRED_TOOLS)` checks required coverage and findings; `main()` returns 0 pass, 1 finding block, 2 incomplete/error. |
 | `blast_radius.py` | `classify(repo, task_id, base, branch)` produces risk and obligations; `required_gates_for(risk_level, triggered)` supplies the gate minimum. |
 | `core_sync.py` | `main()` vendors whitelisted scripts/skills/conventions and fingerprints them; drift handling is documented in README. |

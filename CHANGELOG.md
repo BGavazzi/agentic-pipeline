@@ -1,6 +1,22 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Add a real Playwright visual producer (task 0046)
+### Added
+- `playwright_visual_producer.py` runs a protected runtime-supplied browser
+  command in an exact candidate tree, decodes baseline/candidate PNGs, computes
+  changed pixels and emits baseline/screenshot/diff artifacts.
+- Protected baseline-manifest matching, clean-room provenance and synthetic
+  identical/changed/mismatched-view tests.
+### Changed
+- Visual evidence now requires a producer envelope during receipt aggregation;
+  Pillow is installed in the hosted unit lane for the decoder contract.
+### Not activated
+- No frontend repository, browser fleet, baseline store or customer data was
+  selected. Baseline updates and real Playwright execution still require a
+  protected producer pilot and human review.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Add independent meta-test and review producer evidence (task 0045)
 ### Added
 - Producer envelopes for meta-test dispatch and ultrareview execution, including
