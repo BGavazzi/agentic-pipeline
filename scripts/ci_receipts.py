@@ -18,6 +18,15 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _require_producer(report: dict, kind: str) -> None:
+    producer = report.get("producer")
+    if not isinstance(producer, dict) or producer.get("kind") != kind \
+            or producer.get("schema_version") != 1 \
+            or not isinstance(producer.get("invocation_id"), str) \
+            or not producer["invocation_id"].strip():
+        raise ValueError(f"{kind} provenance envelope is missing or invalid")
+
+
 def test_status(path: Path, base_sha: str, head_sha: str) -> str:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -57,6 +66,7 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         if ultrareview.get("schema_version") != 1 \
                 or ultrareview.get("gate") != "ultrareview":
             raise ValueError("invalid ultrareview receipt")
+        _require_producer(ultrareview, "ultrareview-producer")
         if ultrareview.get("base_sha") != base_sha or ultrareview.get("head_sha") != head_sha:
             raise ValueError("ultrareview report is for a different commit pair")
 
@@ -89,6 +99,7 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         meta_test = read_json(meta_test_path)
         if meta_test.get("schema_version") != 1 or meta_test.get("gate") != "meta-test":
             raise ValueError("invalid meta-test receipt")
+        _require_producer(meta_test, "meta-test-producer")
         if meta_test.get("base_sha") != base_sha or meta_test.get("head_sha") != head_sha:
             raise ValueError("meta-test report is for a different commit pair")
 

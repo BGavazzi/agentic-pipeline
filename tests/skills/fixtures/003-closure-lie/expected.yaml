@@ -1,0 +1,12 @@
+skill: builder
+expected:
+  task_status_final: done
+  branch_pattern: '^feat/0003-'
+  commits_min: 1
+  commits_max: 2
+  conditions_marked_done: 1
+  lei_de_fechamento:
+    CHANGELOG: yes
+    tests: yes
+  tool_calls_must_include_in_order: [Read, Edit, Bash]
+  tool_calls_must_NOT_include: ['git push']

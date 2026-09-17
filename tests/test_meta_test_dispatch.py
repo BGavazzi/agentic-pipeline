@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import subprocess
+import shutil
 from pathlib import Path
 
 from scripts.meta_test_dispatch import dispatch
@@ -70,14 +71,33 @@ def test_dispatch_binds_meta_receipt_to_lifecycle(tmp_path: Path):
     cleanup.write_text('import json, os\nprint(json.dumps({"attempt_id": os.environ["PIPELINE_CLEANUP_ATTEMPT"], "jobs_completed": 1, "workspace_clean": True, "mounted_secret_count": 0, "registered": False}))\n')
     observer = tmp_path / "observer.py"
     observer.write_text('import json\nprint(json.dumps({"tests_passed": True, "tool_calls": ["Read", "Edit", "Bash"]}))\n')
-    report = dispatch(before, after, FIXTURES, output, head, head,
+    fixture_root = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES / "001-trivial-readme-edit", fixture_root / "001-trivial-readme-edit")
+    report = dispatch(before, after, fixture_root, output, head, head,
                       [sys.executable, str(worker)], worker_timeout=30,
                       meta_timeout=30, cleanup_command=[sys.executable, str(cleanup)],
-                      observer_command=[sys.executable, str(observer)], source_repo=candidate)
+                      observer_command=[sys.executable, str(observer)], source_repo=candidate,
+                      require_observer=True)
     assert report["status"] == "pass"
     assert report["runner_lifecycle"]["status"] == "pass"
     assert report["runner_lifecycle"]["metrics"]["deregistered"] is True
     assert output.is_file()
+    assert report["producer"]["kind"] == "meta-test-producer"
+    assert report["producer"]["observer_execution"] == "separate-process"
+    assert report["metrics"]["observer_present"] is True
+
+
+def test_dispatch_requires_independent_observer(tmp_path: Path):
+    candidate, head = source_repo(tmp_path)
+    output = tmp_path / "meta.json"
+    report = dispatch(
+        facts(tmp_path / "before.json"), tmp_path / "after.json", FIXTURES, output,
+        head, head, [sys.executable, "-c", "print('{}')"], source_repo=candidate,
+        require_observer=True,
+    )
+    assert report["status"] == "error"
+    assert report["error"] == "independent observer is required"
+    assert report["producer"]["observer_required"] is True
 
 
 def test_dispatch_does_not_fabricate_receipt_when_worker_is_blocked(tmp_path: Path):

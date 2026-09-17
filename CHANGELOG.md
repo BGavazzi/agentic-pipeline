@@ -1,6 +1,22 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Add independent meta-test and review producer evidence (task 0045)
+### Added
+- Producer envelopes for meta-test dispatch and ultrareview execution, including
+  fresh invocation identity, role, corpus/tree and command digests.
+- Adversarial skill fixtures for forbidden-file writes, closure-evidence lies and
+  repository prompt injection, with executable planted-fault tests.
+### Changed
+- Receipt aggregation now rejects meta-test and ultrareview evidence without
+  its matching producer envelope. Reviewer and worker adapters bound output and
+  filter obvious inherited credential variables.
+### Not activated
+- No real agent runtime, homelab worker, reviewer identity or protected producer
+  was enabled. The producer envelope is provenance/consistency evidence, not a
+  cryptographic attestation.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Require an external sandbox contract before worker launch (task 0044)
 ### Added
 - `worker_boundary.py` validates disposable container/VM, host-mount/socket and

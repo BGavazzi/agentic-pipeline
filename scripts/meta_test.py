@@ -42,6 +42,16 @@ except ImportError:  # pragma: no cover - CI installs pyyaml.
 SCHEMA_VERSION = 1
 DEFAULT_TIMEOUT_SECONDS = 900
 MAX_OUTPUT_BYTES = 64 * 1024
+SENSITIVE_ENV = re.compile(r"(TOKEN|SECRET|PASSWORD|PRIVATE_KEY|API_KEY)", re.IGNORECASE)
+
+
+def _safe_environment() -> dict[str, str]:
+    """Keep runtime basics while excluding obvious credentials and host hooks."""
+    return {
+        key: value for key, value in os.environ.items()
+        if not SENSITIVE_ENV.search(key)
+        and not key.startswith(("PIPELINE_CLEANUP_", "PIPELINE_WORKER_"))
+    }
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -234,7 +244,7 @@ def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAUL
             _git(sandbox, "add", ".claude/skills")
             _git(sandbox, "commit", "-qm", "candidate skill under test")
             baseline = _git(sandbox, "rev-parse", "HEAD")
-            env = dict(os.environ)
+            env = _safe_environment()
             env.update({
                 "CI": "1",
                 "PIPELINE_META_TEST_SANDBOX": str(sandbox),
@@ -274,6 +284,9 @@ def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAUL
             result["evidence"] = {"checks": checks, "worker_stderr_bytes": len(completed.stderr.encode("utf-8"))}
     except (OSError, RuntimeError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         result["error"] = type(exc).__name__
+        # Keep a bounded diagnostic for trusted operators; never echo worker
+        # stdout/stderr wholesale into the receipt.
+        result["error_detail"] = str(exc)[:240]
         result["metrics"] = {"duration_seconds": round(time.monotonic() - started, 3)}
     return result
 

@@ -12,8 +12,12 @@ versioned metrics. A runtime supplies the worker command, so the same contract
 can run a local fake worker, a homelab agent worker, or another isolated
 adapter without granting the runner a real checkout or remote.
 
-For coverage that *does* exist today, see `tests/test_blast_radius.py` — a
-plain pytest suite (no Agent-subagent sandboxing) that unit-tests
+For coverage that *does* exist today, see the committed adversarial fixtures in
+`tests/skills/fixtures/` — forbidden-file writes, closure-evidence lies and
+repository prompt injection are regression controls alongside the trivial happy
+path. `tests/test_meta_test_adversarial_fixtures.py` executes planted-fault
+controls. `tests/test_blast_radius.py` remains a separate plain pytest suite
+that unit-tests
 `scripts/blast_radius.py` directly. It's a different, simpler testing
 approach than the one this skill describes.
 
@@ -36,14 +40,22 @@ or from a trusted integration lane.
 
 ## What it tests today
 
-The first fixture is executable and committed. The remaining rows are
-intentionally backlog.
+The first four fixtures are committed contract controls. Runtime worker
+implementations remain supplied by the producer and are not embedded in the
+public corpus.
 
 | Skill | Planned fixtures | Status |
 |---|---|---|
-| `builder` | 001-trivial-readme-edit | implemented |
+| `builder` | 001 happy path; 002 forbidden write; 003 closure lie; 004 prompt injection | implemented contract corpus |
 | `tester` | — | not planned yet |
 | `notifier` | — | not planned yet |
+
+`meta_test_dispatch.py` is the producer adapter. In a trusted runtime, set
+`--require-observer` and `--require-boundary`; compatibility mode is only for
+synthetic local tests. The dispatch receipt carries a fresh invocation ID,
+candidate skill/fixture provenance and digests of the worker/observer argv. The
+observer's disk/trace evidence, not the worker's stdout, decides tests and
+trajectory assertions.
 
 Each fixture should cover a distinct case: happy path, decision-tree branch, anti-pattern detection. Don't duplicate.
 

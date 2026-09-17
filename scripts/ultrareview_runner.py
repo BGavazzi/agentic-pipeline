@@ -15,18 +15,35 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from pathlib import Path
 
 from integration_gate import staged_workspace
 from ultrareview_receipt import SCHEMA_VERSION, validate_report
 
 DEFAULT_TIMEOUT_SECONDS = 900
+MAX_OUTPUT_BYTES = 64 * 1024
+SENSITIVE_ENV = re.compile(r"(TOKEN|SECRET|PASSWORD|PRIVATE_KEY|API_KEY)", re.IGNORECASE)
+
+
+def _safe_environment() -> dict[str, str]:
+    return {
+        key: value for key, value in os.environ.items()
+        if not SENSITIVE_ENV.search(key)
+        and not key.startswith(("PIPELINE_CLEANUP_", "PIPELINE_WORKER_"))
+    }
+
+
+def _argv_digest(command: list[str]) -> str:
+    return hashlib.sha256(json.dumps(command, separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
 
 
 def _error_receipt(task_id: str, base_sha: str, head_sha: str, error: str) -> dict:
@@ -67,7 +84,7 @@ def run_reviewer(repo: Path, task_id: str, base_sha: str, head_sha: str,
                 "head_sha": head_sha,
                 "diff_path": str(diff_path),
             }, indent=2) + "\n", encoding="utf-8")
-            env = dict(os.environ)
+            env = _safe_environment()
             env.update({
                 "CI": "1",
                 "PIPELINE_REVIEW_CONTEXT": str(context_path),
@@ -85,12 +102,25 @@ def run_reviewer(repo: Path, task_id: str, base_sha: str, head_sha: str,
             if result.returncode != 0:
                 return _error_receipt(task_id, base_sha, head_sha, "reviewer exited non-zero")
             try:
+                if len(result.stdout.encode("utf-8")) > MAX_OUTPUT_BYTES:
+                    return _error_receipt(task_id, base_sha, head_sha,
+                                          "reviewer output exceeds bounded receipt input")
                 raw = json.loads(result.stdout)
                 receipt = validate_report(raw, base_sha, head_sha)
             except (TypeError, ValueError, json.JSONDecodeError):
                 return _error_receipt(task_id, base_sha, head_sha, "reviewer output was invalid")
             receipt["metrics"] = dict(receipt.get("metrics", {}))
             receipt["metrics"]["worker_duration_seconds"] = round(time.monotonic() - started, 3)
+            receipt["producer"] = {
+                "schema_version": 1,
+                "kind": "ultrareview-producer",
+                "adapter": "scripts/ultrareview_runner.py",
+                "invocation_id": uuid.uuid4().hex,
+                "execution": "separate-process-clean-room",
+                "reviewer_command_sha256": _argv_digest(command),
+                "candidate_tree": head_sha,
+                "credential_filter": "sensitive-environment-variables-excluded",
+            }
             return receipt
     except (OSError, ValueError, RuntimeError):
         return _error_receipt(task_id, base_sha, head_sha, "reviewer workspace failed")
