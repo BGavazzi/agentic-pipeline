@@ -1,0 +1,21 @@
+{
+  "corpus": "holdout",
+  "fault_seed": "seeded-package-import-002",
+  "fault_type": "package-import-change",
+  "before": {
+    "pkg/__init__.py": "",
+    "pkg/formatting.py": "def format_name(value):\n    return value.strip()\n",
+    "pkg/service.py": "from pkg.formatting import format_name\n\ndef render(value):\n    return format_name(value)\n",
+    "tests/test_service.py": "from pkg.service import render\n\ndef test_render():\n    assert render(' x ') == 'x'\n"
+  },
+  "after": {
+    "pkg/__init__.py": "",
+    "pkg/formatting.py": "def format_name(value):\n    return value.strip().lower()\n",
+    "pkg/service.py": "from pkg.formatting import format_name\n\ndef render(value):\n    return format_name(value)\n",
+    "tests/test_service.py": "from pkg.service import render\n\ndef test_render():\n    assert render(' x ') == 'x'\n"
+  },
+  "expected_mode": "impacted",
+  "relevant_tests": ["tests/test_service.py"],
+  "minimum_precision": 1.0,
+  "minimum_recall": 1.0
+}

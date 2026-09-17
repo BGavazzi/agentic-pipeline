@@ -407,6 +407,10 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   explicit eligibility receipt with recall, precision, tests-avoided, and
   observed-duration-savings metrics. It never makes a full-suite fallback
   eligible.
+- **`impact_holdout.py`** — runs an independent, versioned seeded-fault corpus
+  beside the development TIA fixtures. It records training/holdout hashes,
+  mean and worst-case precision/recall, fault types and minimum-corpus status;
+  it never weakens the authoritative full suite.
 - **`staging_dispatch.py`** — verifies the current staging base and candidate
   head against eligibility, attaches the PR intelligence evidence, and plans
   the survivor-to-staging PR. It is dry-run by default; `--create` opens the

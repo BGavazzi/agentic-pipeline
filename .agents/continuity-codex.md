@@ -214,3 +214,14 @@
   commit, supported contract inventory and drift protection. Added validation
   and sync tests. No consumer repo was mass-synced and no signed release or
   infrastructure state was changed.
+
+## 2026-09-17 — Task 0049, held-out seeded-fault TIA benchmark
+
+- Started stacked worktree `D:\VIBES\agentic-pipeline-0049` from task 0048,
+  branch `feat/0049-tia-holdout-benchmark`.
+- Added `impact_holdout.py` and a separate three-case corpus with seeded-fault
+  metadata, corpus hashes, mean/worst-case precision/recall and a minimum
+  independent-corpus requirement. CI uploads the evidence beside the existing
+  development benchmark.
+- The full suite remains authoritative; no dispatcher now skips tests and no
+  production repository or infrastructure was changed.

@@ -1,6 +1,19 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+
+## [2026-09-17] - Add held-out seeded-fault TIA benchmark (task 0049)
+### Added
+- `scripts/impact_holdout.py` evaluates test-impact selection against a separate
+  three-case seeded-fault corpus, with training/holdout hashes, fault-type
+  inventory, mean/worst-case precision/recall, minimum-corpus enforcement and a
+  conservative `promotion_ready` result.
+- CI runs the held-out benchmark alongside the existing development corpus;
+  full-suite execution remains authoritative and the result is evidence only.
+- Task 0049 documents the synthetic-corpus boundary and production rollout
+  backlog.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Add versioned core release metadata (task 0048)
 ### Added
 - `core_version.py` defines the core release independently from receipt schemas
