@@ -411,16 +411,22 @@ def sync_vendor_metadata(
     if _is_drifted(target, manifest, relpath) and not force:
         return SyncResult(drifted=[relpath])
 
-    skill_names = sorted(
-        p.name for p in (source / ".claude" / "skills").iterdir() if p.is_dir()
-    )
-    skill_lines = "\n".join(f"- `{name}`" for name in skill_names)
-    gate_lines = "\n".join(f"- `scripts/{name}`" for name in GATE_SCRIPTS)
+    verified = {path: digest for path, digest in manifest.items()
+                if (target / path).is_file() and _sha256(target / path) == digest}
+    skill_names = sorted({Path(path).parts[2] for path in verified
+                          if path.startswith(".claude/skills/") and path.endswith("/SKILL.md")})
+    skill_names = [name for name in skill_names if all(path in verified for path in manifest
+                   if path.startswith(f".claude/skills/{name}/"))]
+    skill_lines = "\n".join(f"- `{name}` — SKILL.md sha256 `{verified[f'.claude/skills/{name}/SKILL.md']}`"
+                           for name in skill_names)
+    gate_lines = "\n".join(f"- `{path}` — sha256 `{digest}`" for path, digest in sorted(verified.items())
+                           if path.startswith("scripts/"))
     content = f"""# VENDORED skills — DO NOT EDIT IN THIS REPO
 
 These files were projected from the canonical `BGavazzi/agentic-pipeline`
 repository by `scripts/core_sync.py`. Edit upstream in that repository, then
-re-run the sync. Local edits here are overwritten on the next sync.
+re-run the sync. Only manifest-verified target files are listed; drifted files
+are not claimed as verified. Local edits require explicit --force to overwrite.
 
 ## Vendored from core ({len(skill_names)} skills)
 {skill_lines}

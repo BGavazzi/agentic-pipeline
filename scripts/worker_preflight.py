@@ -28,6 +28,13 @@ def evaluate(
     docker_reachable: bool,
     require_docker: bool = False,
 ) -> dict:
+    for value in (fork_pr, ephemeral, workspace_clean, docker_reachable, require_docker):
+        if type(value) is not bool:
+            raise ValueError("worker flags must be JSON booleans")
+    if any(type(value) is not int for value in (jobs_completed, mounted_secret_count)):
+        raise ValueError("worker counters must be integers")
+    if not isinstance(labels, list) or any(not isinstance(x, str) for x in labels):
+        raise ValueError("worker labels must be a string list")
     if worker_kind not in {"github-hosted", "self-hosted"}:
         raise ValueError("worker_kind must be github-hosted or self-hosted")
     if jobs_completed < 0 or mounted_secret_count < 0:
@@ -94,6 +101,13 @@ def main() -> int:
             if not isinstance(facts, dict):
                 raise ValueError("worker facts must be a JSON object")
         worker_kind = args.worker_kind or facts.get("worker_kind")
+        if worker_kind == "self-hosted":
+            required = {"worker_kind", "labels", "ephemeral", "jobs_completed",
+                        "workspace_clean", "mounted_secret_count", "docker_reachable", "fork_pr"}
+            if not required <= facts.keys():
+                raise ValueError("self-hosted workers require complete supervisor facts")
+            if type(facts["fork_pr"]) is not bool:
+                raise ValueError("fork trust context must be a boolean")
         if worker_kind is None:
             raise ValueError("worker_kind is required directly or in --facts")
         labels = args.labels.split(",") if args.labels is not None else facts.get("labels", [])
@@ -104,7 +118,7 @@ def main() -> int:
         docker_reachable = args.docker_reachable if args.docker_reachable is not None else facts.get("docker_reachable", False)
         require_docker = args.require_docker or facts.get("require_docker", False)
         result = evaluate(
-            worker_kind, args.fork_pr,
+            worker_kind, args.fork_pr or facts.get("fork_pr", False),
             [label for label in labels if label],
             ephemeral, jobs_completed, workspace_clean,
             mounted_secret_count, docker_reachable, require_docker,

@@ -11,7 +11,7 @@ def test_benchmark_reports_selection_quality_and_closes_transitive_gap():
     assert report["status"] == "pass"
     assert report["metrics"]["cases_total"] == 3
     assert report["promotion_ready"] is True
-    assert report["benchmark_version"] == "0.2"
+    assert report["benchmark_version"] == "0.3"
     transitive = next(case for case in report["cases"] if "transitive" in case["name"])
     assert transitive["metrics"]["recall"] == 1.0
     assert transitive["metrics"]["dependency_closure_count"] >= 3

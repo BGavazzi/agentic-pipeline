@@ -13,6 +13,7 @@ import argparse
 import json
 import math
 import statistics
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -40,8 +41,18 @@ def load_reports(paths: list[Path]) -> tuple[list[dict[str, Any]], list[dict[str
             if not isinstance(value, dict) or value.get("schema_version") != 1 \
                     or value.get("intelligence_version") != 1:
                 raise ValueError("unsupported intelligence schema")
-            if not isinstance(value.get("base_sha"), str) or not isinstance(value.get("head_sha"), str):
+            if any(not isinstance(value.get(key), str) or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", value[key])
+                   for key in ("base_sha", "head_sha")):
                 raise ValueError("missing commit identity")
+            for section in ("risk", "human_review", "diff", "gates", "test_impact"):
+                if not isinstance(value.get(section), dict):
+                    raise ValueError("invalid intelligence section")
+            for section, key, upper in (("diff", "churn", None), ("diff", "test_to_source_file_ratio", None),
+                                        ("gates", "evidence_completeness", 1)):
+                metric = value[section].get(key)
+                if metric is not None and (type(metric) not in (int, float) or not math.isfinite(metric)
+                                           or metric < 0 or (upper is not None and metric > upper)):
+                    raise ValueError("invalid numeric metric")
             valid.append(value)
         except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
             invalid.append({"path": str(path), "error": type(exc).__name__})
@@ -57,6 +68,22 @@ def p95(values: list[float]) -> float | None:
 
 
 def build_dashboard(reports: list[dict[str, Any]], invalid_count: int = 0) -> dict[str, Any]:
+    # A repeated artifact is not a new change. Quarantine conflicting evidence
+    # for one identity instead of selecting the most favorable observation.
+    grouped: dict[tuple, list[dict]] = {}
+    for report in reports:
+        key = (report.get("repository", "unknown"), report.get("base_sha"), report.get("head_sha"))
+        grouped.setdefault(key, []).append(report)
+    unique = []
+    duplicates = 0
+    for values in grouped.values():
+        variants = {json.dumps(value, sort_keys=True) for value in values}
+        if len(variants) != 1:
+            invalid_count += len(values)
+        else:
+            unique.append(values[0])
+            duplicates += len(values) - 1
+    reports = unique
     risk = Counter(str(item.get("risk", {}).get("level", "unknown")) for item in reports)
     decisions = Counter(str(item.get("human_review", {}).get("decision", "unknown")) for item in reports)
     gate_status = [item.get("gates", {}) for item in reports]
@@ -75,7 +102,8 @@ def build_dashboard(reports: list[dict[str, Any]], invalid_count: int = 0) -> di
         "sample": {
             "valid_receipt_count": len(reports),
             "invalid_receipt_count": invalid_count,
-            "calibration_only": len(reports) < 30,
+            "calibration_only": True,
+            "duplicate_receipt_count": duplicates,
         },
         "risk": {"counts": dict(sorted(risk.items())),
                  "high_rate": (risk.get("high", 0) / len(reports)) if reports else None},
@@ -88,11 +116,14 @@ def build_dashboard(reports: list[dict[str, Any]], invalid_count: int = 0) -> di
             "blocked_evidence_count": gate_blocked,
             "blocked_evidence_rate": (gate_blocked / len(reports)) if reports else None,
             "completeness_mean": statistics.fmean(completeness) if completeness else None,
+            "completeness_count": len(completeness),
         },
         "diff": {
             "churn_mean": statistics.fmean(churn) if churn else None,
             "churn_p95": p95(churn),
             "test_source_ratio_mean": statistics.fmean(ratios) if ratios else None,
+            "churn_count": len(churn),
+            "test_source_ratio_count": len(ratios),
         },
         "test_impact": {
             "status_counts": dict(sorted(impact_status.items())),
@@ -100,7 +131,7 @@ def build_dashboard(reports: list[dict[str, Any]], invalid_count: int = 0) -> di
         },
         "limitations": [
             "This is descriptive telemetry, not proof of correctness or absence of escaped defects.",
-            "Rates are not statistically stable until the declared sample reaches 30 eligible changes.",
+            "No sample-count threshold establishes statistical stability; independent calibration remains required.",
             "Admission remains a non-compensating veto policy; this dashboard never overrides a gate.",
         ],
     }
@@ -129,6 +160,8 @@ def markdown(report: dict[str, Any]) -> str:
         f"| TIA | Available rate | {impact['available_rate']} |",
         "",
         "Admission is still fail-closed and non-compensating; these measurements do not create a quality score that can offset a failed gate.",
+        "This is descriptive telemetry, not proof of correctness. Calibration requires independent validation, not a receipt-count threshold.",
+        f"Metric denominators: completeness={evidence['completeness_count']}; churn={diff['churn_count']}; test/source ratio={diff['test_source_ratio_count']}.",
         "",
     ]
     return "\n".join(lines)

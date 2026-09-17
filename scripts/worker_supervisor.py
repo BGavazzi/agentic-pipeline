@@ -2,7 +2,8 @@
 """Supervise one ephemeral worker process and emit lifecycle evidence.
 
 This is the host-side contract around a GitHub runner or equivalent worker.
-The operator supplies pre-run facts, a no-shell argv, and post-run facts. The
+The operator supplies pre-run facts, a no-shell launcher, and a trusted host
+teardown command. Post-run facts are obtained from that command's stdout. The
 supervisor refuses an unsafe self-hosted worker before it receives candidate
 code, launches at most one process, and fails closed when cleanup or
 deregistration cannot be proven.
@@ -23,6 +24,7 @@ import os
 import re
 import subprocess
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -44,20 +46,26 @@ def _facts(path: Path) -> dict[str, Any]:
 
 
 def _preflight(facts: dict[str, Any], fork_pr: bool, require_docker: bool) -> dict:
+    required = {"worker_kind", "labels", "ephemeral", "jobs_completed",
+                "workspace_clean", "mounted_secret_count", "docker_reachable", "fork_pr"}
+    if not required <= facts.keys():
+        raise ValueError("missing worker facts")
+    if type(facts["fork_pr"]) is not bool:
+        raise ValueError("fork trust context must be a boolean")
     worker_kind = facts.get("worker_kind")
     labels = facts.get("labels", [])
     if not isinstance(labels, list):
         raise ValueError("worker labels must be a list")
     return evaluate(
         worker_kind,
-        fork_pr,
-        [str(label) for label in labels],
-        bool(facts.get("ephemeral", False)),
-        int(facts.get("jobs_completed", 0)),
-        bool(facts.get("workspace_clean", False)),
-        int(facts.get("mounted_secret_count", 0)),
-        bool(facts.get("docker_reachable", False)),
-        require_docker or bool(facts.get("require_docker", False)),
+        fork_pr or facts["fork_pr"],
+        labels,
+        facts["ephemeral"],
+        facts["jobs_completed"],
+        facts["workspace_clean"],
+        facts["mounted_secret_count"],
+        facts["docker_reachable"],
+        require_docker or facts.get("require_docker", False),
     )
 
 
@@ -65,19 +73,19 @@ def _safe_environment() -> dict[str, str]:
     """Preserve runtime basics while excluding obvious credential variables."""
     return {
         key: value for key, value in os.environ.items()
-        if not SENSITIVE_ENV.search(key)
+        if not SENSITIVE_ENV.search(key) and not key.startswith(("PIPELINE_CLEANUP_", "PIPELINE_WORKER_"))
     }
 
 
 def _postconditions(post: dict[str, Any]) -> dict[str, str]:
     blockers: dict[str, str] = {}
-    if int(post.get("jobs_completed", 0)) != 1:
+    if type(post.get("jobs_completed")) is not int or post["jobs_completed"] != 1:
         blockers["worker_age"] = f"jobs_completed_after={post.get('jobs_completed', 0)}"
     if post.get("workspace_clean") is not True:
         blockers["workspace"] = "cleanup_not_verified"
-    if int(post.get("mounted_secret_count", 0)) != 0:
+    if type(post.get("mounted_secret_count")) is not int or post["mounted_secret_count"] != 0:
         blockers["secrets"] = f"mounted_secret_count_after={post.get('mounted_secret_count')}"
-    if post.get("registered", False) is not False:
+    if post.get("registered") is not False:
         blockers["registration"] = "worker_still_registered"
     return blockers
 
@@ -90,6 +98,7 @@ def supervise(
     fork_pr: bool = False,
     require_docker: bool = False,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+    cleanup_command: list[str] | None = None,
 ) -> dict[str, Any]:
     started = time.monotonic()
     if not command:
@@ -115,13 +124,22 @@ def supervise(
         report["metrics"]["worker_duration_seconds"] = 0.0
         return report
 
+    if not cleanup_command:
+        report.update(status="blocked", blockers={"cleanup": "trusted host cleanup command required"})
+        return report
+    attempt_id = uuid.uuid4().hex
+    report["attempt_id"] = attempt_id
+
     env = _safe_environment()
     env.update({
         "CI": "1",
         "PIPELINE_WORKER_SINGLE_USE": "1",
-        "PIPELINE_WORKER_FACTS": str(facts_path),
-        "PIPELINE_WORKER_POST_FACTS": str(post_facts_path),
     })
+    # No host attestation paths/nonce are exposed to candidate code. The
+    # command must launch the candidate across an OS/VM boundary; this Python
+    # process by itself does not create that boundary.
+    env = {k: v for k, v in env.items() if not k.startswith("PIPELINE_WORKER_")}
+    process = None
     try:
         process = subprocess.run(
             command,
@@ -138,28 +156,35 @@ def supervise(
         report["status"] = "error"
         report["error"] = "worker_timeout"
         report["metrics"]["worker_duration_seconds"] = round(time.monotonic() - started, 3)
-        return report
-    report["metrics"].update({
-        "worker_exit_code": process.returncode,
-        "worker_duration_seconds": round(time.monotonic() - started, 3),
-        "stdout_bytes": len(process.stdout.encode("utf-8")),
-        "stderr_bytes": len(process.stderr.encode("utf-8")),
-    })
-    if process.returncode != 0:
-        report["status"] = "fail"
-        report["blockers"] = {"worker": f"exit_code={process.returncode}"}
-        return report
-    if not post_facts_path.is_file():
-        report["status"] = "error"
-        report["blockers"] = {"post_facts": "missing"}
-        return report
+    except OSError:
+        report.update(status="error", error="worker_launch_failed")
+    if process is not None:
+        report["metrics"].update({
+            "worker_exit_code": process.returncode,
+            "worker_duration_seconds": round(time.monotonic() - started, 3),
+            "stdout_bytes": len(process.stdout.encode("utf-8")),
+            "stderr_bytes": len(process.stderr.encode("utf-8")),
+        })
+        report["status"] = "pass" if process.returncode == 0 else "fail"
+    # Cleanup runs even after timeout or failure. Facts come from the trusted
+    # host adapter's stdout, never a file written by the candidate or a prior run.
     try:
-        post = _facts(post_facts_path)
-    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        cleanup_env = _safe_environment()
+        cleanup_env["PIPELINE_CLEANUP_ATTEMPT"] = attempt_id
+        cleanup = subprocess.run(cleanup_command, env=cleanup_env, capture_output=True,
+                                 text=True, encoding="utf-8", timeout=60, shell=False)
+        post = json.loads(cleanup.stdout)
+        if cleanup.returncode or not isinstance(post, dict) or post.get("attempt_id") != attempt_id:
+            raise ValueError("cleanup attestation is not for this attempt")
+    except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as exc:
         report["status"] = "error"
         report["blockers"] = {"post_facts": type(exc).__name__}
         return report
     blockers = _postconditions(post)
+    if report["status"] != "pass":
+        blockers["worker"] = report.get("error", f"exit_code={process.returncode if process else None}")
+    post_facts_path.parent.mkdir(parents=True, exist_ok=True)
+    post_facts_path.write_text(json.dumps(post, indent=2) + "\n", encoding="utf-8")
     report["post_facts"] = {
         "jobs_completed": post.get("jobs_completed"),
         "workspace_clean": post.get("workspace_clean"),
@@ -186,6 +211,8 @@ def main() -> int:
     parser.add_argument("--fork-pr", action="store_true")
     parser.add_argument("--require-docker", action="store_true")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS)
+    parser.add_argument("--cleanup-command", nargs="+", required=True,
+                        help="trusted host teardown argv; must return fresh attempt-bound JSON")
     parser.add_argument("--command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
     command = list(args.command)
@@ -196,6 +223,7 @@ def main() -> int:
             args.facts.resolve(), args.post_facts.resolve(), command,
             fork_pr=args.fork_pr, require_docker=args.require_docker,
             timeout_seconds=args.timeout,
+            cleanup_command=args.cleanup_command,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

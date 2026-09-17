@@ -12,6 +12,7 @@ import json
 import subprocess
 import tempfile
 import time
+import hashlib
 from pathlib import Path
 
 try:  # Package import for pytest; direct import for the CLI entry point.
@@ -98,7 +99,10 @@ def run_benchmark(fixtures_dir: Path) -> dict:
     impacted = [case for case in cases if case["mode"] == "impacted"]
     return {
         "schema_version": 1,
-        "benchmark_version": "0.2",
+        "benchmark_version": "0.3",
+        "selector_sha256": hashlib.sha256(Path(__file__).with_name("test_impact.py").read_bytes()).hexdigest(),
+        "corpus_sha256": hashlib.sha256(b"".join(path.name.encode() + path.read_bytes()
+                                      for path in sorted(fixtures_dir.glob("*.json")))).hexdigest(),
         "status": "pass" if cases and passed == len(cases) else "fail",
         "promotion_ready": bool(impacted) and all(
             case["promotion_safe"] for case in impacted

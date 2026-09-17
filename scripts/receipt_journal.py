@@ -57,6 +57,10 @@ def connect(path: Path) -> sqlite3.Connection:
         """
     )
     db.commit()
+    version = db.execute("SELECT value FROM journal_meta WHERE key='schema_version'").fetchone()
+    if version != (str(SCHEMA_VERSION),):
+        db.close()
+        raise ValueError("unsupported journal schema version")
     return db
 
 
@@ -82,14 +86,19 @@ def append_event(journal: Path, event_id: str, event_type: str, receipt_path: Pa
     payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
     timestamp = occurred_at or datetime.now(timezone.utc).isoformat()
+    parsed = datetime.fromisoformat(timestamp)
+    if parsed.tzinfo is None:
+        raise ValueError("occurred_at requires a timezone")
+    timestamp = parsed.astimezone(timezone.utc).isoformat()
     db = connect(journal)
     try:
+        db.execute("BEGIN IMMEDIATE")
         existing = db.execute(
-            "SELECT receipt_sha256, base_sha, head_sha FROM events WHERE event_id = ?",
+            "SELECT receipt_sha256, base_sha, head_sha, event_type, source FROM events WHERE event_id = ?",
             (event_id,),
         ).fetchone()
         if existing:
-            if existing[0] != digest or existing[1] != base_sha or existing[2] != head_sha:
+            if existing != (digest, base_sha, head_sha, event_type, source):
                 raise ValueError("event_id already exists with different evidence")
             return {"status": "duplicate", "event_id": event_id, "receipt_sha256": digest}
         db.execute(

@@ -1,6 +1,22 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-16] - Repair reviewed evidence and trust boundaries (task 0042)
+### Fixed
+- Preserve scanner vetoes; require commit-bound unit receipts and execute exact
+  candidate/base merge trees instead of labeling arbitrary HEAD execution.
+- Strict worker facts, fresh host teardown and independent meta-test observations;
+  quarantine unverified homelab routing and separate PR publisher permissions.
+- Remote staging identity, draft-only handoff, visual artifact/hash consistency,
+  complete policy surfaces and exact-head protected review.
+- Conservative TIA deletion/import handling and benchmark/subset binding;
+  truthful sync inventories, deduplicated metrics and atomic journal retries.
+### Added
+- Adversarial review regressions and a platform activation runbook. Actual branch
+  protection, independent approval and homelab isolation remain deployment gates,
+  not claims inferred from unit tests.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-16] - Add append-only local quality receipt journal (task 0041)
 ### Added
 - `scripts/receipt_journal.py` stores immutable receipt events in SQLite WAL,

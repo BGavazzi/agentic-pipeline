@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   policy:
@@ -29,10 +30,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Require externally approved immutable policy pin
+        env:
+          REQUESTED_REF: ${{ inputs.core_ref }}
+          APPROVED_REF: ${{ vars.TRUSTED_POLICY_SHA }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          TASK_ID: ${{ inputs.task_id }}
+        run: |
+          [[ "$APPROVED_REF" =~ ^[0-9a-f]{40}$ ]] || { echo 'Missing approved policy pin'; exit 1; }
+          [[ "$REQUESTED_REF" == "$APPROVED_REF" ]] || { echo 'Unapproved policy implementation'; exit 1; }
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$TASK_ID" =~ ^[a-zA-Z0-9_-]{1,64}$ ]] || exit 1
       - name: Checkout candidate repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
           ref: ${{ inputs.head_sha }}
 
       - name: Checkout pinned policy implementation
@@ -41,11 +55,41 @@ jobs:
           repository: BGavazzi/agentic-pipeline
           ref: ${{ inputs.core_ref }}
           path: .agentic-policy
+          persist-credentials: false
           fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Obtain independent exact-head review from GitHub
+        uses: actions/github-script@v7
+        env:
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const {owner, repo} = context.repo;
+            const number = context.payload.pull_request?.number;
+            if (!number) throw new Error('A pull-request event is required');
+            const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            if (pr.head.sha !== process.env.HEAD_SHA || pr.base.sha !== process.env.BASE_SHA) throw new Error('Stale PR identity');
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {owner, repo, pull_number: number, per_page: 100});
+            const latest = new Map();
+            for (const review of reviews) {
+              if (['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(review.state)) latest.set(review.user.login, review);
+            }
+            const evidence = {base_sha: pr.base.sha, head_sha: pr.head.sha, approved: false};
+            for (const review of latest.values()) {
+              if (review.state !== 'APPROVED' || review.commit_id !== pr.head.sha || review.user.type !== 'User' || review.user.login === pr.user.login) continue;
+              const {data} = await github.rest.repos.getCollaboratorPermissionLevel({owner, repo, username: review.user.login});
+              if (['admin', 'maintain', 'write'].includes(data.permission)) Object.assign(evidence, {approved: true, reviewer: review.user.login, review_id: review.id});
+            }
+            const {data: current} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            if (current.head.sha !== pr.head.sha || current.base.sha !== pr.base.sha) throw new Error('PR moved during review lookup');
+            fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'trusted-policy-review.json'), JSON.stringify(evidence), {mode: 0o600});
 
       - name: Emit policy-integrity receipt
         env:
@@ -59,6 +103,7 @@ jobs:
             --base "$BASE_SHA" \
             --head "$HEAD_SHA" \
             --policy-ref "$BASE_SHA" \
+            --trusted-review "$RUNNER_TEMP/trusted-policy-review.json" \
             --output ".docs/policy-reports/$TASK_ID.json"
 
       - name: Upload protected policy evidence

@@ -18,9 +18,10 @@ def files(tmp_path):
     risk.write_text(json.dumps({"schema_version": 1, "base_sha": BASE, "head_sha": HEAD,
                                 "required_gates": ["unit"], "risk_level": "low"}))
     scan.write_text(json.dumps({"base_sha": BASE, "head_sha": HEAD,
+                                "verdict": "pass", "blocking_findings": [],
                                 "tool_status": {name: {"status": "ok"}
                                                  for name in ("semgrep", "trivy", "gitleaks")}}))
-    unit.write_text("0")
+    unit.write_text(json.dumps({"schema_version": 1, "base_sha": BASE, "head_sha": HEAD, "exit_code": 0}))
     policy.write_text(json.dumps({"schema_version": 1, "gate": "policy",
                                   "base_sha": BASE, "head_sha": HEAD,
                                   "status": "pass"}))

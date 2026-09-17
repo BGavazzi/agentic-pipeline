@@ -1,0 +1,42 @@
+name: Trusted early review
+
+# Metadata only. NEVER checkout, import, or execute candidate code here.
+# Install on the protected default branch and require this workflow's check.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  review:
+    name: Trusted early review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const number = context.payload.pull_request.number;
+            const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number: number, per_page: 100});
+            if (files.length !== pr.changed_files) throw new Error('Incomplete diff inventory');
+            const sensitive = /(^scripts\/|^\.github\/|^\.claude\/skills\/|(^|\/)(auth|security|infra|terraform|migrations|schema)(\/|\.)|\.tf$)/i;
+            const impactful = files.some(f => sensitive.test(f.filename) || sensitive.test(f.previous_filename || '')) || pr.additions + pr.deletions >= 400;
+            core.summary.addHeading('Pre-execution HITL').addRaw(`Candidate: ${pr.head.sha}\n\nRisk: ${impactful ? 'elevated; approval required' : 'ordinary'}\n\nFiles: ${files.length}; churn: ${pr.additions + pr.deletions}.\n`).write();
+            if (!impactful) return;
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {owner, repo, pull_number: number, per_page: 100});
+            const latest = new Map();
+            for (const review of reviews) {
+              if (['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(review.state)) latest.set(review.user.login, review);
+            }
+            let approved = false;
+            for (const review of latest.values()) {
+              if (review.state !== 'APPROVED' || review.commit_id !== pr.head.sha || review.user.type !== 'User' || review.user.login === pr.user.login) continue;
+              const {data} = await github.rest.repos.getCollaboratorPermissionLevel({owner, repo, username: review.user.login});
+              if (['admin', 'maintain', 'write'].includes(data.permission)) approved = true;
+            }
+            const {data: current} = await github.rest.pulls.get({owner, repo, pull_number: number});
+            if (current.head.sha !== pr.head.sha || current.base.sha !== pr.base.sha) throw new Error('Candidate/base moved during review');
+            if (!approved) core.setFailed('Exact-head independent maintainer approval required. Rerun this trusted workflow after approval.');

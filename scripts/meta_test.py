@@ -30,6 +30,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -113,7 +114,8 @@ def _marker(value: Any) -> str:
     return str(value).strip().lower()
 
 
-def _assertions(fixture: Path, sandbox: Path, baseline: str, worker: dict[str, Any]) -> tuple[list[str], list[str], dict[str, Any]]:
+def _assertions(fixture: Path, sandbox: Path, baseline: str, worker: dict[str, Any],
+                observations: dict[str, Any] | None = None) -> tuple[list[str], list[str], dict[str, Any]]:
     manifest = _load_yaml(fixture / "expected.yaml")
     expected = manifest.get("expected")
     if not isinstance(expected, dict):
@@ -123,10 +125,14 @@ def _assertions(fixture: Path, sandbox: Path, baseline: str, worker: dict[str, A
     checks: list[str] = []
     branch = _git(sandbox, "branch", "--show-current")
     commits = int(_git(sandbox, "rev-list", "--count", f"{baseline}..HEAD"))
-    touched = [p for p in _git(sandbox, "diff", "--name-only", f"{baseline}..HEAD").splitlines() if p]
+    touched = sorted(set(_git(sandbox, "diff", "--name-only", baseline).splitlines()) |
+                     set(_git(sandbox, "ls-files", "--others", "--exclude-standard").splitlines()) |
+                     set(_git(sandbox, "ls-files", "--others", "--ignored", "--exclude-standard").splitlines()))
     task_id = (fixture / "task-id.txt").read_text(encoding="utf-8").strip()
     task_id = Path(task_id).stem
-    observed_status = worker.get("task_status_final", _task_status(sandbox, task_id))
+    observed_status = _task_status(sandbox, task_id)
+    task_paths = sorted((sandbox / ".docs/tasks").glob(f"{task_id}*.md"))
+    task_text = task_paths[0].read_text(encoding="utf-8") if task_paths else ""
 
     def check(name: str, ok: bool, detail: str) -> None:
         checks.append(name)
@@ -151,18 +157,24 @@ def _assertions(fixture: Path, sandbox: Path, baseline: str, worker: dict[str, A
         check("files_NOT_touched", not forbidden, f"forbidden files changed: {sorted(forbidden)}")
 
     if "conditions_marked_done" in expected:
-        observed = worker.get("conditions_marked_done")
+        exit_section = re.search(r"## Exit Conditions\s*\n(.*?)(?=\n## |\Z)", task_text, re.S)
+        observed = len(re.findall(r"^- \[[xX]\]", exit_section.group(1), re.M)) if exit_section else 0
         check("conditions_marked_done", observed == expected["conditions_marked_done"],
               f"expected {expected['conditions_marked_done']!r}, got {observed!r}")
 
     closure = expected.get("lei_de_fechamento", {})
-    observed_closure = worker.get("closure", {})
+    observed_closure = {
+        "CHANGELOG": "CHANGELOG.md" in touched and (sandbox / "CHANGELOG.md").is_file(),
+        "tests": (observations or {}).get("tests_passed") is True,
+    }
     if isinstance(closure, dict):
         for name, wanted in closure.items():
             check(f"closure.{name}", _marker(observed_closure.get(name)) == _marker(wanted),
                   f"expected {wanted!r}, got {observed_closure.get(name)!r}")
 
-    sequence = worker.get("tool_calls", [])
+    sequence = (observations or {}).get("tool_calls", [])
+    if (expected.get("tool_calls_must_include_in_order") or expected.get("tool_calls_must_NOT_include")) and observations is None:
+        check("runtime_trace", False, "independent runtime trace unavailable; worker claims are not evidence")
     if not isinstance(sequence, list):
         sequence = []
     position = 0
@@ -188,7 +200,9 @@ def _assertions(fixture: Path, sandbox: Path, baseline: str, worker: dict[str, A
     return failures, checks, metrics
 
 
-def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
+def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+                observer_command: list[str] | None = None,
+                skills_root: Path | None = None) -> dict[str, Any]:
     started = time.monotonic()
     task_id = (fixture / "task-id.txt").read_text(encoding="utf-8").strip()
     skill = (fixture / "skill.txt").read_text(encoding="utf-8").strip()
@@ -206,6 +220,19 @@ def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAUL
             sandbox = Path(raw) / "repo"
             sandbox.mkdir()
             _seed_repo(fixture, sandbox)
+            if not re.fullmatch(r"[a-zA-Z0-9_-]+", skill):
+                raise ValueError("invalid skill name")
+            source = (skills_root or Path(__file__).resolve().parents[1] / ".claude/skills") / skill
+            if not (source / "SKILL.md").is_file():
+                raise ValueError("candidate skill is missing")
+            if source.is_symlink() or any(p.is_symlink() for p in source.rglob("*")):
+                raise ValueError("candidate skill symlinks are not permitted")
+            shutil.copytree(source, sandbox / ".claude/skills" / skill, dirs_exist_ok=True)
+            result["skill_sha256"] = hashlib.sha256(b"".join(
+                p.relative_to(source).as_posix().encode() + p.read_bytes()
+                for p in sorted(source.rglob("*")) if p.is_file())).hexdigest()
+            _git(sandbox, "add", ".claude/skills")
+            _git(sandbox, "commit", "-qm", "candidate skill under test")
             baseline = _git(sandbox, "rev-parse", "HEAD")
             env = dict(os.environ)
             env.update({
@@ -213,6 +240,7 @@ def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAUL
                 "PIPELINE_META_TEST_SANDBOX": str(sandbox),
                 "PIPELINE_META_TEST_FIXTURE": fixture.name,
                 "PIPELINE_META_TEST_SKILL": skill,
+                "PIPELINE_META_TEST_SKILL_PATH": str(sandbox / ".claude/skills" / skill / "SKILL.md"),
                 "PIPELINE_META_TEST_TASK": task_id,
             })
             completed = subprocess.run(
@@ -227,7 +255,15 @@ def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAUL
                 }
                 return result
             worker = _parse_worker_output(completed.stdout)
-            failures, checks, metrics = _assertions(fixture, sandbox, baseline, worker)
+            observations = None
+            if observer_command is not None:
+                # A trusted host/runtime adapter reads its own audit trace and
+                # independently runs verification. Candidate stdout is ignored.
+                observed = subprocess.run(observer_command, cwd=fixture, env=env,
+                                          capture_output=True, text=True, encoding="utf-8",
+                                          timeout=timeout_seconds, check=True)
+                observations = _parse_worker_output(observed.stdout)
+            failures, checks, metrics = _assertions(fixture, sandbox, baseline, worker, observations)
             result["status"] = "pass" if not failures else "fail"
             result["failures"] = failures
             result["metrics"] = {
@@ -236,7 +272,7 @@ def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAUL
                 "duration_seconds": round(time.monotonic() - started, 3),
             }
             result["evidence"] = {"checks": checks, "worker_stderr_bytes": len(completed.stderr.encode("utf-8"))}
-    except (OSError, RuntimeError, ValueError, KeyError, subprocess.TimeoutExpired) as exc:
+    except (OSError, RuntimeError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         result["error"] = type(exc).__name__
         result["metrics"] = {"duration_seconds": round(time.monotonic() - started, 3)}
     return result
@@ -248,10 +284,12 @@ def run_suite(
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     base_sha: str | None = None,
     head_sha: str | None = None,
+    observer_command: list[str] | None = None,
+    skills_root: Path | None = None,
 ) -> dict[str, Any]:
     started = time.monotonic()
     fixtures = sorted(path.parent for path in fixtures_dir.glob("*/expected.yaml"))
-    cases = [run_fixture(fixture, command, timeout_seconds) for fixture in fixtures]
+    cases = [run_fixture(fixture, command, timeout_seconds, observer_command, skills_root) for fixture in fixtures]
     passed = sum(case["status"] == "pass" for case in cases)
     report = {
         "schema_version": SCHEMA_VERSION,
@@ -279,6 +317,9 @@ def main() -> int:
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS)
+    parser.add_argument("--observer-command", nargs="+",
+                        help="trusted host adapter for independent tests and tool trajectory")
+    parser.add_argument("--skills-root", type=Path)
     parser.add_argument("--command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
     command = list(args.command)
@@ -289,7 +330,7 @@ def main() -> int:
         return 2
     try:
         report = run_suite(args.fixtures.resolve(), command, args.timeout,
-                           args.base_sha, args.head_sha)
+                           args.base_sha, args.head_sha, args.observer_command, args.skills_root)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     except (OSError, RuntimeError, ValueError, TypeError) as exc:

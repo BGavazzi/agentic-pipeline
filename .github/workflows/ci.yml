@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   live-scanner-contracts:
+    needs: route
     # Candidate code exercises scanners; keep it off production-adjacent hosts.
     # This is a regression job, NOT an independent admission receipt issuer.
     runs-on: ubuntu-latest
@@ -50,21 +51,39 @@ jobs:
   # ---------------------------------------------------------------------------
   route:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       runner: ${{ steps.pick.outputs.runner }}
+      integration_allowed: ${{ steps.review.outputs.allowed }}
     steps:
       - id: pick
         run: |
-          if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
-            echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-            echo "Fork PR -> GitHub-hosted runner (untrusted code)."
-          elif [ "${{ vars.USE_HOMELAB_POOL }}" = "true" ]; then
-            echo 'runner=["self-hosted","linux","x64","homelab-pool"]' >> "$GITHUB_OUTPUT"
-            echo "Trusted event + pool enabled -> homelab pool."
-          else
-            echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-            echo "Pool disabled (USE_HOMELAB_POOL != true) -> GitHub-hosted."
-          fi
+          echo 'runner=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+          echo "Pool quarantined pending external trusted bootstrap and verified host teardown."
+      - id: review
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Only a completed default-branch metadata workflow for this exact
+            // pair permits costly candidate execution. Unit/scanner diagnostics
+            // remain available while review is pending.
+            const pr = context.payload.pull_request;
+            let allowed = false;
+            try {
+              const {data} = await github.rest.actions.listWorkflowRuns({
+                ...context.repo, workflow_id: 'early-review.yml', event: 'pull_request_target', per_page: 100
+              });
+              const matching = data.workflow_runs.filter(run =>
+                run.path === '.github/workflows/early-review.yml' && run.head_sha === pr.base.sha &&
+                run.pull_requests.some(p => p.number === pr.number && p.head.sha === pr.head.sha && p.base.sha === pr.base.sha));
+              const latest = matching.sort((a, b) => b.id - a.id)[0];
+              allowed = latest?.conclusion === 'success';
+            } catch (error) { core.warning('Trusted early-review workflow is not installed or not readable.'); }
+            core.setOutput('allowed', String(allowed));
+            if (!allowed) core.notice('Integration held: exact-head trusted early review required; rerun CI after it passes.');
 
   test:
     needs: route
@@ -80,7 +99,7 @@ jobs:
       - name: Worker trust preflight
         env:
           FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
-          USE_HOMELAB_POOL: ${{ vars.USE_HOMELAB_POOL }}
+          USE_HOMELAB_POOL: 'false'
           RUNNER_TEMP_DIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
@@ -102,15 +121,17 @@ jobs:
 
       - name: Run test suite
         env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           # Keep imports deterministic across pytest/import-mode differences in
           # clean hosted and homelab workers.
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set +e
           mkdir -p .docs/test-reports
-          pytest tests/ -v --junitxml=.docs/test-reports/unit.xml
+          python -m pytest tests/ -v --junitxml=.docs/test-reports/unit.xml
           rc=$?
-          printf '%s\n' "$rc" > .docs/test-reports/unit.exit
+          RC="$rc" python -c 'import json,os; from pathlib import Path; Path(".docs/test-reports/unit.exit").write_text(json.dumps(dict(schema_version=1,base_sha=os.environ["BASE_SHA"],head_sha=os.environ["HEAD_SHA"],exit_code=int(os.environ["RC"]))),encoding="utf-8")'
           exit "$rc"
 
       - name: Upload unit evidence
@@ -142,7 +163,7 @@ jobs:
   # ---------------------------------------------------------------------------
   integration:
     needs: route
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.route.outputs.integration_allowed == 'true'
     runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     timeout-minutes: 30
     steps:
@@ -158,7 +179,7 @@ jobs:
       - name: Worker trust preflight
         env:
           FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
-          USE_HOMELAB_POOL: ${{ vars.USE_HOMELAB_POOL }}
+          USE_HOMELAB_POOL: 'false'
           RUNNER_TEMP_DIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
@@ -215,7 +236,7 @@ jobs:
   # ---------------------------------------------------------------------------
   impact-shadow:
     needs: route
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.route.outputs.integration_allowed == 'true'
     runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
     timeout-minutes: 30
     continue-on-error: true
@@ -289,7 +310,7 @@ jobs:
       - name: Worker trust preflight
         env:
           FORK_PR: ${{ github.event.pull_request.head.repo.fork || 'false' }}
-          USE_HOMELAB_POOL: ${{ vars.USE_HOMELAB_POOL }}
+          USE_HOMELAB_POOL: 'false'
           RUNNER_TEMP_DIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
@@ -405,13 +426,12 @@ jobs:
   # obligations remain non-admitted. Until this workflow is protected from PR
   # edits, this is a consistency check, not a cryptographic trust boundary.
   admission:
-    needs: [test, gates, integration]
+    needs: [test, gates, integration, impact-shadow]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -442,6 +462,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: impact-shadow-artifacts-*
+          path: .docs/impact-reports
           merge-multiple: true
       - name: Build and evaluate admission receipt
         env:
@@ -541,37 +562,6 @@ jobs:
             --output .docs/quality-reports/pr-intelligence.json \
             --markdown-output .docs/quality-reports/pr-intelligence.md
           cat .docs/quality-reports/pr-intelligence.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Update PR intelligence comment
-        if: always() && github.event_name == 'pull_request'
-        continue-on-error: true
-        uses: actions/github-script@v7
-        env:
-          INTELLIGENCE_FILE: .docs/quality-reports/pr-intelligence.md
-        with:
-          script: |
-            const fs = require('fs');
-            const marker = '<!-- agentic-pipeline-pr-intelligence -->';
-            if (!fs.existsSync(process.env.INTELLIGENCE_FILE)) {
-              core.warning('PR intelligence Markdown was not produced; job summary remains available when inputs exist.');
-              return;
-            }
-            const body = fs.readFileSync(process.env.INTELLIGENCE_FILE, 'utf8');
-            const issue = context.issue;
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: issue.owner, repo: issue.repo, issue_number: issue.number,
-              per_page: 100,
-            });
-            const existing = comments.find(comment =>
-              comment.user?.type === 'Bot' && comment.body?.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: issue.owner, repo: issue.repo, comment_id: existing.id, body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: issue.owner, repo: issue.repo, issue_number: issue.number, body,
-              });
-            }
       - name: Evaluate autonomous staging eligibility
         if: always()
         env:
@@ -582,6 +572,7 @@ jobs:
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           test -n "$integration" || integration=.docs/integration-reports/missing.json
           python scripts/staging_gate.py \
+            --repository "$GITHUB_REPOSITORY" \
             --scorecard .docs/quality-reports/scorecard.json \
             --integration-report "$integration" \
             --base-sha "$BASE_SHA" \

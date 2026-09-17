@@ -10,6 +10,7 @@ from scripts.worker_supervisor import supervise
 def facts(path: Path, **overrides) -> Path:
     value = {
         "worker_kind": "self-hosted",
+        "fork_pr": False,
         "labels": ["self-hosted", "homelab-pool"],
         "ephemeral": True,
         "jobs_completed": 0,
@@ -27,12 +28,8 @@ POST_WORKER = r'''
 import json
 import os
 from pathlib import Path
-Path(os.environ["PIPELINE_WORKER_POST_FACTS"]).write_text(json.dumps({
-    "jobs_completed": 1,
-    "workspace_clean": True,
-    "mounted_secret_count": 0,
-    "registered": False,
-}), encoding="utf-8")
+assert "PIPELINE_WORKER_POST_FACTS" not in os.environ
+assert "PIPELINE_CLEANUP_ATTEMPT" not in os.environ
 '''
 
 
@@ -42,10 +39,21 @@ def command(tmp_path: Path) -> list[str]:
     return [sys.executable, str(worker)]
 
 
+def cleanup(tmp_path: Path, **overrides) -> list[str]:
+    post = {"jobs_completed": 1, "workspace_clean": True,
+            "mounted_secret_count": 0, "registered": False}
+    post.update(overrides)
+    adapter = tmp_path / "trusted_cleanup.py"
+    adapter.write_text("import json, os\np=" + repr(post) +
+                       "\np['attempt_id']=os.environ['PIPELINE_CLEANUP_ATTEMPT']\nprint(json.dumps(p))\n")
+    return [sys.executable, str(adapter)]
+
+
 def test_single_use_worker_passes_with_cleanup_and_deregistration(tmp_path):
     before = facts(tmp_path / "before.json")
     after = tmp_path / "after.json"
-    result = supervise(before, after, command(tmp_path), timeout_seconds=20)
+    result = supervise(before, after, command(tmp_path), timeout_seconds=20,
+                       cleanup_command=cleanup(tmp_path))
     assert result["status"] == "pass"
     assert result["metrics"]["queue_wait_seconds"] == 12
     assert result["metrics"]["worker_age_jobs_after"] == 1
@@ -70,7 +78,8 @@ def test_cleanup_failure_is_not_a_success(tmp_path):
         "import json, os; open(os.environ['PIPELINE_WORKER_POST_FACTS'], 'w').write(json.dumps({\"jobs_completed\": 1, \"workspace_clean\": False, \"mounted_secret_count\": 0, \"registered\": True}))\n",
         encoding="utf-8",
     )
-    result = supervise(before, after, [sys.executable, str(worker)], timeout_seconds=20)
+    result = supervise(before, after, [sys.executable, str(worker)], timeout_seconds=20,
+                       cleanup_command=cleanup(tmp_path, workspace_clean=False, registered=True))
     assert result["status"] == "fail"
     assert "workspace" in result["blockers"]
     assert "registration" in result["blockers"]

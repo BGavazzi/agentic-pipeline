@@ -1,5 +1,13 @@
 # agentic-pipeline
 
+> **Task 0042 security compatibility update:** the reviewed stack now rejects
+> stale/contradictory evidence, tests exact base/head merge trees, and requires
+> host-observed worker teardown. Homelab routing is quarantined until real
+> isolation is verified. Read [review remediation and activation](.docs/runbooks/review-remediation.md)
+> before consuming the changed unit, visual, worker, meta-test or staging CLIs.
+> Trusted workflows must be installed on the protected default branch and made
+> mandatory externally; an unmerged PR is not active security enforcement.
+
 ## Quality admission hardening (task 0009, in progress)
 
 `scan_gate.py` now fails closed: exit 0 means every required scanner succeeded

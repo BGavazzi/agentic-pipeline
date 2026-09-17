@@ -13,6 +13,7 @@ BASE, HEAD = "a" * 40, "b" * 40
 
 
 def git_fixture(tmp_path: Path) -> Path:
+    global BASE, HEAD
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "tracked.txt").write_text("tracked\n", encoding="utf-8")
@@ -22,6 +23,7 @@ def git_fixture(tmp_path: Path) -> Path:
     subprocess.run(["git", "config", "user.name", "integration tests"], cwd=repo, check=True)
     subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-qm", "fixture"], cwd=repo, check=True)
+    BASE = HEAD = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
     return repo
 
 

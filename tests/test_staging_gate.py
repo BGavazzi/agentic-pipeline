@@ -35,6 +35,8 @@ def integration(status: str = "pass", isolated: bool = True) -> dict:
         "head_sha": HEAD,
         "status": status,
         "isolated": isolated,
+        "integration_mode": "base-head-merge",
+        "executed_tree": HEAD,
         "metrics": {"duration_seconds": 12.5},
     }
 

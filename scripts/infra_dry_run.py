@@ -49,11 +49,11 @@ def infra_files(paths: list[str]) -> list[str]:
     return sorted(path for path in paths if any(pattern.search(path) for pattern in INFRA_PATTERNS))
 
 
-def _clean_workspace(repo: Path) -> Path:
+def _clean_workspace(repo: Path, head_sha: str) -> Path:
     raw = tempfile.mkdtemp(prefix="pipeline-infra-")
     workspace = Path(raw)
     archive = subprocess.run(
-        ["git", "archive", "--format=tar", "HEAD"],
+        ["git", "archive", "--format=tar", head_sha],
         cwd=repo, capture_output=True, timeout=60,
     )
     if archive.returncode != 0:
@@ -89,7 +89,7 @@ def run_dry_run(repo: Path, task_id: str, base_sha: str, head_sha: str,
     started = time.monotonic()
     workspace = None
     try:
-        workspace = _clean_workspace(repo)
+        workspace = _clean_workspace(repo, head_sha)
         env = dict(os.environ)
         env.update({"CI": "1", "TF_IN_AUTOMATION": "1"})
         result = subprocess.run(

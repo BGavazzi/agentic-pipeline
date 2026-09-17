@@ -17,7 +17,7 @@ repo = Path.cwd()
 subprocess.run(["git", "checkout", "-qb", "feat/0001-add-greeting"], cwd=repo, check=True)
 (repo / "README.md").write_text("hello\n", encoding="utf-8")
 task = next((repo / ".docs" / "tasks").glob("0001-*.md"))
-task.write_text(task.read_text(encoding="utf-8").replace("status: todo", "status: done"), encoding="utf-8")
+task.write_text(task.read_text(encoding="utf-8").replace("status: todo", "status: done").replace("[ ]", "[x]"), encoding="utf-8")
 (repo / "CHANGELOG.md").write_text("- hello\n", encoding="utf-8")
 subprocess.run(["git", "add", "--all"], cwd=repo, check=True)
 subprocess.run(["git", "commit", "-qm", "feat: add greeting"], cwd=repo, check=True)
@@ -37,7 +37,7 @@ def fixture(tmp_path: Path) -> Path:
     (root / "seed-repo" / "README.md").write_text("old\n", encoding="utf-8")
     (root / "seed-repo" / "secret.txt").write_text("do not touch\n", encoding="utf-8")
     (seed / "0001-add-greeting.md").write_text(
-        "---\nstatus: todo\n---\n\n# Task\n\n- [ ] Add greeting\n", encoding="utf-8"
+        "---\nstatus: todo\n---\n\n# Task\n\n## Exit Conditions\n- [ ] Add greeting\n", encoding="utf-8"
     )
     (root / "task-id.txt").write_text("0001-add-greeting.md\n", encoding="utf-8")
     (root / "skill.txt").write_text("builder\n", encoding="utf-8")
@@ -67,9 +67,16 @@ def command(worker: Path) -> list[str]:
     return [sys.executable, str(worker)]
 
 
+def observer(tmp_path):
+    # Stub at the trusted runtime boundary, not a claim from the agent.
+    path = tmp_path / "observer.py"
+    path.write_text('import json\nprint(json.dumps({"tests_passed": True, "tool_calls": ["Read", "Edit", "Bash"]}))\n')
+    return command(path)
+
+
 def test_fixture_worker_passes_all_observable_contracts(tmp_path):
     root, worker = fixture(tmp_path)
-    result = run_fixture(root, command(worker), timeout_seconds=20)
+    result = run_fixture(root, command(worker), timeout_seconds=20, observer_command=observer(tmp_path))
     assert result["status"] == "pass"
     assert result["metrics"]["assertions_passed"] == result["metrics"]["assertions_total"]
     assert result["metrics"]["commits"] == 1
@@ -87,7 +94,7 @@ def test_nonzero_worker_is_error_and_never_passes(tmp_path):
 
 def test_suite_reports_versioned_metrics(tmp_path):
     root, worker = fixture(tmp_path)
-    report = run_suite(tmp_path, command(worker), timeout_seconds=20)
+    report = run_suite(tmp_path, command(worker), timeout_seconds=20, observer_command=observer(tmp_path))
     assert report["schema_version"] == 1
     assert report["gate"] == "meta-test"
     assert report["status"] == "pass"

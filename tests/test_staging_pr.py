@@ -18,6 +18,7 @@ def eligibility(path: Path, eligible: bool = True):
         "schema_version": 1, "target": "staging-review", "eligible": eligible,
         "blockers": {} if eligible else {"admission": "blocked"},
         "base_sha": BASE, "head_sha": HEAD,
+        "repository": "owner/repo",
         "metrics": {"evidence_completeness": 1.0},
         "provenance": {"human_review_required": True},
     }))
@@ -55,7 +56,8 @@ def test_dry_run_is_idempotent_and_returns_argv(tmp_path, monkeypatch):
     body = tmp_path / "body.md"
     eligibility(report)
     body.write_text("review me\n")
-    monkeypatch.setattr(staging_pr, "git_sha", lambda *args: HEAD)
+    monkeypatch.setattr(staging_pr, "git_sha", lambda _repo, ref: BASE if ref == "staging" else HEAD)
+    monkeypatch.setattr(staging_pr, "verify_remote", lambda *args: None)
     monkeypatch.setattr(staging_pr, "gh_json", lambda args: [])
 
     result = staging_pr.create_staging_pr(
@@ -72,8 +74,10 @@ def test_existing_open_pr_is_not_duplicated(tmp_path, monkeypatch):
     body = tmp_path / "body.md"
     eligibility(report)
     body.write_text("review me\n")
-    monkeypatch.setattr(staging_pr, "git_sha", lambda *args: HEAD)
-    monkeypatch.setattr(staging_pr, "gh_json", lambda args: [{"number": 7, "url": "https://example.test/7"}])
+    monkeypatch.setattr(staging_pr, "git_sha", lambda _repo, ref: BASE if ref == "staging" else HEAD)
+    monkeypatch.setattr(staging_pr, "verify_remote", lambda *args: None)
+    monkeypatch.setattr(staging_pr, "gh_json", lambda args: [{"number": 7, "url": "https://example.test/7",
+                        "headRefOid": HEAD, "baseRefOid": BASE, "baseRefName": "staging"}])
 
     result = staging_pr.create_staging_pr(
         report, tmp_path, "owner/repo", "candidate", "staging",

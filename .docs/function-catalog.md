@@ -3,6 +3,25 @@
 Initial catalog, 2026-09-15. Core script APIs are internal Python interfaces;
 CLI output/exit changes must still be documented and regression-tested.
 
+## Task 0042 contract revisions (supersede earlier signatures below)
+
+| API | Current contract |
+|---|---|
+| `ci_receipts.test_status(path, base_sha, head_sha)` | Requires versioned JSON exit evidence for the exact pair; bare exit-code text is rejected. |
+| `integration_gate.staged_workspace(repo, head_sha=None, base_sha=None)` | Archives an exact commit or clean base/head merge tree; `run_integration` emits executed-tree provenance. |
+| `infra_dry_run._clean_workspace(repo, head_sha)` | Archives the exact candidate, not checkout HEAD. |
+| `policy_integrity.build_report(repo, base, head, policy_ref=None, review_evidence=None)` | Protects the complete script/workflow/skill surface; only a protected caller can supply API-verified independent review evidence. |
+| `visual_receipt.validate_report(report, base_sha, head_sha, artifact_root=None, threshold=0.0)` | Requires an artifact root; verifies hashes, containment and consistent counts against a trusted threshold. |
+| `worker_supervisor.supervise(..., cleanup_command=None)` | Blocks without a trusted host teardown argv. Fresh callback JSON, never child-written files, supplies postconditions on every exit path. |
+| `meta_test.run_fixture(..., observer_command=None, skills_root=None)` | Observes disk state; independent observer supplies tests/trace; records installed candidate skill hash. `run_suite` forwards the same options. |
+| `meta_test_dispatch.dispatch(..., cleanup_command=None, observer_command=None, source_repo=None)` | Requires candidate checkout identity, clean skills, fresh outputs, host teardown, and fixture/skill provenance. |
+| `staging_gate.evaluate(..., repository=None)` | Requires merge-tree integration proof. CLI requires `--repository`. |
+| `staging_pr.verify_remote` / `verify_pr` | Validate actual GitHub repository/head/base before and after draft creation; races block promotion. |
+| `receipt_journal.append_event` | Atomic concurrent insert-or-verify; schema checked; timezone normalized; metadata conflicts rejected. |
+
+All these validators check consistency. Authenticity depends on protected
+callers and host isolation; see `runbooks/review-remediation.md`.
+
 | Script | Entry points / responsibility |
 |---|---|
 | `admission_gate.py` | `evaluate(risk, receipts, base_sha, head_sha)` validates schema v1, identities and obligations; `main()` returns 0 admitted, 1 unmet gate, 2 invalid input. Input authenticity is a caller obligation. |

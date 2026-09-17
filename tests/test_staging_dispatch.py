@@ -14,10 +14,16 @@ HEAD = "b" * 40
 
 def test_compose_body_keeps_evidence_visible(tmp_path: Path):
     body = tmp_path / "body.md"
-    intelligence = tmp_path / "intelligence.md"
+    intelligence = tmp_path / "intelligence.json"
     body.write_text("Candidate survived isolated integration.\n", encoding="utf-8")
-    intelligence.write_text("## Risk\n\n`high`\n", encoding="utf-8")
-    result = staging_dispatch.compose_body(body, intelligence)
+    intelligence.write_text(json.dumps({"schema_version": 1, "intelligence_version": 1,
+        "base_sha": BASE, "head_sha": HEAD,
+        "risk": {"level": "high", "triggers": [], "affected_module_count": 0, "required_gate_count": 1},
+        "diff": {"changed_file_count": 1, "churn": 1, "additions": 1, "deletions": 0},
+        "gates": {"passed_count": 1, "observed_count": 1, "status": "complete"},
+        "test_impact": {}, "human_review": {"checkpoint": "before staging", "decision": "required_before_staging", "triggers": []},
+        "contact_surfaces": {}}), encoding="utf-8")
+    result = staging_dispatch.compose_body(body, intelligence, BASE, HEAD)
     assert "isolated integration" in result
     assert "`high`" in result
     assert "---" in result

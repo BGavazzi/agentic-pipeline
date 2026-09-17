@@ -18,11 +18,12 @@ import argparse
 import json
 import re
 import time
+import hashlib
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = 1
-FULL_SHA = re.compile(r"^[0-9a-f]{40,64}$")
+FULL_SHA = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -77,6 +78,20 @@ def evaluate(
         }
     if benchmark.get("promotion_ready") is not True:
         blockers["benchmark"] = "promotion_ready=false"
+    selector = hashlib.sha256(Path(__file__).with_name("test_impact.py").read_bytes()).hexdigest()
+    fixtures = Path(__file__).resolve().parents[1] / "tests/impact/fixtures"
+    corpus = hashlib.sha256(b"".join(path.name.encode() + path.read_bytes()
+                            for path in sorted(fixtures.glob("*.json")))).hexdigest()
+    if (benchmark.get("benchmark_version") != "0.3" or benchmark.get("selector_sha256") != selector
+            or benchmark.get("corpus_sha256") != corpus):
+        blockers["benchmark_identity"] = "selector/corpus/version mismatch"
+    execution = shadow.get("execution", {})
+    selected_shadow = shadow.get("impact", {}).get("selected_tests")
+    if not isinstance(selected, list) or selected_shadow != selected:
+        blockers["executed_selection"] = "shadow did not execute the declared subset"
+    for document in (shadow.get("impact", {}), execution):
+        if document.get("base_sha") != base_sha or document.get("head_sha") != head_sha:
+            blockers["execution_identity"] = "nested shadow evidence is stale"
     if shadow.get("status") != "pass" or shadow.get("execution", {}).get("status") != "pass":
         blockers["shadow"] = str(shadow.get("status", "missing"))
     if integration.get("status") != "pass":

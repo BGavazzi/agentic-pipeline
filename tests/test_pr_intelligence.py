@@ -72,7 +72,8 @@ def test_build_binds_diff_stats_and_optional_receipts(tmp_path: Path):
         "affected_modules": [], "risk_level": "low", "risk_triggers": [],
         "required_gates": ["unit"]}), encoding="utf-8")
     receipts = tmp_path / "receipts.json"
-    receipts.write_text(json.dumps({"gates": [{"gate": "unit", "status": "pass"},
+    receipts.write_text(json.dumps({"schema_version": 1, "base_sha": base, "head_sha": head,
+        "gates": [{"gate": "unit", "status": "pass"},
         {"gate": "sast", "status": "pass"}, {"gate": "sca", "status": "pass"},
         {"gate": "secrets", "status": "pass"}, {"gate": "policy", "status": "pass"}]}), encoding="utf-8")
     report = module.build_intelligence(repo, risk_path, base, head, receipts)

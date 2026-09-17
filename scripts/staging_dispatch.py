@@ -17,18 +17,23 @@ from typing import Any
 
 try:
     from . import staging_pr
+    from .pr_intelligence import markdown
 except ImportError:  # pragma: no cover
     import staging_pr  # type: ignore
+    from pr_intelligence import markdown
 
 
-def compose_body(body_file: Path, intelligence_file: Path | None) -> str:
+def compose_body(body_file: Path, intelligence_file: Path | None,
+                  base_sha: str | None = None, head_sha: str | None = None) -> str:
     body = body_file.read_text(encoding="utf-8")
     if intelligence_file is None:
         return body
-    intelligence = intelligence_file.read_text(encoding="utf-8").strip()
-    if not intelligence:
-        return body
-    return body.rstrip() + "\n\n---\n\n" + intelligence + "\n"
+    intelligence = json.loads(intelligence_file.read_text(encoding="utf-8"))
+    if (not base_sha or not head_sha or not isinstance(intelligence, dict)
+            or intelligence.get("schema_version") != 1 or intelligence.get("intelligence_version") != 1
+            or intelligence.get("base_sha") != base_sha or intelligence.get("head_sha") != head_sha):
+        raise ValueError("intelligence must be a versioned JSON report for the exact commit pair")
+    return body.rstrip() + "\n\n---\n\n" + markdown(intelligence) + "\n"
 
 
 def dispatch(
@@ -55,12 +60,17 @@ def dispatch(
 
     with tempfile.TemporaryDirectory(prefix="pipeline-staging-body-") as raw:
         composed = Path(raw) / "body.md"
-        composed.write_text(compose_body(body_file, intelligence_file), encoding="utf-8")
+        rendered = compose_body(body_file, intelligence_file, expected_base, expected_head)
+        composed.write_text(rendered, encoding="utf-8")
         result = staging_pr.create_staging_pr(
             eligibility, repo_path, repo, head, base, title, composed,
             dry_run=not create,
         )
     result["write_authorized"] = create
+    if "command" in result:
+        result["command_preview"] = result.pop("command")
+        result["body"] = rendered
+        result["command_preview_note"] = "Temporary body path is not reusable; body text is included separately."
     result["human_review_required"] = True
     return result
 

@@ -1,5 +1,10 @@
 # Runbook — ephemeral homelab worker pool
 
+> **Quarantined as of task 0042.** CI currently routes all candidate jobs to
+> GitHub-hosted runners, even when USE_HOMELAB_POOL is true. The activation
+> checklist below is necessary but not evidence it has been completed. See
+> [review remediation](review-remediation.md) for the new trusted host contracts.
+
 This runbook covers trusted CI workers for `agentic-pipeline`. It does not
 contain credentials and must not be used to expose `sao-bernardino-brain`, the
 Evolution/WhatsApp credentials, or any other confidential local-only data.
@@ -107,17 +112,22 @@ python scripts/worker_supervisor.py \
   --post-facts "$RUNNER_TEMP/homelab-worker-post-facts.json" \
   --require-docker \
   --output .docs/worker-reports/lifecycle.json \
+  --cleanup-command /opt/pipeline/trusted-host-teardown \
   --command ./run.sh
 ```
 
 The pre-run facts must describe an eligible ephemeral worker with zero prior
 jobs, a clean workspace, zero mounted secrets, and (when required) reachable
 Docker. The runner command is an argv-only process; the supervisor does not
-mint tokens or register the worker. After it exits, the host wrapper must write
-post-run facts proving `jobs_completed: 1`, `workspace_clean: true`,
+mint tokens or register the worker. After any exit (including failure/timeout),
+the separate trusted host teardown adapter must return fresh JSON on stdout
+with the supervisor-provided `PIPELINE_CLEANUP_ATTEMPT` as `attempt_id` and
+facts proving `jobs_completed: 1`, `workspace_clean: true`,
 `mounted_secret_count: 0`, and `registered: false`. Any missing or contradictory
 fact produces a non-pass `worker-lifecycle` receipt and the pool remains
-ineligible.
+ineligible. `/opt/pipeline/trusted-host-teardown` is an operator-provided adapter,
+not a bundled executable. The candidate must not share its filesystem or
+credentials. Candidate-written post-facts files are no longer accepted.
 
 ## Machine-checkable preflight
 
@@ -131,11 +141,7 @@ Example receipt command on a disposable worker:
 
 ```bash
 python scripts/worker_preflight.py \
-  --worker-kind self-hosted \
-  --labels homelab-pool,self-hosted \
-  --ephemeral \
-  --workspace-clean \
-  --docker-reachable \
+  --facts "$RUNNER_TEMP/homelab-worker-facts.json" \
   --require-docker \
   --output .docs/worker-reports/preflight.json
 ```
@@ -145,6 +151,10 @@ For CI, the supervisor must write the same facts as JSON to
 `worker_kind`, `labels`, `ephemeral`, `jobs_completed`, `workspace_clean`,
 `mounted_secret_count`, and `docker_reachable`. The workflow refuses to run a
 self-hosted lane when that file is absent.
+
+The current supervisor schema additionally requires a boolean `fork_pr` from
+the trusted event dispatcher; omitting event trust is not equivalent to a
+trusted event. A true value always prohibits a self-hosted worker.
 
 The receipt records `worker_age_jobs`, `mounted_secret_count`, cleanup,
 Docker reachability, and fork-to-pool routing metrics. It is an operational

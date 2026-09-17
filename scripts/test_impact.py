@@ -15,6 +15,11 @@ import json
 import subprocess
 from pathlib import Path
 
+try:
+    from .integration_gate import staged_workspace, commit_sha
+except ImportError:
+    from integration_gate import staged_workspace, commit_sha
+
 SCHEMA_VERSION = 1
 
 
@@ -41,7 +46,7 @@ def _imports(path: Path, module: str) -> set[str]:
     except (OSError, SyntaxError, UnicodeError):
         return set()
     result: set[str] = set()
-    package = module.rsplit(".", 1)[0] if "." in module else ""
+    package = module if path.name == "__init__.py" else (module.rsplit(".", 1)[0] if "." in module else "")
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             result.update(alias.name for alias in node.names)
@@ -58,6 +63,7 @@ def _imports(path: Path, module: str) -> set[str]:
                 name = node.module or ""
             if name:
                 result.add(name)
+                result.update(name + "." + alias.name for alias in node.names if alias.name != "*")
     return result
 
 
@@ -112,23 +118,48 @@ def _reverse_dependency_closure(
 
 
 def analyze(repo: Path, base: str, head: str) -> dict:
+    base, head = commit_sha(repo, base), commit_sha(repo, head)
+    with staged_workspace(repo, head) as tree:
+        return _analyze(repo, base, head, tree)
+
+
+def _analyze(repo: Path, base: str, head: str, tree: Path) -> dict:
     changed = [line for line in _git(repo, "diff", "--name-only",
-                                     "--diff-filter=ACMR", f"{base}..{head}").splitlines()
+                                     "--diff-filter=ACDMRT", f"{base}..{head}").splitlines()
                if line]
-    tracked = [line for line in _git(repo, "ls-files").splitlines() if line]
+    tracked = [line for line in _git(repo, "ls-tree", "-r", "--name-only", head).splitlines() if line]
     test_files = sorted(path for path in tracked if path.endswith(".py") and (
         path.startswith("tests/") or Path(path).name.startswith("test_")
         or Path(path).name.endswith("_test.py")))
     selected: set[str] = set()
     reasons: list[str] = []
     fallback = False
+    for path in tracked:
+        if not path.endswith(".py"):
+            continue
+        try:
+            parsed = ast.parse((tree / path).read_text(encoding="utf-8"))
+            dynamic = any(isinstance(node, ast.Call) and (
+                isinstance(node.func, ast.Name) and node.func.id == "__import__" or
+                isinstance(node.func, ast.Attribute) and node.func.attr in {"import_module", "spec_from_file_location"})
+                for node in ast.walk(parsed))
+            if dynamic:
+                fallback = True
+                reasons.append(f"dynamic import graph: {path}")
+        except (OSError, SyntaxError, UnicodeError):
+            fallback = True
+            reasons.append(f"unparseable module: {path}")
 
     module_paths = {_module_name(path): path for path in tracked if path.endswith(".py")}
     changed_modules = {_module_name(path) for path in changed if path.endswith(".py")}
     dependency_closure = _reverse_dependency_closure(
-        repo, tracked, module_paths, changed_modules,
+        tree, tracked, module_paths, changed_modules,
     )
     for changed_path in changed:
+        if changed_path not in tracked or Path(changed_path).name == "conftest.py":
+            fallback = True
+            reasons.append(f"deleted file or shared pytest configuration: {changed_path}")
+            continue
         if not changed_path.endswith(".py"):
             fallback = True
             reasons.append(f"non-python change: {changed_path}")
@@ -141,7 +172,7 @@ def analyze(repo: Path, base: str, head: str) -> dict:
         selected.update(direct)
         for test in test_files:
             module = _module_name(test)
-            imported = _imports(repo / test, module)
+            imported = _imports(tree / test, module)
             if module in dependency_closure or any(
                 target in dependency_closure
                 or any(target.startswith(changed_module + ".")

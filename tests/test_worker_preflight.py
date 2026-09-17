@@ -76,6 +76,7 @@ def test_negative_counters_are_invalid():
 def test_supervisor_facts_file_can_supply_self_hosted_runtime_state(tmp_path: Path):
     facts = tmp_path / "worker-facts.json"
     facts.write_text(json.dumps({
+        "fork_pr": False,
         "worker_kind": "self-hosted",
         "labels": ["self-hosted", "homelab-pool"],
         "ephemeral": True,

@@ -35,16 +35,42 @@ from typing import Iterator
 SCHEMA_VERSION = 1
 DEFAULT_TIMEOUT_SECONDS = 900
 DEFAULT_COMMAND = (sys.executable, "-m", "pytest", "tests", "-q")
-FULL_SHA = re.compile(r"^[0-9a-f]{40,64}$")
+FULL_SHA = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+
+
+def commit_sha(repo: Path, ref: str) -> str:
+    result = subprocess.run(["git", "rev-parse", "--verify", "--end-of-options",
+                             ref + "^{commit}"], cwd=repo, capture_output=True,
+                            text=True, timeout=60)
+    if result.returncode or not FULL_SHA.fullmatch(result.stdout.strip()):
+        raise ValueError("commit does not exist or is not a commit")
+    return result.stdout.strip()
+
+
+def execution_tree(repo: Path, head_sha: str, base_sha: str | None = None) -> str:
+    if commit_sha(repo, head_sha) != head_sha:
+        raise ValueError("candidate must be an exact commit SHA")
+    if base_sha is None:
+        return head_sha
+    if commit_sha(repo, base_sha) != base_sha:
+        raise ValueError("base must be an exact commit SHA")
+    merged = subprocess.run(["git", "merge-tree", "--write-tree", base_sha, head_sha],
+                            cwd=repo, capture_output=True, text=True, timeout=60)
+    tree = merged.stdout.splitlines()[0] if merged.stdout else ""
+    if merged.returncode or not FULL_SHA.fullmatch(tree):
+        raise ValueError("candidate cannot merge cleanly with the exact base")
+    return tree
 
 
 @contextmanager
-def staged_workspace(repo: Path) -> Iterator[Path]:
+def staged_workspace(repo: Path, head_sha: str | None = None,
+                     base_sha: str | None = None) -> Iterator[Path]:
     """Yield a temporary tree containing only the committed candidate HEAD."""
+    tree = execution_tree(repo, head_sha or commit_sha(repo, "HEAD"), base_sha)
     with tempfile.TemporaryDirectory(prefix="pipeline-integration-") as raw:
         workspace = Path(raw)
         archive = subprocess.run(
-            ["git", "archive", "--format=tar", "HEAD"],
+            ["git", "archive", "--format=tar", tree],
             cwd=repo,
             capture_output=True,
             timeout=60,
@@ -71,6 +97,7 @@ def run_integration(
 ) -> dict:
     """Run ``command`` in a committed, temporary copy and return evidence."""
     _validate_identity(base_sha, head_sha)
+    tree = execution_tree(repo, head_sha, base_sha)
     if not command:
         raise ValueError("integration command must not be empty")
     if timeout_seconds <= 0:
@@ -84,13 +111,19 @@ def run_integration(
         "head_sha": head_sha,
         "status": "error",
         "isolated": True,
-        "workspace_source": "git-archive-head",
+        "workspace_source": "git-archive-merge-tree",
+        "executed_tree": tree,
+        "integration_mode": "base-head-merge",
+        "security_isolation": "external-worker-required",
         "command": list(command),
         "metrics": {},
     }
     try:
-        with staged_workspace(repo) as workspace:
+        with staged_workspace(repo, head_sha, base_sha) as workspace:
             env = dict(os.environ)
+            # Never import modules from the originating checkout in a clean run.
+            env.pop("PYTHONPATH", None)
+            env.pop("PYTHONHOME", None)
             env.update({"CI": "1", "PYTHONDONTWRITEBYTECODE": "1"})
             try:
                 result = subprocess.run(

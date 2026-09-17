@@ -25,6 +25,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    from .admission_gate import evaluate
+except ImportError:
+    from admission_gate import evaluate
+
 SCHEMA_VERSION = 1
 
 # Ordered from most specific to broadest.  A file can contribute to several
@@ -115,18 +120,17 @@ def gate_metrics(receipts: dict[str, Any] | None, risk: dict[str, Any]) -> dict[
     if not isinstance(items, list):
         return {"status": "invalid", "required_count": 0, "observed_count": 0, "passed_count": 0,
                 "failed_or_nonpass": [], "missing_required": list(risk.get("required_gates", []))}
+    decision = evaluate(risk, receipts, risk["base_sha"], risk["head_sha"])
     statuses = {item.get("gate"): item.get("status") for item in items
                 if isinstance(item, dict) and isinstance(item.get("gate"), str)}
     required = set(risk.get("required_gates", [])) | {"sast", "sca", "secrets", "policy"}
-    nonpass = sorted(f"{name}:{statuses.get(name, 'missing')}" for name in required
-                     if statuses.get(name) != "pass")
+    nonpass = sorted(f"{name}:{status}" for name, status in decision["blockers"].items())
     return {
         "status": "complete" if not nonpass else "blocked",
         "required_count": len(required),
         "observed_count": len(statuses),
         "passed_count": sum(value == "pass" for value in statuses.values()),
-        "evidence_completeness": ((len(required) - len(nonpass)) / len(required)
-                                   if required else 0.0),
+        "evidence_completeness": decision["metrics"]["evidence_completeness"],
         "failed_or_nonpass": nonpass,
         "missing_required": sorted(name for name in required if name not in statuses),
         "statuses": dict(sorted(statuses.items())),
@@ -207,7 +211,12 @@ def build_intelligence(repo: Path, risk_path: Path, base_sha: str, head_sha: str
     stats["test_to_source_file_ratio"] = (test_file_count / source_file_count
                                            if source_file_count else None)
     gate = gate_metrics(read_json(receipts_path), risk)
-    impact = impact_metrics(read_json(impact_path), read_json(promotion_path))
+    impact_report, promotion_report = read_json(impact_path), read_json(promotion_path)
+    for doc in (impact_report, promotion_report):
+        if doc is not None and (not isinstance(doc, dict) or doc.get("schema_version") != 1
+                               or doc.get("base_sha") != base_sha or doc.get("head_sha") != head_sha):
+            raise ValueError("optional impact evidence is stale or invalid")
+    impact = impact_metrics(impact_report, promotion_report)
     review = human_review(paths, risk, stats, gate, surfaces_map, impact)
     return {
         "schema_version": SCHEMA_VERSION,

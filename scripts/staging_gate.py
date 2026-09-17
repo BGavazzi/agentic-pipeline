@@ -41,7 +41,8 @@ def _validate_sha(value: str, label: str) -> None:
         raise ValueError(f"{label} must be a full hexadecimal commit SHA")
 
 
-def evaluate(scorecard: dict, integration: dict, base_sha: str, head_sha: str) -> dict:
+def evaluate(scorecard: dict, integration: dict, base_sha: str, head_sha: str,
+             repository: str | None = None) -> dict:
     """Return a fail-closed staging eligibility decision."""
     _validate_sha(base_sha, "base_sha")
     _validate_sha(head_sha, "head_sha")
@@ -64,6 +65,10 @@ def evaluate(scorecard: dict, integration: dict, base_sha: str, head_sha: str) -
         blockers["integration"] = str(integration.get("status", "missing"))
     if integration.get("isolated") is not True:
         blockers["integration_isolation"] = "not_isolated"
+    if integration.get("integration_mode") != "base-head-merge":
+        blockers["integration_mode"] = "exact base/head merge was not tested"
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(integration.get("executed_tree", ""))):
+        blockers["executed_tree"] = "missing"
 
     score_metrics = scorecard.get("metrics")
     if not isinstance(score_metrics, dict):
@@ -88,6 +93,7 @@ def evaluate(scorecard: dict, integration: dict, base_sha: str, head_sha: str) -
         "head_sha": head_sha,
         "eligible": not blockers,
         "target": "staging-review",
+        "repository": repository,
         "blockers": blockers,
         "metrics": {
             "evidence_completeness": completeness,
@@ -110,11 +116,12 @@ def main() -> int:
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--repository", required=True)
     args = parser.parse_args()
     try:
         result = evaluate(
             read_json(args.scorecard), read_json(args.integration_report),
-            args.base_sha, args.head_sha,
+            args.base_sha, args.head_sha, args.repository,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

@@ -1,5 +1,28 @@
 # Continuity — Codex
 
+## 2026-09-16 — Task 0042, reviewed stack remediation
+
+- User explicitly requested fixes for review findings across open PRs #14–#44.
+- Working in `D:\VIBES\agentic-pipeline-0042`, branch
+  `fix/0042-review-remediation`, based on the full reviewed stack at `86006aa`.
+  Original worktrees and branches are preserved. Main checkout is not touched.
+- Implemented scanner veto propagation, commit-bound unit evidence, exact merge
+  execution, strict host lifecycle/independent observations, remote staging
+  identity, visual hash/count validation, policy coverage and least privilege,
+  conservative TIA and benchmark/subset binding, provenance and telemetry fixes.
+- Full regression run including live Docker clean/planted scanner contracts:
+  265 passed, no skips. Worker/event-facts focused rerun: 53 passed. Final
+  committed-tree verification follows before PR handoff.
+- Critical deployment fact: GitHub master has no branch protection. Trusted
+  workflows and immutable policy pin are not activated just by opening this PR.
+  Do not claim enforced security or bypass review/other absent evidence.
+- Homelab candidate routing is quarantined until host isolation/teardown/trace
+  adapters are demonstrated. No confidential repository, host credentials, or
+  homelab state was accessed or mutated.
+- Source/API changes and activation checklist are in
+  `.docs/runbooks/review-remediation.md`. Task remains in_progress pending PR
+  approval and operational activation; never report an open PR as shipped.
+
 ## 2026-09-15 — Task 0009, first implementation slice
 
 - User authorized SOTA hardening. Isolated worktree from freshly fetched

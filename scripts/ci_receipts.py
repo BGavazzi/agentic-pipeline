@@ -18,12 +18,16 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_status(path: Path) -> str:
+def test_status(path: Path, base_sha: str, head_sha: str) -> str:
     try:
-        value = path.read_text(encoding="utf-8").strip()
-    except OSError:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if (not isinstance(value, dict) or value.get("schema_version") != 1 or
+                value.get("base_sha") != base_sha or value.get("head_sha") != head_sha or
+                type(value.get("exit_code")) is not int):
+            return "error"
+    except (OSError, ValueError, TypeError):
         return "error"
-    return "pass" if value == "0" else "fail"
+    return "pass" if value["exit_code"] == 0 else "fail"
 
 
 def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
@@ -38,7 +42,7 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
     scan = read_json(scan_path)
     if risk.get("base_sha") != base_sha or risk.get("head_sha") != head_sha:
         raise ValueError("risk report is for a different commit pair")
-    if scan.get("base_sha") not in (None, base_sha) or scan.get("head_sha") not in (None, head_sha):
+    if scan.get("base_sha") != base_sha or scan.get("head_sha") != head_sha:
         raise ValueError("scan report is for a different commit pair")
 
     integration = None
@@ -89,13 +93,21 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
             raise ValueError("meta-test report is for a different commit pair")
 
     statuses = {
-        "unit": test_status(unit_exit_path),
+        "unit": test_status(unit_exit_path, base_sha, head_sha),
         "sast": scan.get("tool_status", {}).get("semgrep", {}).get("status", "error"),
         "sca": scan.get("tool_status", {}).get("trivy", {}).get("status", "error"),
         "secrets": scan.get("tool_status", {}).get("gitleaks", {}).get("status", "error"),
     }
     statuses = {name: ("pass" if status == "ok" else status)
                 for name, status in statuses.items()}
+    # Execution success is not a security verdict. Unknown/contradictory
+    # aggregate evidence must veto every scanner receipt conservatively.
+    verdict = scan.get("verdict")
+    findings = scan.get("blocking_findings")
+    if verdict != "pass" or not isinstance(findings, list) or findings:
+        status = "fail" if verdict == "block" or findings else "error"
+        for name in ("sast", "sca", "secrets"):
+            statuses[name] = status
     if integration is not None:
         statuses["integration"] = integration.get("status", "error")
         if statuses["integration"] not in {"pass", "fail", "error"}:

@@ -223,6 +223,8 @@ def test_sync_conventions_skips_drifted_file(source: Path, target: Path):
 
 def test_sync_vendor_metadata_describes_canonical_source_and_inventory(source: Path, target: Path):
     manifest = {}
+    core_sync.sync_skills(source, target, None, False, manifest)
+    core_sync.sync_gate_scripts(source, target, False, manifest)
     result = core_sync.sync_vendor_metadata(source, target, dry_run=False, manifest=manifest)
 
     path = target / ".claude/skills/VENDORED.md"

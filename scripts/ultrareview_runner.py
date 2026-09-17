@@ -55,7 +55,7 @@ def run_reviewer(repo: Path, task_id: str, base_sha: str, head_sha: str,
         )
         if diff.returncode != 0:
             return _error_receipt(task_id, base_sha, head_sha, "could not build review diff")
-        with staged_workspace(repo) as workspace:
+        with staged_workspace(repo, head_sha) as workspace:
             context_dir = workspace / ".pipeline-review-context"
             context_dir.mkdir()
             diff_path = context_dir / "diff.patch"
