@@ -147,6 +147,17 @@ missing screenshots or baselines; this repo still does not launch a browser by
 itself. That keeps the generic core honest while making visual evidence
 machine-admissible for repos such as PortalApp or a future Bluemagic frontend.
 
+Task 0054 adds `examples/playwright/storybook_capture.mjs`, a deliberately thin
+consumer adapter for a protected Storybook view set. The protected caller owns
+the Storybook process, the schema-v1 baseline manifest and the artifact root;
+the adapter checks that every declared story exists, uses only its declared
+viewport, waits for the rendered root and emits one bounded JSON manifest for
+`scripts/playwright_visual_producer.py`. It writes screenshots locally only:
+it does not call Chromatic, upload artifacts, accept baselines from the
+candidate, or turn a browser run into an authenticity claim. A real local
+pilot against an approved private Storybook consumer produced a zero-diff
+receipt; private source names and screenshots are intentionally not committed.
+
 Task 0013 defines the homelab boundary: fork PRs stay on GitHub-hosted runners;
 trusted same-repo jobs may use the pool only after ephemeral/JIT workers,
 disposable workspaces, zero host-secret mounts, cleanup, revocation, and pool

@@ -1,5 +1,18 @@
 # Continuity — Codex
 
+## 2026-09-17 — Task 0054, approved Storybook/Playwright visual pilot
+
+- Added the generic `examples/playwright/storybook_capture.mjs` consumer
+  adapter. It verifies a protected schema-v1 Storybook view set, captures only
+  declared viewports with Chromium, fails on missing stories/page errors, and
+  emits bounded JSON for the existing visual producer.
+- Added a Node syntax/CLI contract test. A real local run against an approved
+  private Storybook consumer produced a zero-diff receipt; private repository
+  names, source and screenshots remain local and are not committed.
+- Durable browser-image, baseline-store, protected-worker and CI activation
+  choices remain open. This is evidence of a real run, not a claim of
+  cryptographic authenticity or branch-protection enforcement.
+
 ## 2026-09-17 — Task 0043, trusted evidence W1
 
 - PR #45 merged as c5803e4; superseded stack is closed/merged and preserved.

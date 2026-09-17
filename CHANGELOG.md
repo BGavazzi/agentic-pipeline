@@ -1,6 +1,21 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Add the approved Storybook/Playwright visual pilot (task 0054)
+### Added
+- `examples/playwright/storybook_capture.mjs` captures an exact, protected
+  Storybook view manifest with declared Chromium viewports and emits bounded
+  candidate paths for the existing pixel-evidence producer.
+- The adapter fails closed on missing stories, invalid viewports, page errors or
+  timeouts and never uploads screenshots or selects a baseline.
+- A real private-frontend pilot passed locally with a zero-diff receipt; no
+  private source, baseline or screenshot artifact is committed here.
+### Changed
+- The visual workflow is now documented as a consumer-owned Storybook process
+  plus a core-owned receipt contract, preserving the trust boundary between
+  browser execution and deterministic validation.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Add a real Playwright visual producer (task 0046)
 ### Added
 - `playwright_visual_producer.py` runs a protected runtime-supplied browser
