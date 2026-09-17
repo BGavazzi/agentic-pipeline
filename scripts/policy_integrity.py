@@ -30,6 +30,7 @@ POLICY_PATHS = (
     "scripts/infra_dry_run.py",
     "scripts/meta_test.py",
     "scripts/worker_supervisor.py",
+    "scripts/worker_boundary.py",
     "scripts/policy_integrity.py",
     "scripts/quality_scorecard.py",
     "scripts/quota_gate.py",

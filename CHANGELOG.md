@@ -1,6 +1,20 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Require an external sandbox contract before worker launch (task 0044)
+### Added
+- `worker_boundary.py` validates disposable container/VM, host-mount/socket and
+  privilege denial, explicit network/credential scope, trusted external ownership,
+  resource limits and destroy/revoke lifecycle.
+- Boundary-focused negative tests and runbook/CLI contract documentation.
+### Changed
+- Worker supervisor and meta-test dispatcher can require the external attestation
+  and block before candidate launch. Compatibility mode remains explicit for local
+  synthetic tests; no homelab route or host state was changed.
+### Not activated
+- A real isolated host adapter, runner registration, policy pin and required
+  platform controls remain pending; the attestation validator is not host proof.
+
 ## [2026-09-17] - Verify trusted policy evidence and review freshness (task 0043)
 ### Added
 - Metadata-only, read-only GitHub policy producer and versioned envelope bound

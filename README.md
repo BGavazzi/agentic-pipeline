@@ -10,6 +10,15 @@ policy producer only: final protected admission and the other independent
 producers still require activation. See the [controlled refresh and pilot
 checklist](.docs/runbooks/protected-policy-workflow.md#task-0043-controlled-producer-and-api-verifier).
 
+## External worker boundary (task 0044)
+
+Self-hosted execution is still quarantined. Real worker dispatch must provide an
+external `worker_boundary.py` attestation: disposable container/VM, no host
+mounts or Docker socket, explicit network policy, no host secrets, bounded
+resources, trusted observer/cleanup ownership, and destruction/revocation after
+every outcome. The supervisor blocks before launch when `--require-boundary` is
+set and those facts are missing or unsafe. See the [homelab boundary runbook](.docs/runbooks/homelab-runner-pool.md#task-0044-boundary-contract).
+
 > **Task 0042 security compatibility update:** the reviewed stack now rejects
 > stale/contradictory evidence, tests exact base/head merge trees, and requires
 > host-observed worker teardown. Homelab routing is quarantined until real

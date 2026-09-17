@@ -1,5 +1,22 @@
 # Runbook — ephemeral homelab worker pool
 
+## Task 0044 boundary contract
+
+Before a real worker receives candidate code, the external host adapter must
+produce a JSON attestation and the supervisor must run with `--require-boundary`
+and `--boundary-facts`. The validator requires disposable container/VM isolation;
+no host mounts, Docker socket or privileged mode; deny/explicit-allowlist
+networking; no host secrets; a short-lived single-job registration scope;
+trusted-host launcher/observer/cleanup ownership; host-API receipt ownership;
+CPU/memory/PID limits; disposable workspace; and destroy/revoke/teardown after
+success, failure and timeout. The candidate cannot write the receipt.
+
+This is a precondition, not proof that a hostile host is safe. The boundary is
+optional in backwards-compatible Python APIs, but real self-hosted/meta-test
+dispatch must require it. Absent or invalid facts block before candidate launch.
+Synthetic tests exercise this behavior; no live adapter or homelab route is
+enabled by this change.
+
 > **Quarantined as of task 0042.** CI currently routes all candidate jobs to
 > GitHub-hosted runners, even when USE_HOMELAB_POOL is true. The activation
 > checklist below is necessary but not evidence it has been completed. See

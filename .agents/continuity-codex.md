@@ -20,6 +20,18 @@
   bytes. Additional negative cases and final committed-tree proof follow below
   in the PR record; no producer activation was performed.
 
+## 2026-09-17 — Task 0044, external worker boundary W2
+
+- Started W2 in the clean worktree `D:\VIBES\agentic-pipeline-0043` after W1
+  PR #46; no W1 reimplementation or homelab mutation.
+- Added `worker_boundary.py` and optional required pre-launch validation in the
+  supervisor/meta-test dispatcher. Contract requires disposable container/VM,
+  no host mounts/socket/privilege/secrets, explicit network policy, external
+  launcher/observer/cleanup, resource limits and destroy/revoke lifecycle.
+- Added adversarial boundary tests and updated runbook/catalog/README/changelog.
+- Compatibility mode is retained for synthetic tests; real self-hosted execution
+  must use `--require-boundary`. Live adapter/pilot and routing remain pending.
+
 ## 2026-09-16 — Task 0042, reviewed stack remediation
 
 - User explicitly requested fixes for review findings across open PRs #14–#44.
