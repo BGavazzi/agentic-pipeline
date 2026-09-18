@@ -2,6 +2,12 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Dogfood task and closure validator contracts (task 0072)
+### Added
+- Adversarial unit coverage for valid/invalid task schemas and advisory versus
+  strict Task Closure Law behavior.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add tamper-evident receipt history (task 0071)
 ### Added
 - Receipt journal events now carry chained digests over immutable identity and
