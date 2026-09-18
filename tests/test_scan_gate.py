@@ -225,6 +225,18 @@ def test_docker_run_bind_mounts_extra_paths_and_creates_them(sandbox: Path, tmp_
     assert cmd[cmd.index("-w") + 1] == "/src"
 
 
+def test_scanner_workspace_strips_host_only_worktree_metadata(tmp_path: Path):
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / ".git").write_text("gitdir: D:/host/repo/.git/worktrees/consumer\n", encoding="utf-8")
+    write(worktree, "src/app.py", "print('ok')\n")
+
+    with scan_gate._scanner_workspace(worktree) as staged:
+        assert staged != worktree
+        assert (staged / "src/app.py").read_text(encoding="utf-8") == "print('ok')\n"
+        assert not (staged / ".git").exists()
+
+
 def test_run_trivy_mounts_a_cache_dir_by_default(sandbox: Path, monkeypatch):
     captured = {}
     monkeypatch.setattr(

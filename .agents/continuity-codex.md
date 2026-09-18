@@ -1,5 +1,16 @@
 # Continuity — Codex
 
+## 2026-09-17 — Task 0056, Windows worktree scanner boundary
+
+- The BlueMagic consumer migration exposed Semgrep failing inside Docker on a
+  mounted Windows worktree because `.git` pointed to a host-only path.
+- Added `_scanner_workspace()` to stage source-only trees for worktrees before
+  Semgrep, Trivy and Dependency-Check; ordinary checkouts keep the existing
+  direct mount and Trivy cache behavior.
+- Focused scan suite: 48 passed. A live rerun on the real worktree remains
+  pending because this task must prove the Docker path boundary, not just its
+  parser logic.
+
 ## 2026-09-17 — Task 0054, approved Storybook/Playwright visual pilot
 
 - Added the generic `examples/playwright/storybook_capture.mjs` consumer

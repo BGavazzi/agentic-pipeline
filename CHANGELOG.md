@@ -1,6 +1,20 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+## [2026-09-17] - Make Docker scanners work with Windows worktrees (task 0056)
+### Fixed
+- Semgrep, Trivy and optional Dependency-Check now receive a source-only
+  temporary tree when the checkout is a Git worktree, removing the host-only
+  `.git` pointer that Docker cannot resolve.
+- Dependency/build caches remain excluded from the staged scanner tree; ordinary
+  checkouts retain the existing fast path and Trivy cache behavior.
+### Added
+- Regression coverage for a Windows-style `gitdir: D:/...` worktree pointer.
+### Not activated
+- A live scanner run on the actual Windows worktree remains required; scanner
+  failures continue to block rather than degrade to pass.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-17] - Add the approved Storybook/Playwright visual pilot (task 0054)
 ### Added
 - `examples/playwright/storybook_capture.mjs` captures an exact, protected
