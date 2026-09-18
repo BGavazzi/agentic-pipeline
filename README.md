@@ -536,7 +536,9 @@ input to `staging_gate.py` and the human handoff, not an approval or merge
 authorization. For bounded re-discovery rounds, add `--state
 .docs/integration-reports/local-loop-state.json --max-rounds 3`; the loop skips
 only a PR whose immutable head SHA already reached a terminal local status, so
-a new push to that PR is considered again. Re-invoke it from the existing
+a new push to that PR is considered again. Only locally included candidates
+are suppressed; acute/conflicting/failing candidates remain visible for human
+disposition. Re-invoke it from the existing
 bounded `/loop`/quota process rather than running an unbounded daemon.
 
 ### 2. Fill in your constitution

@@ -11,7 +11,8 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   GitHub base-branch normalization, worktree cleanup between candidates, and a
   no-remote-write policy receipt.
 - Optional stateful, bounded rediscovery rounds skip only immutable heads that
-  already reached a terminal local status and accumulate round metrics.
+  survived local integration; unresolved human-review holds remain visible and
+  round metrics accumulate.
 ### Safety
 - High-risk, infrastructure, CI/workflow, harness-policy, schema and
   security/identity changes remain human-review holds before execution.

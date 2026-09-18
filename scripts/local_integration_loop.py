@@ -122,14 +122,21 @@ def save_state(path: Path | None, state: dict[str, Any]) -> None:
 
 
 def pending_candidates(candidates: Iterable[Candidate], state: dict[str, Any]) -> tuple[list[Candidate], int]:
-    """Skip only candidates whose immutable head already reached a terminal state."""
+    """Skip only candidates whose immutable head survived local integration.
+
+    A held candidate is intentionally *not* terminal: unresolved human review
+    must remain visible on the next bounded round.
+    """
     pending: list[Candidate] = []
     skipped = 0
     processed = state.get("processed", {})
     for candidate in candidates:
         entry = processed.get(str(candidate.number))
-        if (entry and candidate.head_sha and entry.get("head_sha") == candidate.head_sha
-                and entry.get("status") in {"included", "held_for_human"}):
+        candidate_identity = candidate.head_sha
+        if candidate_identity is None and FULL_SHA.fullmatch(candidate.ref):
+            candidate_identity = candidate.ref
+        if (entry and candidate_identity and entry.get("head_sha") == candidate_identity
+                and entry.get("status") == "included"):
             skipped += 1
             continue
         pending.append(candidate)
@@ -343,7 +350,7 @@ def run_loop(repo: Path, base_ref: str, candidates: Iterable[Candidate],
         report["round"] = round_number
         reports.append(report)
         for item in report["candidates"]:
-            if item.get("head_sha") and item.get("status") in {"included", "held_for_human"}:
+            if item.get("head_sha") and item.get("status") == "included":
                 state["processed"][str(item["pr"])] = {
                     "head_sha": item["head_sha"], "status": item["status"]}
         save_state(state_path, state)

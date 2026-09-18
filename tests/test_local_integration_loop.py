@@ -120,6 +120,18 @@ def test_stateful_loop_skips_same_immutable_head(tmp_path: Path):
     assert second["metrics"]["rounds_completed"] == 0
 
 
+def test_stateful_loop_keeps_acute_hold_visible(tmp_path: Path):
+    repo, _, _, acute = repo_with_candidates(tmp_path)
+    state = tmp_path / "state.json"
+    candidate = Candidate(2, "workflow", acute, head_sha=acute)
+    command = (sys.executable, "-c", "raise SystemExit(0)")
+    first = run_loop(repo, "master", [candidate], command, timeout=30, state_path=state)
+    second = run_loop(repo, "master", [candidate], command, timeout=30, state_path=state)
+    assert first["held_prs"] == [2]
+    assert second["held_prs"] == [2]
+    assert second["metrics"]["skipped_processed_count"] == 0
+
+
 def test_manifest_is_deterministic_and_validates_duplicate_ids(tmp_path: Path):
     path = tmp_path / "candidates.json"
     value = {"candidates": [{"number": 2, "title": "two", "ref": "abc"},

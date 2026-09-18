@@ -218,6 +218,8 @@
 - Acute-risk, conflict, unresolved-ref and failed-test candidates remain held
   for human review. The producer has no remote merge, push, approval, deploy,
   or secret-forwarding path.
+- Stateful rounds suppress only locally included immutable heads; unresolved
+  holds remain visible rather than being accidentally hidden by deduplication.
 - Focused verification: `tests/test_local_integration_loop.py` passes 7/7;
   dogfood against PR #66 correctly held it as acute/high-risk without merging.
 - Next: run the full gate suite, push a draft PR, and keep external worker/
