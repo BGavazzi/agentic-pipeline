@@ -230,3 +230,15 @@
   dogfood against PR #66 correctly held it as acute/high-risk without merging.
 - Next: run the full gate suite, push a draft PR, and keep external worker/
   scheduler/notification activation as a separate protected deployment task.
+
+## 2026-09-18 — Task 0067, agentic SDLC testing SOTA
+
+- Added `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md`, grounding the
+  next work queue in primary sources: Anthropic's scalable test-impact and
+  continuous-eval guidance, OpenHands benchmarks, SWE-bench reliability,
+  BrowserGym, Bazel hermeticity, and OpenTelemetry CI/CD semantics.
+- The report defines an evidence-graph model and metrics for correctness,
+  selector regret, security, agent behavior, visual evidence, reproducibility,
+  operations, and risk-weighted human accountability.
+- Next implementation slice: a versioned 20–50-case agent-eval corpus with
+  configuration-change triggers and cost/latency metrics.

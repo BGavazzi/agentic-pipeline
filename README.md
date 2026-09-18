@@ -368,6 +368,10 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   such as signed provenance, protected reviewer identity, ephemeral worker
   teardown, merge-queue activation and deployment rollback. Its denominator-
   first score is telemetry and never replaces `admission_gate.py`.
+- **[Agentic SDLC testing SOTA](.docs/analysis/agentic-sdlc-testing-sota-2026-09.md)** —
+  primary-source comparison of continuous agent evals, scalable test-impact
+  analysis, hermeticity, visual environments, provenance, and risk-weighted
+  human review, with a concrete implementation queue.
 - **`provenance_verify.py`** — creates and verifies a local digest contract for
   tag releases, binding the source archive and SPDX/CycloneDX SBOM to the exact
   commit, workflow and semantic-version ref. `.github/workflows/release-
