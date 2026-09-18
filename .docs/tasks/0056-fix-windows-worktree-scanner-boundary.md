@@ -28,7 +28,8 @@ preserve fail-closed semantics while making the input tree portable.
 - [x] Detect a worktree `.git` pointer before Docker scanner invocation.
 - [x] Stage a source-only tree without `.git`, dependency caches or build output.
 - [x] Keep ordinary checkout behavior and the Trivy cache contract unchanged.
-- [x] Add a regression test for a host-only Windows worktree pointer.
+- [x] Add regression tests for a host-only Windows worktree pointer and the
+      ordinary-checkout fast path.
 - [ ] Run the live scanner contract from a real Windows worktree after review.
 
 ## Affected Files

@@ -237,6 +237,33 @@ def test_scanner_workspace_strips_host_only_worktree_metadata(tmp_path: Path):
         assert not (staged / ".git").exists()
 
 
+def test_semgrep_receives_portable_tree_for_worktree(tmp_path: Path, monkeypatch):
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (worktree / ".git").write_text("gitdir: D:/host/repo/.git/worktrees/consumer\n", encoding="utf-8")
+    write(worktree, "src/app.py", "print('ok')\n")
+    captured = {}
+
+    def fake_docker(image, args, repo, extra_mounts=None):
+        captured["repo"] = repo
+        captured["has_source"] = (repo / "src/app.py").is_file()
+        captured["has_git"] = (repo / ".git").exists()
+        return scan_gate.DockerResult('{"results": []}', "", 0)
+
+    monkeypatch.setattr(scan_gate, "_docker_run", fake_docker)
+    result = scan_gate.run_semgrep(worktree, [])
+
+    assert result.returncode == 0
+    assert captured["repo"] != worktree
+    assert captured["has_source"]
+    assert not captured["has_git"]
+
+
+def test_scanner_workspace_keeps_ordinary_checkout_path(sandbox: Path):
+    with scan_gate._scanner_workspace(sandbox) as staged:
+        assert staged == sandbox.resolve()
+
+
 def test_run_trivy_mounts_a_cache_dir_by_default(sandbox: Path, monkeypatch):
     captured = {}
     monkeypatch.setattr(
