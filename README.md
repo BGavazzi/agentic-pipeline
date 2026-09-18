@@ -538,8 +538,10 @@ authorization. For bounded re-discovery rounds, add `--state
 only a PR whose immutable head SHA already reached a terminal local status, so
 a new push to that PR is considered again. Only locally included candidates
 are suppressed; acute/conflicting/failing candidates remain visible for human
-disposition. Re-invoke it from the existing
-bounded `/loop`/quota process rather than running an unbounded daemon.
+disposition. Cross-repository/fork PRs are held before ref fetch or code
+execution; they must use the GitHub-hosted untrusted lane and an explicit
+human decision. Re-invoke it from the existing bounded `/loop`/quota process
+rather than running an unbounded daemon.
 
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your

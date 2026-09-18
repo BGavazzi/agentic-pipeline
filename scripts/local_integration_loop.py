@@ -52,6 +52,9 @@ class Candidate:
     head_sha: str | None = None
     url: str | None = None
     base_ref: str | None = None
+    is_cross_repository: bool = False
+    head_repository: str | None = None
+    head_owner: str | None = None
 
 
 def _git(repo: Path, *args: str, check: bool = True) -> str:
@@ -84,7 +87,11 @@ def _candidate(value: dict[str, Any]) -> Candidate:
     head_sha = value.get("head_sha") or value.get("head_ref_oid")
     if head_sha is not None and (not isinstance(head_sha, str) or not FULL_SHA.fullmatch(head_sha)):
         raise ValueError("candidate head_sha is invalid")
-    return Candidate(number, title, ref, head_sha, value.get("url"), value.get("base_ref"))
+    cross_repository = value.get("is_cross_repository", value.get("isCrossRepository", False))
+    if type(cross_repository) is not bool:
+        raise ValueError("candidate cross-repository flag is invalid")
+    return Candidate(number, title, ref, head_sha, value.get("url"), value.get("base_ref"),
+                     cross_repository, value.get("head_repository"), value.get("head_owner"))
 
 
 def load_manifest(path: Path) -> list[Candidate]:
@@ -150,7 +157,8 @@ def discover_open(repo_slug: str, base: str) -> list[Candidate]:
     gh_base = base.removeprefix("origin/")
     result = subprocess.run(
         ["gh", "pr", "list", "--repo", repo_slug, "--base", gh_base, "--state", "open",
-         "--limit", "100", "--json", "number,title,headRefName,headRefOid,url,baseRefName"],
+         "--limit", "100", "--json",
+         "number,title,headRefName,headRefOid,url,baseRefName,isCrossRepository,headRepository,headRepositoryOwner"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if result.returncode != 0:
@@ -160,7 +168,10 @@ def discover_open(repo_slug: str, base: str) -> list[Candidate]:
         raise ValueError("gh PR list was not a JSON list")
     return [_candidate({"number": item["number"], "title": item["title"],
                         "ref": item["headRefName"], "head_sha": item["headRefOid"],
-                        "url": item.get("url"), "base_ref": item.get("baseRefName")})
+                        "url": item.get("url"), "base_ref": item.get("baseRefName"),
+                        "is_cross_repository": item.get("isCrossRepository", False),
+                        "head_repository": item.get("headRepository"),
+                        "head_owner": item.get("headRepositoryOwner")})
             for item in value if isinstance(item, dict)]
 
 
@@ -266,8 +277,26 @@ def integrate(repo: Path, base_ref: str, candidates: Iterable[Candidate],
         try:
             for candidate in ordered:
                 item: dict[str, Any] = {"pr": candidate.number, "title": candidate.title,
-                                        "url": candidate.url, "ref": candidate.ref}
+                                        "url": candidate.url, "ref": candidate.ref,
+                                        "fork_pr": candidate.is_cross_repository,
+                                        "head_repository": candidate.head_repository,
+                                        "head_owner": candidate.head_owner}
                 try:
+                    # Fork code is untrusted until a human explicitly routes
+                    # it through the GitHub-hosted lane. Never fetch, merge or
+                    # execute a cross-repository head in this local loop.
+                    if candidate.is_cross_repository:
+                        item.update({"classification": "acute", "risk_level": "high",
+                                     "risk_triggers": ["fork-pr"],
+                                     "required_gates": blast_radius.required_gates_for(
+                                         "high", ["fork-pr"]),
+                                     "contact_surfaces": {"security/identity": ["cross-repository PR head"]},
+                                     "human_review_required": True,
+                                     "status": "held_for_human",
+                                     "reason": "fork_pr_requires_human_review"})
+                        held.append(candidate.number)
+                        results.append(item)
+                        continue
                     head_sha = resolve_candidate(repo, candidate, fetch_missing=fetch_missing)
                     item["head_sha"] = head_sha
                     item.update(classify_candidate(repo, base_sha, candidate, head_sha))

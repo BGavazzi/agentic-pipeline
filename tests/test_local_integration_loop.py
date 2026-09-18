@@ -66,6 +66,22 @@ def test_loop_merges_routine_and_holds_acute_without_remote_write(tmp_path: Path
     assert not list(repo.glob("pipeline-local-integration-*"))
 
 
+def test_fork_candidate_is_held_before_ref_resolution(tmp_path: Path):
+    repo, _, _, _ = repo_with_candidates(tmp_path)
+    result = integrate(
+        repo,
+        "master",
+        [Candidate(9, "fork", "ref-that-must-not-be-fetched", is_cross_repository=True)],
+        (sys.executable, "-c", "raise SystemExit(0)"),
+        timeout=30,
+    )
+    item = result["candidates"][0]
+    assert result["held_prs"] == [9]
+    assert item["reason"] == "fork_pr_requires_human_review"
+    assert item["risk_level"] == "high"
+    assert item["required_gates"][-1] == "ultrareview"
+
+
 def test_failed_routine_is_held_and_local_merge_is_reverted(tmp_path: Path):
     repo, _, routine, _ = repo_with_candidates(tmp_path)
     result = integrate(

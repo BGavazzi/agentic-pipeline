@@ -39,6 +39,8 @@ candidate.
 - [x] Support bounded rediscovery rounds with local state keyed by immutable
       candidate head SHA; new pushes are considered again and unresolved holds
       remain visible until human disposition.
+- [x] Hold cross-repository/fork candidates before fetching or executing their
+      head code; route them to the untrusted hosted lane for explicit review.
 - [ ] Add a protected scheduler/worker consumer and notification channel as a
       separate deployment task; this local producer must remain bounded.
 

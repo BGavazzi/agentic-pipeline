@@ -13,6 +13,9 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Optional stateful, bounded rediscovery rounds skip only immutable heads that
   survived local integration; unresolved human-review holds remain visible and
   round metrics accumulate.
+- Cross-repository/fork candidates are held before ref resolution, local fetch,
+  merge, or execution, preventing untrusted fork code from entering the
+  homelab/local lane.
 ### Safety
 - High-risk, infrastructure, CI/workflow, harness-policy, schema and
   security/identity changes remain human-review holds before execution.
