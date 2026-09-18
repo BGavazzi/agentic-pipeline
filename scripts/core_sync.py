@@ -160,6 +160,7 @@ GATE_SCRIPTS = [
     "scan_gate.py",
     "quota_gate.py",
     "sota_audit.py",
+    "provenance_verify.py",
 ]
 
 # This repo's own AGENTS.md as it existed before task 0006 filled it in —

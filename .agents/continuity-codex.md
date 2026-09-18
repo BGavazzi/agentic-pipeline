@@ -1,5 +1,14 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0059, release provenance and SBOM
+
+- Started `D:\VIBES\agentic-pipeline-0060` from the test-history branch, branch
+  `feat/0060-release-provenance`.
+- Added a tag-only release workflow with pinned action commits, SPDX SBOM
+  generation, local digest/identity verification and GitHub artifact attestations.
+- The workflow is not considered operational until one real tag is verified via
+  `gh attestation verify`; no routine PR artifacts are attested.
+
 ## 2026-09-18 — Task 0058, per-test result history
 
 - Started `D:\VIBES\agentic-pipeline-0059` from the SOTA audit branch, branch

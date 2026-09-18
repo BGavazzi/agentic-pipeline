@@ -43,5 +43,6 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `validate_task.py` | `main()` validates task schema; does not execute acceptance conditions. |
 | `validate_closure.py` | `main()` validates documentation structure; does not certify human approval or runtime correctness. |
 | `quota_gate.py` | `main()` evaluates local quota state for STOP/CONTINUE; not a worker scheduler. |
-| `sota_audit.py` | `audit(repo)` emits a versioned static capability report; `markdown(report)` renders denominator-first output; neither changes admission. |
+| `provenance_verify.py` | `build_manifest(...)` and `verify_manifest(...)` bind release archive/SBOM digests to tag, source SHA and workflow metadata; cryptographic verification remains GitHub `actions/attest`/`gh attestation verify`. |
+| `.github/workflows/release-provenance.yml` | Tag-only operational contract for source archive, CycloneDX SBOM and signed artifact attestation; it is not a candidate admission gate. |
 | `sota_audit.py` | `audit(repo)` emits a versioned static capability report; `markdown(report)` renders denominator-first output; neither changes admission. |

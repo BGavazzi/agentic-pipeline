@@ -1,0 +1,93 @@
+name: Release provenance
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  attest-source-release:
+    # Release-only by design. Test PRs should not create public attestations.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Create immutable source artifact
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          git archive --format=tar.gz \
+            --prefix="agentic-pipeline-${TAG_NAME}/" \
+            "$COMMIT_SHA" \
+            -o "dist/agentic-pipeline-${TAG_NAME}.tar.gz"
+          sha256sum "dist/agentic-pipeline-${TAG_NAME}.tar.gz" | tee dist/SHA256SUMS
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: dist/agentic-pipeline.cdx.json
+          artifact-name: agentic-pipeline-sbom
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Build and verify local provenance contract
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          artifact="dist/agentic-pipeline-${TAG_NAME}.tar.gz"
+          python scripts/provenance_verify.py create \
+            --artifact "$artifact" \
+            --sbom dist/agentic-pipeline.cdx.json \
+            --commit "$SOURCE_SHA" --workflow "$WORKFLOW_REF" \
+            --event "$EVENT_NAME" --ref "$SOURCE_REF" \
+            --output dist/provenance.json
+          python scripts/provenance_verify.py verify \
+            --manifest dist/provenance.json \
+            --artifact "$artifact" \
+            --sbom dist/agentic-pipeline.cdx.json \
+            --commit "$SOURCE_SHA" --ref "$SOURCE_REF"
+
+      - name: Attest source build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ github.workspace }}/dist/agentic-pipeline-${{ github.ref_name }}.tar.gz
+
+      - name: Attest source SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ github.workspace }}/dist/agentic-pipeline-${{ github.ref_name }}.tar.gz
+          sbom-path: ${{ github.workspace }}/dist/agentic-pipeline.cdx.json
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agentic-pipeline-release-evidence-${{ github.ref_name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90

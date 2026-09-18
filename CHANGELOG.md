@@ -14,6 +14,17 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Add tag-only release provenance and SBOM (task 0059)
+### Added
+- `scripts/provenance_verify.py` to bind a release archive and SPDX/CycloneDX
+  SBOM to source, workflow, event and semantic-version tag identity.
+- `.github/workflows/release-provenance.yml` for pinned, tag-only GitHub
+  artifact/SBOM attestations.
+### Safety
+- The local contract fails closed on identity or digest mismatch. Routine PR
+  runs do not create release attestations.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add per-test history metrics for TIA (task 0058)
 ### Added
 - Extended the append-only journal with idempotent per-test result events and

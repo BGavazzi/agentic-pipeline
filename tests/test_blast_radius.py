@@ -184,13 +184,14 @@ def test_high_risk_ci_workflow_path(sandbox: Path):
     assert "ultrareview" in result["required_gates"]
 
 
-def test_high_risk_gate_script_path(sandbox: Path):
+@pytest.mark.parametrize("script_name", ["sota_audit.py", "provenance_verify.py"])
+def test_high_risk_gate_script_path(sandbox: Path, script_name: str):
     """Same reasoning for the gate scripts themselves."""
-    write(sandbox, "scripts/sota_audit.py", "def main(): pass\n")
+    write(sandbox, f"scripts/{script_name}", "def main(): pass\n")
     git(sandbox, "add", "-A")
     git(sandbox, "commit", "-q", "-m", "seed gate")
     git(sandbox, "checkout", "-q", "-b", "feat/gate")
-    write(sandbox, "scripts/sota_audit.py", "def main(): return 0\n")
+    write(sandbox, f"scripts/{script_name}", "def main(): return 0\n")
     git(sandbox, "commit", "-q", "-am", "edit gate")
 
     result = blast_radius.classify(sandbox, "0104", base="master", branch="feat/gate")
