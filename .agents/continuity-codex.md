@@ -290,6 +290,16 @@
 - Follow-up: productize the multi-base queue wrapper instead of relying on an
   operator-side grouping script.
 
+## 2026-09-18 — Task 0080, multi-base integration queue
+
+- Added `scripts/integration_queue.py` to discover the open queue once, group
+  PRs by declared base branch, delegate each group to local disposable merges,
+  and aggregate metrics for the existing staging gate.
+- Unresolved bases are isolated as explicit human holds; this adapter never
+  creates or authorizes a staging PR.
+- Queue execution remains read-only with respect to GitHub and preserves the
+  draft/not-ready and protected-surface policy from task 0079.
+
 ## 2026-09-18 — Task 0067, agentic SDLC testing SOTA
 
 - Added `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md`, grounding the
