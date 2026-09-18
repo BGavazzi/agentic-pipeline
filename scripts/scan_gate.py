@@ -66,6 +66,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -213,10 +214,37 @@ def _docker_run(
     return DockerResult(stdout=result.stdout, stderr=result.stderr, returncode=result.returncode)
 
 
+@contextmanager
+def _scanner_workspace(repo: Path):
+    """Yield a scanner-safe tree, stripping Git worktree metadata.
+
+    A Windows worktree contains a `.git` file whose host-only `gitdir:` path
+    is invalid after Docker bind-mounting the checkout at `/src`. Scanners
+    then fail before analysis while trying to configure Git safe-directory.
+    Preserve the normal fast path for ordinary checkouts; for worktrees, copy
+    source files without repository metadata or local dependency/build caches.
+    """
+    repo = repo.resolve()
+    if not (repo / ".git").is_file():
+        yield repo
+        return
+    with tempfile.TemporaryDirectory(prefix="pipeline-scanner-tree-") as raw:
+        staged = Path(raw) / "source"
+        shutil.copytree(
+            repo,
+            staged,
+            ignore=shutil.ignore_patterns(
+                ".git", ".next", "node_modules", ".trivy-cache", ".venv", "__pycache__"
+            ),
+        )
+        yield staged
+
+
 def run_semgrep(repo: Path, targets: list[str]) -> DockerResult:
     # Scan the tree: deleted paths and flag-shaped filenames are not CLI args.
-    return _docker_run(SCANNER_IMAGES["semgrep"], ["semgrep", "scan", "--config", "p/security-audit",
-                       "--strict", "--metrics", "off", "--json", "."], repo)
+    with _scanner_workspace(repo) as source:
+        return _docker_run(SCANNER_IMAGES["semgrep"], ["semgrep", "scan", "--config", "p/security-audit",
+                           "--strict", "--metrics", "off", "--json", "."], source)
 
 
 def run_trivy(repo: Path, targets: list[str]) -> DockerResult:
@@ -227,14 +255,15 @@ def run_trivy(repo: Path, targets: list[str]) -> DockerResult:
     # `docker run --rm` invocations instead of being pulled from scratch
     # every time — see task 0007.
     cache_dir = Path(os.environ.get("TRIVY_CACHE_DIR", repo / ".trivy-cache"))
-    return _docker_run(
-        SCANNER_IMAGES["trivy"],
-        ["fs", "--scanners", "vuln,secret,misconfig", "--format", "json",
-         "--exit-code", "0", "--skip-dirs", ".trivy-cache", "--skip-dirs", ".git",
-         "--cache-dir", "/root/.cache/trivy", "."],
-        repo,
-        extra_mounts=[(cache_dir, "/root/.cache/trivy")],
-    )
+    with _scanner_workspace(repo) as source:
+        return _docker_run(
+            SCANNER_IMAGES["trivy"],
+            ["fs", "--scanners", "vuln,secret,misconfig", "--format", "json",
+             "--exit-code", "0", "--skip-dirs", ".trivy-cache", "--skip-dirs", ".git",
+             "--cache-dir", "/root/.cache/trivy", "."],
+            source,
+            extra_mounts=[(cache_dir, "/root/.cache/trivy")],
+        )
 
 
 def run_gitleaks(repo: Path, targets: list[str]) -> DockerResult:
@@ -276,11 +305,12 @@ def run_dependency_check(repo: Path, task_id: str) -> DockerResult:
     # off the read-only source mount and do not interpret console logs as JSON.
     with tempfile.TemporaryDirectory(prefix="pipeline-dc-") as output:
         output_dir = Path(output)
-        result = _docker_run(
-            "owasp/dependency-check",
-            ["--scan", "/src", "--format", "JSON", "--out", "/reports", "--project", task_id],
-            repo, extra_mounts=[(output_dir, "/reports")],
-        )
+        with _scanner_workspace(repo) as source:
+            result = _docker_run(
+                "owasp/dependency-check",
+                ["--scan", "/src", "--format", "JSON", "--out", "/reports", "--project", task_id],
+                source, extra_mounts=[(output_dir, "/reports")],
+            )
         report = output_dir / "dependency-check-report.json"
         try:
             raw = report.read_text(encoding="utf-8")
