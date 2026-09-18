@@ -3,6 +3,48 @@
 Initial catalog, 2026-09-15. Core script APIs are internal Python interfaces;
 CLI output/exit changes must still be documented and regression-tested.
 
+## Task 0043 policy envelope v1
+
+- `trusted_policy.identity(repository, number, base, head, pin)`: strict GitHub
+  subject identity (40-hex SHAs; positive integer PR).
+- `evaluate_review(pr, files, reviews, permissions)`: deterministic current-metadata
+  HITL decision; independent authorization, latest substantive reviews, objections.
+- `produce(api, subject, run_id, attempt)`: metadata-only policy envelope, not an
+  execution receipt. Approved producer SHA checked by CLI and workflow.
+- `consume(api, subject)`: discovers latest exact-subject producer; verifies live
+  workflow/run/attempt, archive digest/payload, tree and current reviews; never
+  falls back to an older success. Caller must use an externally pinned verifier.
+- CLI `trusted_policy.py produce|consume --repository OWNER/REPO --pr N
+  --base-sha SHA --head-sha SHA --policy-sha SHA --output FILE`: exit 0 means a
+  valid observation, **not approval** (status may be review_required); exit 2
+  replaces output with blocking error evidence. Requires gh and read API access.
+
+## Task 0044 worker boundary v1
+
+- `worker_boundary.validate(facts, attempt_id=None)`: accepts only a bounded
+  container/VM attestation with no host mounts/socket/privilege, explicit network
+  policy, no host secrets, trusted external ownership, resource limits and
+  destroy/revoke lifecycle. Returns a non-secret metrics receipt; it does not
+  inspect or secure the host.
+- `worker_supervisor.supervise(..., boundary_facts_path=None, require_boundary=False)`:
+  blocks before launch when a required external sandbox attestation is absent or
+  invalid; compatibility remains explicit when the caller does not require it.
+- `meta_test_dispatch.dispatch(..., boundary_facts=None, require_boundary=False,
+  require_observer=False)`: forwards boundary requirements to the one-shot
+  supervisor and emits a producer envelope with invocation, corpus, role and
+  command digests. Real self-hosted dispatch must require both the boundary and
+  an independent observer; synthetic stubs may use compatibility mode.
+
+## Task 0046 visual producer v1
+
+- `playwright_visual_producer.run_producer(repo, task_id, base_sha, head_sha,
+  baseline_manifest, baseline_root, output, threshold, command,
+  command_policy, baseline_policy=None)`: runs a protected-policy-bound
+  browser/capture argv in the exact base/head merge tree, requires an exact
+  protected baseline view set, decodes bounded PNGs with Pillow, computes
+  aggregate and per-view pixel metrics, writes digest-bound diff artifacts and
+  emits a visual receipt with a producer envelope. It does not authenticate the
+  caller or approve baseline updates.
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
 | API | Current contract |
@@ -42,6 +84,7 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `receipt_journal.py` | `verify_chain(journal)` validates the append-only hash chain over replayable receipts; `summarize()` exposes chain validity but never turns history into admission. |
 | `policy_integrity.py` | `build_report(repo, base, head, policy_ref)` hashes the trusted policy surface, identifies policy-file changes, and emits a provenance-bound PASS or review-required receipt; it does not claim workflow immutability. |
 | `visual_receipt.py` | `validate_report(report, base_sha, head_sha, artifact_root=None, threshold=0.0, baseline_policy=None)` validates screenshot/baseline artifacts, exact identity, threshold, and optional protected baseline ref/digest/browser-image binding; it does not launch Playwright. |
+| `playwright_visual_producer.py` | `run_producer(...)` executes a trusted argv in an exact candidate tree, decodes and compares PNGs against a protected baseline manifest, emits diff artifacts and provenance; it fails closed on missing/mismatched views. |
 | `scan_gate.py` | `scan(repo, task_id, base, branch, enable_dependency_check)` returns summary/SARIF; `classify_gate(runs, changed, required_tools=REQUIRED_TOOLS)` checks required coverage and findings; `main()` returns 0 pass, 1 finding block, 2 incomplete/error. |
 | `blast_radius.py` | `classify(repo, task_id, base, branch)` produces risk and obligations; `required_gates_for(risk_level, triggered)` supplies the gate minimum. |
 | `core_sync.py` | `main()` vendors whitelisted scripts/skills/conventions and fingerprints them; drift handling is documented in README. |

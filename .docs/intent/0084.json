@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "intent_version": 1,
+  "task_id": "0084",
+  "allowed_paths": [
+    "scripts/**",
+    "tests/**",
+    ".docs/**",
+    ".agents/**",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "forbidden_paths": [".git/**", "secrets/**"],
+  "allowed_effects": ["local-code-change", "ci-policy-change"],
+  "declared_effects": ["local-code-change", "ci-policy-change"],
+  "allowed_data_classes": ["source-code", "documentation", "ci-metadata"],
+  "data_classes": ["source-code", "documentation", "ci-metadata"],
+  "forbidden_effects": ["external-write", "deploy", "secret-use"],
+  "observed_effects": ["local-code-change", "ci-policy-change"],
+  "negative_tests": [
+    {
+      "name": "unsafe capture paths and duplicate view IDs are rejected",
+      "status": "pass"
+    },
+    {
+      "name": "missing or mismatched command policy is rejected",
+      "status": "pass"
+    },
+    {
+      "name": "visual receipts revalidate artifact digests and exact commit identity",
+      "status": "pass"
+    }
+  ]
+}

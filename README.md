@@ -62,6 +62,26 @@ or unavailable execution produces an error receipt—not PASS. It does not carry
 LLM credentials or choose a worker host; trusted-event routing and homelab
 credential isolation remain deployment work. See [task 0012](.docs/tasks/0012-feat-ultrareview-worker-runner.md).
 
+Task 0045 hardens the producer boundary around these adapters.
+`meta_test_dispatch.py` emits an independently generated producer envelope
+containing invocation, role, corpus and command digests, and can require a
+separate observer before a receipt is eligible. `ultrareview_runner.py` removes
+obvious inherited secret variables, bounds reviewer output, and records its
+clean-room producer envelope. Receipt aggregation rejects meta-test or
+ultrareview evidence without the corresponding envelope. The corpus now
+includes forbidden-file, closure-lie and repository-prompt-injection
+regressions; these are synthetic controls, not a claim that every real agent
+behavior is covered. See [task 0045](.docs/tasks/0045-feat-meta-test-producers.md).
+
+Task 0046 adds `scripts/playwright_visual_producer.py`. A protected runtime
+supplies the Playwright argv and baseline manifest; the adapter runs it in the
+exact candidate tree, requires the exact protected view set, decodes PNGs with
+Pillow, computes changed pixels and writes candidate/baseline/diff artifacts
+before producing the existing visual receipt. It never accepts numeric visual
+claims as proof and never auto-updates a baseline. The generic core has no
+frontend or customer fixture dependency; a real frontend pilot still chooses
+the pinned browser/OS/font environment and protected baseline store. See [task
+0046](.docs/tasks/0046-feat-playwright-visual-producer.md).
 Task 0014 emits a deterministic `.docs/quality-reports/scorecard.json` from
 the risk report and admission receipts. It records schema/provenance, risk and
 fan-out, required/passed gate counts, evidence completeness, observed pass rate,

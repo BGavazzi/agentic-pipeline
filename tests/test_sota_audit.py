@@ -24,7 +24,7 @@ def test_audit_is_conservative_about_external_controls(tmp_path: Path):
 def test_real_repo_report_has_versioned_metrics():
     report = audit(Path(__file__).resolve().parents[1])
     assert report["schema_version"] == 1
-    assert report["audit_version"] == 1
+    assert report["audit_version"] == 2
     assert report["metrics"]["capabilities_total"] >= 10
     assert 0.0 <= report["metrics"]["coverage_ratio"] <= 1.0
     # Once the repository implements a capability, the audit must not keep
@@ -33,6 +33,7 @@ def test_real_repo_report_has_versioned_metrics():
     assert any(item["status"] == "partial" for item in report["capabilities"])
     independent = next(item for item in report["capabilities"] if item["id"] == "independent-review")
     assert independent["status"] == "partial"
+    assert independent["evidence"]["ci"][".github/workflows/protected-policy.yml"] is True
     intent = next(item for item in report["capabilities"] if item["id"] == "intent-authorization")
     assert intent["status"] == "partial"
 

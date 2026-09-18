@@ -56,7 +56,10 @@ def visual_file(tmp_path, status="pass", base=BASE, head=HEAD):
     path.write_text(json.dumps({"schema_version": 1, "gate": "visual",
                                 "base_sha": base, "head_sha": head,
                                 "status": status,
-                                "metrics": {"diff_ratio": 0.0, "comparisons": 1}}))
+                                "metrics": {"diff_ratio": 0.0, "comparisons": 1},
+                                "producer": {"schema_version": 1,
+                                             "kind": "visual-producer",
+                                             "invocation_id": "visual-1"}}))
     return path
 
 
@@ -178,6 +181,17 @@ def test_stale_visual_report_rejected(tmp_path):
             risk, scan, unit, BASE, HEAD, policy_path=policy,
             visual_path=visual_file(tmp_path, head="c" * 40),
         )
+
+
+def test_visual_without_producer_is_rejected(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    path = visual_file(tmp_path)
+    value = json.loads(path.read_text())
+    del value["producer"]
+    path.write_text(json.dumps(value))
+    with pytest.raises(ValueError, match="provenance envelope"):
+        build_receipts(risk, scan, unit, BASE, HEAD,
+                       visual_path=path, policy_path=policy)
 
 
 def test_meta_test_report_is_carried_and_identity_bound(tmp_path):

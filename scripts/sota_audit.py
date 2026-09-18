@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = 1
-AUDIT_VERSION = 1
+AUDIT_VERSION = 2
 
 
 def _capability(capability_id: str, title: str, tier: str, *, implementation=(),
@@ -70,14 +70,15 @@ CAPABILITIES: tuple[dict[str, Any], ...] = (
     _capability("independent-review", "Independent review and trusted policy evidence", "trust",
                 implementation=("scripts/ultrareview_receipt.py", "scripts/ultrareview_runner.py", "scripts/trusted_policy.py"),
                 tests=("tests/test_ultrareview_receipt.py", "tests/test_ultrareview_runner.py", "tests/test_trusted_policy.py"),
-                ci=(".github/workflows/early-review.yml", ".github/workflows/trusted-policy.yml"),
+                ci=(".github/workflows/early-review.yml", ".github/workflows/protected-policy.yml"),
                 external=("protected producer identity", "independent reviewer identity", "immutable policy pin"),
                 note="The repository deliberately blocks until these facts exist."),
     _capability("visual-regression", "Browser/visual evidence with protected baselines", "ux",
-                implementation=("scripts/visual_receipt.py",), tests=("tests/test_visual_receipt.py",),
+                implementation=("scripts/visual_receipt.py", "scripts/playwright_visual_producer.py"),
+                tests=("tests/test_visual_receipt.py", "tests/test_playwright_visual_producer.py"),
                 docs=(".docs/tasks/0016-feat-visual-regression-receipt.md",),
-                external=("protected Playwright producer", "durable baseline store", "browser image pin"),
-                note="The core receipt contract is present; a protected consumer is external."),
+                external=("durable baseline store", "browser image pin", "frontend pilot"),
+                note="The producer contract is runnable; protected browser/baseline activation remains external."),
     _capability("test-result-history", "Scalable result listener and selector history", "scale",
                 implementation=("scripts/receipt_journal.py", "scripts/junit_history.py"),
                 tests=("tests/test_receipt_journal.py", "tests/test_junit_history.py"),
