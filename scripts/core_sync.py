@@ -137,6 +137,7 @@ def _is_drifted(target: Path, manifest: dict[str, str], relpath: str) -> bool:
 # are never at risk of being overwritten by an unrelated same-named file.
 GATE_SCRIPTS = [
     "admission_gate.py",
+    "admission_mutation_benchmark.py",
     "ci_receipts.py",
     "integration_gate.py",
     "ultrareview_receipt.py",

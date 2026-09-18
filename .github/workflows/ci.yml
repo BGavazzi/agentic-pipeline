@@ -205,6 +205,9 @@ jobs:
       - name: Run deterministic harness self-test corpus
         run: python scripts/harness_selftest.py --output .docs/test-reports/harness-selftest.json
 
+      - name: Run admission mutation benchmark
+        run: python scripts/admission_mutation_benchmark.py --output .docs/test-reports/admission-mutation.json
+
       - name: Run test-impact precision/recall benchmark
         run: python scripts/impact_benchmark.py --output .docs/test-reports/impact-benchmark.json
 
