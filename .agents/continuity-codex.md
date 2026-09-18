@@ -1,5 +1,9 @@
 # Continuity — Codex
 
+## Task 0078 — SOTA implementation delta
+- Refreshed the SOTA report with shipped local contracts, KPI vector semantics,
+  the separate Playwright producer lineage, and remaining external gaps.
+
 ## Task 0077 — PR topline quality metrics
 - Updated the trusted metadata-only PR summary to show identity, churn,
   deterministic HITL checkpoint, and contact surfaces; added workflow coverage.
