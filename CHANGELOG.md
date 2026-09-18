@@ -14,6 +14,16 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Add explicit flaky-test governance (task 0060)
+### Added
+- `scripts/flake_gate.py` and tests for owner/expiry quarantine evaluation
+  over per-test history.
+- `degraded` state for active quarantines; expired and unowned flakes block.
+### Safety
+- Quarantine never becomes a green admission result, and the gate does not
+  silently retry tests or mutate the manifest.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add tag-only release provenance and SBOM (task 0059)
 ### Added
 - `scripts/provenance_verify.py` to bind a release archive and SPDX/CycloneDX

@@ -88,6 +88,7 @@ CAPABILITIES: tuple[dict[str, Any], ...] = (
                 external=("pinned dependency lock/constraints", "reproducible toolchain image", "network policy"),
                 note="Archive isolation does not make installs or tools hermetic."),
     _capability("flaky-test-governance", "Flake detection, quarantine and recovery", "correctness",
+                implementation=("scripts/flake_gate.py",), tests=("tests/test_flake_gate.py",),
                 external=("flake history", "quarantine policy", "re-enable/remediation workflow"),
                 note="Retries without a quarantine ledger would hide regressions."),
     _capability("ci-observability", "CI/CD telemetry, queue and SLO visibility", "operations",

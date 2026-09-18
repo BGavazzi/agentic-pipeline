@@ -44,5 +44,6 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `validate_closure.py` | `main()` validates documentation structure; does not certify human approval or runtime correctness. |
 | `quota_gate.py` | `main()` evaluates local quota state for STOP/CONTINUE; not a worker scheduler. |
 | `provenance_verify.py` | `build_manifest(...)` and `verify_manifest(...)` bind release archive/SBOM digests to tag, source SHA and workflow metadata; cryptographic verification remains GitHub `actions/attest`/`gh attestation verify`. |
+| `flake_gate.py` | `evaluate(history, manifest_path, as_of)` classifies flake evidence as pass/degraded/block with owner/expiry and denominator-first metrics; it never overrides admission. |
 | `.github/workflows/release-provenance.yml` | Tag-only operational contract for source archive, CycloneDX SBOM and signed artifact attestation; it is not a candidate admission gate. |
 | `sota_audit.py` | `audit(repo)` emits a versioned static capability report; `markdown(report)` renders denominator-first output; neither changes admission. |
