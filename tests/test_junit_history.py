@@ -30,6 +30,13 @@ def test_normalizes_nested_junit_statuses_and_durations(tmp_path: Path):
         ("pkg.test::later", "skip", 0), ("pkg.test::ok", "pass", 125)]
 
 
+def test_preserves_parameterized_ids_with_spaces(tmp_path: Path):
+    report = tmp_path / "parameterized.xml"
+    write_report(report, "<testsuite><testcase classname='pkg.test' name='case[raise SystemExit(7)]' /></testsuite>")
+    result = build_history(report, SHA, SHA, "run with spaces", "2026-09-18T12:00:00Z")
+    assert result["tests"][0]["test_id"] == "pkg.test::case[raise SystemExit(7)]"
+
+
 def test_rejects_duplicate_or_unsafe_reports(tmp_path: Path):
     duplicate = tmp_path / "duplicate.xml"
     write_report(duplicate, "<testsuite><testcase classname='x' name='same'/><testcase classname='x' name='same'/></testsuite>")

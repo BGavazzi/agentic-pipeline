@@ -13,14 +13,17 @@ import hashlib
 import json
 import math
 import re
-import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from defusedxml import ElementTree as ET
+
 SCHEMA_VERSION = 1
 SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
-TEST_ID_RE = re.compile(r"^\S{1,240}$")
+# Pytest parameterized IDs may contain spaces, commas and JSON punctuation.
+# Reject only control whitespace so IDs remain safe single-line evidence keys.
+TEST_ID_RE = re.compile(r"^[^\r\n\t]{1,240}$")
 
 
 def _sha(value: str, label: str) -> None:
@@ -52,7 +55,7 @@ def _test_id(case: ET.Element) -> str:
     classname = case.attrib.get("classname", "")
     test_id = f"{classname}::{name}" if classname else name
     if not TEST_ID_RE.fullmatch(test_id):
-        raise ValueError("JUnit testcase requires a bounded non-whitespace name")
+        raise ValueError("JUnit testcase requires a bounded single-line name")
     return test_id
 
 
@@ -71,8 +74,8 @@ def _status(case: ET.Element) -> str:
 
 def parse_junit(path: Path) -> list[dict[str, Any]]:
     raw = path.read_bytes()
-    # ElementTree is sufficient for CI-produced JUnit after explicitly
-    # rejecting DTD/entity declarations; no external entities are accepted.
+    # Keep the explicit declaration check as a clear contract, and use
+    # defusedxml for the parser-level XXE/entity-expansion defense.
     upper = raw.upper()
     if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
         raise ValueError("JUnit XML must not contain DTD or entity declarations")
@@ -100,8 +103,8 @@ def build_history(report: Path, base_sha: str, head_sha: str, run_id: str,
                   occurred_at: str) -> dict[str, Any]:
     _sha(base_sha, "base_sha")
     _sha(head_sha, "head_sha")
-    if not isinstance(run_id, str) or not run_id or len(run_id) > 240 or any(c.isspace() for c in run_id):
-        raise ValueError("run_id must be non-empty, whitespace-free and bounded")
+    if not isinstance(run_id, str) or not run_id or len(run_id) > 240 or any(c in run_id for c in "\r\n\t"):
+        raise ValueError("run_id must be non-empty, single-line and bounded")
     normalized_at = _timestamp(occurred_at)
     tests = parse_junit(report)
     return {"schema_version": SCHEMA_VERSION, "history_version": 1,
