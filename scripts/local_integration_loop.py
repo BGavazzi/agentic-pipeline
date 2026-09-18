@@ -59,6 +59,7 @@ class Candidate:
     is_cross_repository: bool = False
     head_repository: str | None = None
     head_owner: str | None = None
+    is_draft: bool = False
 
 
 def _git(repo: Path, *args: str, check: bool = True) -> str:
@@ -101,12 +102,16 @@ def _candidate(value: dict[str, Any]) -> Candidate:
     cross_repository = value.get("is_cross_repository", value.get("isCrossRepository", False))
     if type(cross_repository) is not bool:
         raise ValueError("candidate cross-repository flag is invalid")
+    is_draft = value.get("is_draft", value.get("isDraft", False))
+    if type(is_draft) is not bool:
+        raise ValueError("candidate draft flag is invalid")
     base_ref = value.get("base_ref")
     if base_ref is not None and (not isinstance(base_ref, str) or not base_ref
                                  or any(c in base_ref for c in "\r\n\x00")):
         raise ValueError("candidate base_ref is invalid")
     return Candidate(number, title, ref, head_sha, value.get("url"), base_ref,
-                     cross_repository, value.get("head_repository"), value.get("head_owner"))
+                     cross_repository, value.get("head_repository"), value.get("head_owner"),
+                     is_draft)
 
 
 def load_manifest(path: Path) -> list[Candidate]:
@@ -173,7 +178,7 @@ def discover_open(repo_slug: str, base: str) -> list[Candidate]:
     result = subprocess.run(
         ["gh", "pr", "list", "--repo", repo_slug, "--base", gh_base, "--state", "open",
          "--limit", "100", "--json",
-         "number,title,headRefName,headRefOid,url,baseRefName,isCrossRepository,headRepository,headRepositoryOwner"],
+         "number,title,headRefName,headRefOid,url,baseRefName,isCrossRepository,isDraft,headRepository,headRepositoryOwner"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if result.returncode != 0:
@@ -182,9 +187,14 @@ def discover_open(repo_slug: str, base: str) -> list[Candidate]:
     if not isinstance(value, list):
         raise ValueError("gh PR list was not a JSON list")
     return [_candidate({"number": item["number"], "title": item["title"],
-                        "ref": item["headRefName"], "head_sha": item["headRefOid"],
+                        # Prefer the remote-tracking ref. A same-named local
+                        # branch may be stale relative to the immutable SHA
+                        # returned by GitHub; resolving it by name first can
+                        # otherwise turn a valid candidate into a false hold.
+                        "ref": f"origin/{item['headRefName']}", "head_sha": item["headRefOid"],
                         "url": item.get("url"), "base_ref": item.get("baseRefName"),
                         "is_cross_repository": item.get("isCrossRepository", False),
+                        "is_draft": item.get("isDraft", False),
                         "head_repository": item.get("headRepository"),
                         "head_owner": item.get("headRepositoryOwner")})
             for item in value if isinstance(item, dict)]
@@ -205,6 +215,12 @@ def resolve_candidate(repo: Path, candidate: Candidate, *, fetch_missing: bool =
     except RuntimeError:
         if not fetch_missing:
             raise
+        _git(repo, "fetch", "--no-tags", "origin", f"refs/pull/{candidate.number}/head")
+        resolved = _sha(repo, "FETCH_HEAD")
+    # A remote-tracking ref can also be stale when another process fetched the
+    # PR after discovery. Refresh once, read-only, before fail-closed identity
+    # validation rejects an otherwise current candidate.
+    if (fetch_missing and candidate.head_sha and resolved != candidate.head_sha):
         _git(repo, "fetch", "--no-tags", "origin", f"refs/pull/{candidate.number}/head")
         resolved = _sha(repo, "FETCH_HEAD")
     if candidate.head_sha and resolved != candidate.head_sha:
@@ -297,10 +313,21 @@ def integrate(repo: Path, base_ref: str, candidates: Iterable[Candidate],
                                         "url": candidate.url, "ref": candidate.ref,
                                         "base_ref": candidate.base_ref,
                                         "fork_pr": candidate.is_cross_repository,
+                                        "draft": candidate.is_draft,
                                         "head_repository": candidate.head_repository,
                                         "head_owner": candidate.head_owner}
                 previous_head = ""
                 try:
+                    if candidate.is_draft:
+                        item.update({"classification": "not_ready", "risk_level": "unknown",
+                                     "risk_triggers": ["draft-pr"], "required_gates": [],
+                                     "contact_surfaces": {"harness/policy": ["draft PR status"]},
+                                     "human_review_required": True,
+                                     "status": "held_for_human",
+                                     "reason": "draft_pr_requires_human_review"})
+                        held.append(candidate.number)
+                        results.append(item)
+                        continue
                     if (candidate.base_ref is not None
                             and _branch_name(candidate.base_ref) != _branch_name(base_ref)):
                         item.update({"classification": "acute", "risk_level": "high",
