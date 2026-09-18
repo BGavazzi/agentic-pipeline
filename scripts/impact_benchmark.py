@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import time
 import hashlib
+import math
 from pathlib import Path
 
 try:  # Package import for pytest; direct import for the CLI entry point.
@@ -44,6 +45,7 @@ def _commit(repo: Path, message: str) -> str:
 
 
 def run_case(path: Path) -> dict:
+    started = time.monotonic()
     manifest = json.loads(path.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="pipeline-impact-fixture-") as raw:
         repo = Path(raw)
@@ -80,26 +82,49 @@ def run_case(path: Path) -> dict:
         "metrics": {
             "precision": precision,
             "recall": recall,
+            "selection_regret": 1.0 - recall,
             "selected_count": len(selected),
             "relevant_count": len(relevant),
+            "selection_ratio": result["metrics"].get("selection_ratio", 1.0),
             "minimum_precision": minimum_precision,
             "minimum_recall": minimum_recall,
             "dependency_closure_count": result["metrics"].get(
                 "dependency_closure_count", 0
             ),
+            "duration_seconds": round(time.monotonic() - started, 6),
         },
         "promotion_safe": result["mode"] == "impacted" and recall == 1.0,
     }
 
 
-def run_benchmark(fixtures_dir: Path) -> dict:
+def _p95(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    rank = max(0, math.ceil(0.95 * len(ordered)) - 1)
+    return ordered[rank]
+
+
+def run_benchmark(fixtures_dir: Path, iterations: int = 1) -> dict:
+    if iterations < 1:
+        raise ValueError("iterations must be >= 1")
     started = time.monotonic()
-    cases = [run_case(path) for path in sorted(fixtures_dir.glob("*.json"))]
+    fixtures = sorted(fixtures_dir.glob("*.json"))
+    cases = []
+    for iteration in range(1, iterations + 1):
+        for path in fixtures:
+            case = run_case(path)
+            case["iteration"] = iteration
+            cases.append(case)
     passed = sum(case["status"] == "pass" for case in cases)
     impacted = [case for case in cases if case["mode"] == "impacted"]
+    durations = [case["metrics"]["duration_seconds"] for case in cases]
+    regrets = [case["metrics"]["selection_regret"] for case in cases]
+    selection_ratios = [case["metrics"]["selection_ratio"] for case in cases]
+    elapsed = time.monotonic() - started
     return {
         "schema_version": 1,
-        "benchmark_version": "0.3",
+        "benchmark_version": "0.4",
         "selector_sha256": hashlib.sha256(Path(__file__).with_name("test_impact.py").read_bytes()).hexdigest(),
         "corpus_sha256": hashlib.sha256(b"".join(path.name.encode() + path.read_bytes()
                                       for path in sorted(fixtures_dir.glob("*.json")))).hexdigest(),
@@ -111,7 +136,23 @@ def run_benchmark(fixtures_dir: Path) -> dict:
             "cases_total": len(cases),
             "cases_passed": passed,
             "cases_failed": len(cases) - passed,
+            "iterations": iterations,
             "impacted_cases": len(impacted),
+            "fallback_rate": (
+                sum(case["mode"] == "full" for case in cases) / len(cases)
+                if cases else 0.0
+            ),
+            "mean_selection_ratio": (
+                sum(selection_ratios) / len(selection_ratios)
+                if selection_ratios else 0.0
+            ),
+            "mean_selection_regret": (
+                sum(regrets) / len(regrets) if regrets else 0.0
+            ),
+            "p95_case_duration_seconds": _p95(durations),
+            "throughput_cases_per_second": (
+                len(cases) / elapsed if elapsed > 0 else 0.0
+            ),
             "mean_precision": (
                 sum(case["metrics"]["precision"] for case in cases) / len(cases)
                 if cases else 0.0
@@ -130,9 +171,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixtures", type=Path, default=Path("tests/impact/fixtures"))
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--iterations", type=int, default=1,
+                        help="repeat the corpus to measure bounded selector load")
     args = parser.parse_args()
     try:
-        report = run_benchmark(args.fixtures.resolve())
+        report = run_benchmark(args.fixtures.resolve(), args.iterations)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     except (OSError, RuntimeError, TypeError, ValueError, json.JSONDecodeError) as exc:
@@ -141,6 +184,7 @@ def main() -> int:
     print(
         f"impact_benchmark: {report['status']} "
         f"recall={report['metrics']['mean_recall']:.3f} "
+        f"regret={report['metrics']['mean_selection_regret']:.3f} "
         f"promotion_ready={report['promotion_ready']}"
     )
     return 0 if report["status"] == "pass" else 1

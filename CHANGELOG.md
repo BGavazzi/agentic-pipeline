@@ -2,6 +2,16 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Measure test-impact selector regret and bounded load (task 0069)
+### Added
+- `impact_benchmark.py` now reports per-case selection regret, selection ratio,
+  duration, fallback rate, p95 case latency, and repeated-corpus throughput.
+- The benchmark supports bounded `--iterations` runs for load calibration.
+### Safety
+- Benchmark identity is versioned and promotion rejects stale version `0.4`
+  receipts; metrics remain observational and never authorize skipped tests.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add versioned agent-eval corpus metrics (task 0068)
 ### Added
 - `scripts/agent_eval_corpus.py` summarizes meta-test cases with pass rate,

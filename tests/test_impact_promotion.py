@@ -14,7 +14,7 @@ HEAD = "b" * 40
 def reports():
     benchmark = {
         "schema_version": 1,
-        "benchmark_version": "0.3",
+        "benchmark_version": "0.4",
         "selector_sha256": hashlib.sha256((Path(__file__).parents[1] / "scripts/test_impact.py").read_bytes()).hexdigest(),
         "corpus_sha256": hashlib.sha256(b"".join(p.name.encode() + p.read_bytes()
                            for p in sorted((Path(__file__).parent / "impact/fixtures").glob("*.json")))).hexdigest(),

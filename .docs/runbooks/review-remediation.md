@@ -51,7 +51,8 @@ history until the corrective merge unit is accepted.
   and runs verification, returning `tests_passed` and `tool_calls`. It must
   not repeat the candidate's JSON claims. Missing observation fails fixtures
   that require it. Test stubs exercise the interface, not operational isolation.
-- TIA benchmark revision is `0.3`, with selector/corpus SHA-256 fields.
+- TIA benchmark revision is `0.4`, with selector/corpus SHA-256 fields plus
+  selection-regret, fallback-rate, p95-latency, and bounded-throughput metrics.
 - Staging creation returns `draft_created`; humans still review the exact PR
   identity. A branch can move later, so all protections must rerun on synchronize.
 - Staging `--intelligence-file` now accepts versioned JSON for the exact pair,
