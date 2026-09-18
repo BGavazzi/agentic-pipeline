@@ -25,6 +25,8 @@ from typing import Any
 SCHEMA_VERSION = 1
 SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 EVENT_RE = re.compile(r"^[a-z][a-z0-9._-]{1,63}$")
+TEST_ID_RE = re.compile(r"^[^\s]{1,240}$")
+TEST_STATUSES = {"pass", "fail", "error", "skip"}
 
 
 def connect(path: Path) -> sqlite3.Connection:
@@ -90,6 +92,15 @@ def append_event(journal: Path, event_id: str, event_type: str, receipt_path: Pa
     if parsed.tzinfo is None:
         raise ValueError("occurred_at requires a timezone")
     timestamp = parsed.astimezone(timezone.utc).isoformat()
+    return _append_payload(journal, event_id, event_type, payload,
+                           base_sha, head_sha, source, timestamp)
+
+
+def _append_payload(journal: Path, event_id: str, event_type: str,
+                    payload: dict[str, Any], base_sha: str, head_sha: str,
+                    source: str, timestamp: str) -> dict[str, Any]:
+    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
     db = connect(journal)
     try:
         db.execute("BEGIN IMMEDIATE")
@@ -110,6 +121,97 @@ def append_event(journal: Path, event_id: str, event_type: str, receipt_path: Pa
         return {"status": "appended", "event_id": event_id, "receipt_sha256": digest}
     finally:
         db.close()
+
+
+def append_test_result(journal: Path, event_id: str, test_id: str,
+                       status: str, duration_ms: int, base_sha: str,
+                       head_sha: str, run_id: str, source: str = "unknown",
+                       occurred_at: str | None = None) -> dict[str, Any]:
+    """Append one replayable per-test result for future TIA selection.
+
+    This records history only. It does not authorize skipping tests; the full
+    suite remains authoritative until a separately validated promotion policy
+    consumes this history.
+    """
+    if not isinstance(test_id, str) or not TEST_ID_RE.fullmatch(test_id):
+        raise ValueError("test_id must be non-empty, whitespace-free and bounded")
+    if status not in TEST_STATUSES:
+        raise ValueError("test status is invalid")
+    if type(duration_ms) is not int or duration_ms < 0 or duration_ms > 86_400_000:
+        raise ValueError("duration_ms must be a bounded non-negative integer")
+    if not isinstance(run_id, str) or not run_id or len(run_id) > 240:
+        raise ValueError("run_id must be non-empty and bounded")
+    _sha(base_sha, "base_sha")
+    _sha(head_sha, "head_sha")
+    if not source or len(source) > 200:
+        raise ValueError("source must be non-empty and bounded")
+    timestamp = occurred_at or datetime.now(timezone.utc).isoformat()
+    parsed = datetime.fromisoformat(timestamp)
+    if parsed.tzinfo is None:
+        raise ValueError("occurred_at requires a timezone")
+    timestamp = parsed.astimezone(timezone.utc).isoformat()
+    payload = {"schema_version": SCHEMA_VERSION, "kind": "test-result",
+               "test_id": test_id, "status": status,
+               "duration_ms": duration_ms, "run_id": run_id}
+    return _append_payload(journal, event_id, "test-result", payload,
+                           base_sha, head_sha, source, timestamp)
+
+
+def summarize_test_history(journal: Path, as_of: str | None = None,
+                           stale_after_seconds: int = 86_400) -> dict[str, Any]:
+    """Summarize per-test freshness, flakiness and duration deterministically."""
+    if type(stale_after_seconds) is not int or stale_after_seconds < 0:
+        raise ValueError("stale_after_seconds must be a non-negative integer")
+    reference = datetime.fromisoformat(as_of) if as_of else datetime.now(timezone.utc)
+    if reference.tzinfo is None:
+        raise ValueError("as_of requires a timezone")
+    reference = reference.astimezone(timezone.utc)
+    db = connect(journal)
+    try:
+        rows = db.execute(
+            "SELECT receipt_json, occurred_at, received_at FROM events "
+            "WHERE event_type = 'test-result' ORDER BY occurred_at, received_at, event_id"
+        ).fetchall()
+    finally:
+        db.close()
+    by_test: dict[str, list[tuple[dict[str, Any], str]]] = {}
+    for raw, occurred_at, _received_at in rows:
+        payload = json.loads(raw)
+        if payload.get("kind") != "test-result":
+            continue
+        test_id = payload.get("test_id")
+        if isinstance(test_id, str):
+            by_test.setdefault(test_id, []).append((payload, occurred_at))
+    stale = 0
+    flaky = 0
+    latest_statuses: dict[str, int] = {}
+    durations: list[int] = []
+    max_age = 0.0
+    tests: list[dict[str, Any]] = []
+    for test_id in sorted(by_test):
+        history = by_test[test_id]
+        statuses = sorted({str(item["status"]) for item, _ in history})
+        if "pass" in statuses and any(value in statuses for value in ("fail", "error")):
+            flaky += 1
+        latest, latest_at = history[-1]
+        observed = (reference - datetime.fromisoformat(latest_at).astimezone(timezone.utc)).total_seconds()
+        max_age = max(max_age, observed)
+        is_stale = observed > stale_after_seconds
+        stale += int(is_stale)
+        latest_statuses[str(latest["status"])] = latest_statuses.get(str(latest["status"]), 0) + 1
+        durations.extend(int(item["duration_ms"]) for item, _ in history)
+        tests.append({"test_id": test_id, "latest_status": latest["status"],
+                      "latest_occurred_at": latest_at, "runs": len(history),
+                      "statuses": statuses, "stale": is_stale})
+    return {"schema_version": SCHEMA_VERSION, "history_version": 1,
+            "as_of": reference.isoformat(), "stale_after_seconds": stale_after_seconds,
+            "test_count": len(tests), "result_event_count": len(rows),
+            "flaky_test_count": flaky, "stale_test_count": stale,
+            "freshness_ratio": round((len(tests) - stale) / len(tests), 4) if tests else 0.0,
+            "max_age_seconds": round(max_age, 3) if tests else 0.0,
+            "latest_status_counts": dict(sorted(latest_statuses.items())),
+            "mean_duration_ms": round(sum(durations) / len(durations), 3) if durations else 0.0,
+            "tests": tests}
 
 
 def summarize(journal: Path) -> dict[str, Any]:
@@ -160,6 +262,22 @@ def main() -> int:
     summary = sub.add_parser("summary")
     summary.add_argument("--journal", type=Path, required=True)
     summary.add_argument("--output", type=Path, required=True)
+    test_append = sub.add_parser("test-result-append")
+    test_append.add_argument("--journal", type=Path, required=True)
+    test_append.add_argument("--event-id", required=True)
+    test_append.add_argument("--test-id", required=True)
+    test_append.add_argument("--status", choices=sorted(TEST_STATUSES), required=True)
+    test_append.add_argument("--duration-ms", type=int, required=True)
+    test_append.add_argument("--base-sha", required=True)
+    test_append.add_argument("--head-sha", required=True)
+    test_append.add_argument("--run-id", required=True)
+    test_append.add_argument("--source", default="unknown")
+    test_append.add_argument("--occurred-at")
+    test_summary = sub.add_parser("test-result-summary")
+    test_summary.add_argument("--journal", type=Path, required=True)
+    test_summary.add_argument("--output", type=Path, required=True)
+    test_summary.add_argument("--as-of")
+    test_summary.add_argument("--stale-after-seconds", type=int, default=86_400)
     args = parser.parse_args()
     try:
         if args.command == "append":
@@ -167,8 +285,20 @@ def main() -> int:
                                   args.receipt, args.base_sha, args.head_sha,
                                   args.source, args.occurred_at)
             print(json.dumps(result, sort_keys=True))
-        else:
+        elif args.command == "summary":
             result = summarize(args.journal)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+            print(json.dumps(result, sort_keys=True))
+        elif args.command == "test-result-append":
+            result = append_test_result(args.journal, args.event_id, args.test_id,
+                                        args.status, args.duration_ms, args.base_sha,
+                                        args.head_sha, args.run_id, args.source,
+                                        args.occurred_at)
+            print(json.dumps(result, sort_keys=True))
+        else:
+            result = summarize_test_history(args.journal, args.as_of,
+                                            args.stale_after_seconds)
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
             print(json.dumps(result, sort_keys=True))

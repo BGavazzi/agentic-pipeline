@@ -18,6 +18,7 @@ CLI output/exit changes must still be documented and regression-tested.
 | `staging_gate.evaluate(..., repository=None)` | Requires merge-tree integration proof. CLI requires `--repository`. |
 | `staging_pr.verify_remote` / `verify_pr` | Validate actual GitHub repository/head/base before and after draft creation; races block promotion. |
 | `receipt_journal.append_event` | Atomic concurrent insert-or-verify; schema checked; timezone normalized; metadata conflicts rejected. |
+| `receipt_journal.append_test_result` / `summarize_test_history` | Append-only per-test result history and explicit-reference freshness/flakiness/duration metrics; descriptive only and never an admission override. |
 
 All these validators check consistency. Authenticity depends on protected
 callers and host isolation; see `runbooks/review-remediation.md`.
