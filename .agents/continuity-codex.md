@@ -242,3 +242,15 @@
   operations, and risk-weighted human accountability.
 - Next implementation slice: a versioned 20–50-case agent-eval corpus with
   configuration-change triggers and cost/latency metrics.
+
+## 2026-09-18 — Task 0068, versioned agent-eval corpus metrics
+
+- Added `agent_eval_corpus.py` over the existing meta-test boundary. It reports
+  pass rate, denominator-preserving corpus readiness, baseline regression,
+  p50/p95 duration, tokens/cost, and a configuration digest without persisting
+  worker command contents.
+- Hardened `meta_test.py` so agent workers do not inherit obvious secrets or
+  Git/SSH/Docker/Kubernetes control variables.
+- Current repository state is honestly calibration-only: one fixture exists;
+  the 20–50-case representative corpus and scheduled/config-triggered CI are
+  the next separate task.

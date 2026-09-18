@@ -372,6 +372,11 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   primary-source comparison of continuous agent evals, scalable test-impact
   analysis, hermeticity, visual environments, provenance, and risk-weighted
   human review, with a concrete implementation queue.
+- **`agent_eval_corpus.py`** — summarizes the existing meta-test fixture runner
+  with denominator-preserving pass rate, corpus readiness, baseline regression,
+  latency, token, cost, and configuration-digest metrics. One green fixture is
+  explicitly calibration-only; the current repository still needs a 20–50 case
+  representative corpus.
 - **`provenance_verify.py`** — creates and verifies a local digest contract for
   tag releases, binding the source archive and SPDX/CycloneDX SBOM to the exact
   commit, workflow and semantic-version ref. `.github/workflows/release-

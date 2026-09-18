@@ -2,6 +2,19 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add versioned agent-eval corpus metrics (task 0068)
+### Added
+- `scripts/agent_eval_corpus.py` summarizes meta-test cases with pass rate,
+  corpus readiness, baseline regression, p50/p95 duration, token/cost totals,
+  and a configuration digest without storing worker command contents.
+- `meta_test.py` now removes secret and Git/SSH/Docker/Kubernetes control
+  variables before launching agent workers.
+### Safety
+- Fewer than the configured minimum number of cases is
+  `insufficient_corpus`, never `pass`; eval output is descriptive and cannot
+  override admission.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Document agentic SDLC testing SOTA and next queue (task 0067)
 ### Added
 - `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md` compares primary
