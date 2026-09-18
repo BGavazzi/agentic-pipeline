@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from scripts.meta_test import run_fixture, run_suite
+from scripts.meta_test import _worker_env, run_fixture, run_suite
 
 
 WORKER = r'''
@@ -28,6 +28,18 @@ print(json.dumps({
     "tool_calls": ["Read", "Edit", "Bash"],
 }))
 '''
+
+
+def test_worker_environment_drops_secrets_and_repository_controls(monkeypatch):
+    monkeypatch.setenv("API_TOKEN", "secret")
+    monkeypatch.setenv("GIT_DIR", "escape")
+    monkeypatch.setenv("SSH_AUTH_SOCK", "escape")
+    monkeypatch.setenv("SAFE_EVAL_MARKER", "present")
+    env = _worker_env()
+    assert "API_TOKEN" not in env
+    assert "GIT_DIR" not in env
+    assert "SSH_AUTH_SOCK" not in env
+    assert env["SAFE_EVAL_MARKER"] == "present"
 
 
 def fixture(tmp_path: Path) -> Path:

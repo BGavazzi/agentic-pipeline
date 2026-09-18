@@ -42,6 +42,17 @@ except ImportError:  # pragma: no cover - CI installs pyyaml.
 SCHEMA_VERSION = 1
 DEFAULT_TIMEOUT_SECONDS = 900
 MAX_OUTPUT_BYTES = 64 * 1024
+SECRET_ENV = re.compile(r"(?:TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|PRIVATE_KEY|API_KEY|ACCESS_KEY)", re.I)
+CONTROL_ENV = re.compile(
+    r"^(?:GIT_(?:DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|CONFIG_.*|SSH_COMMAND)|"
+    r"SSH_AUTH_SOCK|DOCKER_HOST|KUBECONFIG|GOOGLE_APPLICATION_CREDENTIALS|"
+    r"CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE|AZURE_CONFIG_DIR)$", re.I)
+
+
+def _worker_env() -> dict[str, str]:
+    """Pass only non-secret, non-repository-control environment to workers."""
+    return {key: value for key, value in os.environ.items()
+            if not SECRET_ENV.search(key) and not CONTROL_ENV.fullmatch(key)}
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -234,7 +245,7 @@ def run_fixture(fixture: Path, command: list[str], timeout_seconds: int = DEFAUL
             _git(sandbox, "add", ".claude/skills")
             _git(sandbox, "commit", "-qm", "candidate skill under test")
             baseline = _git(sandbox, "rev-parse", "HEAD")
-            env = dict(os.environ)
+            env = _worker_env()
             env.update({
                 "CI": "1",
                 "PIPELINE_META_TEST_SANDBOX": str(sandbox),
