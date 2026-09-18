@@ -2,6 +2,16 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Productize multi-base integration queue processing (task 0080)
+### Added
+- `integration_queue.py` discovers the open PR queue once, groups candidates by
+  their declared base, delegates each group to the disposable local producer,
+  and emits aggregate JSON/Markdown evidence for the staging gate.
+### Safety
+- Unresolved bases become explicit human-review holds; the adapter performs no
+  remote merge, approval, push, deploy, or staging PR creation.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Harden integration queue identity and draft readiness (task 0079)
 ### Changed
 - Local PR discovery now prefers remote-tracking heads and refreshes a moved

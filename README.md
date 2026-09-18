@@ -545,6 +545,17 @@ python scripts/local_integration_loop.py --repo . --base main \
   --markdown-output .docs/integration-reports/local-bundle.md
 ```
 
+For the complete stacked queue, use `scripts/integration_queue.py`. It
+discovers open PRs once, groups them by their declared base branch, runs each
+group through the same local policy, and aggregates the staging handoff without
+creating a staging PR:
+
+```
+python scripts/integration_queue.py --repo . --repo-slug OWNER/REPO \
+  --fetch-missing --output .docs/integration-reports/queue.json \
+  --markdown-output .docs/integration-reports/queue.md
+```
+
 Use `--fetch-missing` only when the local clone needs to read same-repository
 PR head refs through `origin`; a manifest may instead provide already-fetched
 immutable commit SHAs. `review_required` is fail-closed: the bundle is an
