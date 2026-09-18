@@ -167,6 +167,7 @@ GATE_SCRIPTS = [
     "ci_telemetry.py",
     "merge_group_contract.py",
     "release_health_gate.py",
+    "local_integration_loop.py",
 ]
 
 # This repo's own AGENTS.md as it existed before task 0006 filled it in —

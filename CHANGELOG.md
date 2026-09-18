@@ -2,6 +2,23 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add bounded local integration and human-review bundling (task 0066)
+### Added
+- `scripts/local_integration_loop.py` for disposable, one-candidate-at-a-time
+  local merges, argv-only integration tests, risk/contact-surface routing, and
+  JSON/Markdown bundles of routine survivors and acute-risk holds.
+- Explicit credential-environment scrubbing, optional read-only PR-head fetch,
+  worktree cleanup between candidates, and a no-remote-write policy receipt.
+### Safety
+- High-risk, infrastructure, CI/workflow, harness-policy, schema and
+  security/identity changes remain human-review holds before execution.
+- Conflicts and failed integration commands are reverted in the disposable
+  worktree; the tool cannot approve, push, merge remotely or deploy.
+### Tests
+- Added focused coverage for acute classification, routine inclusion, failed
+  merge rollback, and deterministic candidate manifests.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add versioned SOTA harness capability audit (task 0057)
 ### Added
 - `scripts/sota_audit.py` and CI evidence output for a deterministic,

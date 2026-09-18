@@ -208,3 +208,16 @@
 - Added `visual_receipt.py` and adversarial tests for thresholds, screenshot /
   baseline provenance, comparison counts, and stale identity. No browser or
   credential is introduced in the generic core.
+
+## 2026-09-18 — Task 0066, bounded local integration loop
+
+- Added `local_integration_loop.py`: local-only candidate discovery/resolution,
+  deterministic risk/contact-surface classification, disposable sequential
+  merges, argv-only integration execution, cleanup, and JSON/Markdown review
+  bundles.
+- Acute-risk, conflict, unresolved-ref and failed-test candidates remain held
+  for human review. The producer has no remote merge, push, approval, deploy,
+  or secret-forwarding path.
+- Focused verification: `tests/test_local_integration_loop.py` passes 4/4.
+- Next: run the full gate suite, push a draft PR, and keep external worker/
+  scheduler/notification activation as a separate protected deployment task.
