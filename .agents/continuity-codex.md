@@ -1,5 +1,13 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0058, per-test result history
+
+- Started `D:\VIBES\agentic-pipeline-0059` from the SOTA audit branch, branch
+  `feat/0059-test-result-history`.
+- Extended `scripts/receipt_journal.py` with append-only per-test result events
+  and deterministic freshness/flakiness/duration summaries. The full suite is
+  still authoritative; history cannot authorize skipping tests.
+
 ## 2026-09-18 — Task 0057, SOTA capability audit
 
 - Started `D:\VIBES\agentic-pipeline-0058` from current `origin/master`, branch

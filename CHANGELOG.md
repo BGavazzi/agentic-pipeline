@@ -14,6 +14,17 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Add per-test history metrics for TIA (task 0058)
+### Added
+- Extended the append-only journal with idempotent per-test result events and
+  explicit `test-result-append` / `test-result-summary` CLI contracts.
+- Added denominator-first freshness, stale-test, flaky-test, latest-status and
+  duration metrics with an explicit reference timestamp.
+### Safety
+- History remains descriptive telemetry. It cannot replace the full suite or
+  authorize test skipping before a separately validated promotion policy exists.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-16] - Repair reviewed evidence and trust boundaries (task 0042)
 ### Fixed
 - Preserve scanner vetoes; require commit-bound unit receipts and execute exact

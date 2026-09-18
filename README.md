@@ -359,8 +359,10 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   for cohorts below 30 changes. It is telemetry, never an admission score.
 - **`receipt_journal.py`** — stores quality receipts in a local append-only
   SQLite/WAL journal with transactional idempotency, conflict rejection and
-  replayable status/time metrics. It has no network behavior and cannot
-  override admission.
+  replayable status/time metrics. Its `test-result-append` and
+  `test-result-summary` commands add per-test freshness, flakiness and duration
+  history without authorizing skipped tests. It has no network behavior and
+  cannot override admission.
 - **`sota_audit.py`** — measures the harness against a versioned capability
   rubric. It separates implementation/test/CI evidence from external facts
   such as signed provenance, protected reviewer identity, ephemeral worker
