@@ -368,6 +368,14 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   such as signed provenance, protected reviewer identity, ephemeral worker
   teardown, merge-queue activation and deployment rollback. Its denominator-
   first score is telemetry and never replaces `admission_gate.py`.
+- **`provenance_verify.py`** — creates and verifies a local digest contract for
+  tag releases, binding the source archive and SPDX/CycloneDX SBOM to the exact
+  commit, workflow and semantic-version ref. `.github/workflows/release-
+  provenance.yml` runs only on version tags and uses GitHub's signed
+  `actions/attest`; it does not attest routine PR test artifacts.
+- **`release-provenance.yml`** — tag-only release path that creates a source
+  archive, CycloneDX SBOM and GitHub/Sigstore attestation with immutable action
+  pins. It deliberately does not run for test PRs or authorize admission.
 
 The deterministic gate modules and the meta-test runner are covered by real pytest tests and run in CI. `meta-test` now exercises a committed builder fixture in a disposable git sandbox; its worker command is deliberately runtime-supplied so trusted homelab agents can participate without granting the harness a real checkout or push remote. The live scanner contract has also been exercised with a reachable Docker daemon on 2026-09-16: Semgrep, Trivy, and Gitleaks all passed clean/planted synthetic fixtures (`3 passed`). That proves the current pinned invocation and cache path work; it does **not** reproduce or confirm the historical first-run Trivy failure, which remains honestly tracked in task 0007.
 
