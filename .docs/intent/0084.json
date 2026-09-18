@@ -18,8 +18,17 @@
   "forbidden_effects": ["external-write", "deploy", "secret-use"],
   "observed_effects": ["local-code-change", "ci-policy-change"],
   "negative_tests": [
-    "unsafe capture paths and duplicate view IDs are rejected",
-    "missing or mismatched command policy is rejected",
-    "visual receipts revalidate artifact digests and exact commit identity"
+    {
+      "name": "unsafe capture paths and duplicate view IDs are rejected",
+      "status": "pass"
+    },
+    {
+      "name": "missing or mismatched command policy is rejected",
+      "status": "pass"
+    },
+    {
+      "name": "visual receipts revalidate artifact digests and exact commit identity",
+      "status": "pass"
+    }
   ]
 }
