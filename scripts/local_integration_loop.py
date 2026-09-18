@@ -72,6 +72,13 @@ def _sha(repo: Path, ref: str) -> str:
     return value
 
 
+def _branch_name(ref: str) -> str:
+    """Normalize common local/remote branch spellings for identity checks."""
+    if ref.startswith("refs/heads/"):
+        ref = ref.removeprefix("refs/heads/")
+    return ref.removeprefix("origin/")
+
+
 def _candidate(value: dict[str, Any]) -> Candidate:
     try:
         number = int(value["number"])
@@ -90,7 +97,11 @@ def _candidate(value: dict[str, Any]) -> Candidate:
     cross_repository = value.get("is_cross_repository", value.get("isCrossRepository", False))
     if type(cross_repository) is not bool:
         raise ValueError("candidate cross-repository flag is invalid")
-    return Candidate(number, title, ref, head_sha, value.get("url"), value.get("base_ref"),
+    base_ref = value.get("base_ref")
+    if base_ref is not None and (not isinstance(base_ref, str) or not base_ref
+                                 or any(c in base_ref for c in "\r\n\x00")):
+        raise ValueError("candidate base_ref is invalid")
+    return Candidate(number, title, ref, head_sha, value.get("url"), base_ref,
                      cross_repository, value.get("head_repository"), value.get("head_owner"))
 
 
@@ -278,10 +289,25 @@ def integrate(repo: Path, base_ref: str, candidates: Iterable[Candidate],
             for candidate in ordered:
                 item: dict[str, Any] = {"pr": candidate.number, "title": candidate.title,
                                         "url": candidate.url, "ref": candidate.ref,
+                                        "base_ref": candidate.base_ref,
                                         "fork_pr": candidate.is_cross_repository,
                                         "head_repository": candidate.head_repository,
                                         "head_owner": candidate.head_owner}
+                previous_head = ""
                 try:
+                    if (candidate.base_ref is not None
+                            and _branch_name(candidate.base_ref) != _branch_name(base_ref)):
+                        item.update({"classification": "acute", "risk_level": "high",
+                                     "risk_triggers": ["base-ref-mismatch"],
+                                     "required_gates": blast_radius.required_gates_for(
+                                         "high", ["base-ref-mismatch"]),
+                                     "contact_surfaces": {"harness/policy": ["candidate base identity"]},
+                                     "human_review_required": True,
+                                     "status": "held_for_human",
+                                     "reason": "candidate_base_ref_mismatch"})
+                        held.append(candidate.number)
+                        results.append(item)
+                        continue
                     # Fork code is untrusted until a human explicitly routes
                     # it through the GitHub-hosted lane. Never fetch, merge or
                     # execute a cross-repository head in this local loop.
@@ -297,6 +323,7 @@ def integrate(repo: Path, base_ref: str, candidates: Iterable[Candidate],
                         held.append(candidate.number)
                         results.append(item)
                         continue
+                    previous_head = _git(worktree, "rev-parse", "HEAD")
                     head_sha = resolve_candidate(repo, candidate, fetch_missing=fetch_missing)
                     item["head_sha"] = head_sha
                     item.update(classify_candidate(repo, base_sha, candidate, head_sha))
@@ -326,6 +353,9 @@ def integrate(repo: Path, base_ref: str, candidates: Iterable[Candidate],
                         held.append(candidate.number)
                     results.append(item)
                 except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    if FULL_SHA.fullmatch(previous_head):
+                        _git(worktree, "reset", "--hard", previous_head, check=False)
+                        _git(worktree, "clean", "-fdx", check=False)
                     item.update({"status": "held_for_human", "reason": type(exc).__name__})
                     held.append(candidate.number)
                     results.append(item)

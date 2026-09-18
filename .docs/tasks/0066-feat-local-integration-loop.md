@@ -41,6 +41,8 @@ candidate.
       remain visible until human disposition.
 - [x] Hold cross-repository/fork candidates before fetching or executing their
       head code; route them to the untrusted hosted lane for explicit review.
+- [x] Hold candidate/base identity mismatches and restore the previous
+      disposable tree after unexpected worker-launch exceptions.
 - [ ] Add a protected scheduler/worker consumer and notification channel as a
       separate deployment task; this local producer must remain bounded.
 

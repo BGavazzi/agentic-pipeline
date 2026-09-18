@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import scripts.local_integration_loop as loop_module
 from scripts.local_integration_loop import (
     Candidate,
     _safe_env,
@@ -81,6 +82,33 @@ def test_fork_candidate_is_held_before_ref_resolution(tmp_path: Path):
     assert item["reason"] == "fork_pr_requires_human_review"
     assert item["risk_level"] == "high"
     assert item["required_gates"][-1] == "ultrareview"
+
+
+def test_base_ref_mismatch_is_held_before_resolution(tmp_path: Path):
+    repo, _, routine, _ = repo_with_candidates(tmp_path)
+    result = integrate(repo, "master", [Candidate(10, "wrong-base", routine,
+                                                   base_ref="integration")], timeout=30)
+    assert result["held_prs"] == [10]
+    assert result["candidates"][0]["reason"] == "candidate_base_ref_mismatch"
+
+
+def test_unexpected_runner_exception_rolls_back_before_next_candidate(tmp_path: Path, monkeypatch):
+    repo, _, routine, _ = repo_with_candidates(tmp_path)
+    calls = 0
+
+    def flaky_runner(worktree, command, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OSError("simulated worker launch failure")
+        return {"status": "pass", "exit_code": 0, "duration_seconds": 0.0,
+                "stdout_bytes": 0, "stderr_bytes": 0}
+
+    monkeypatch.setattr(loop_module, "_run_command", flaky_runner)
+    result = integrate(repo, "master", [Candidate(11, "first", routine),
+                                         Candidate(12, "second", routine)], timeout=30)
+    assert result["held_prs"] == [11]
+    assert result["included_prs"] == [12]
 
 
 def test_failed_routine_is_held_and_local_merge_is_reverted(tmp_path: Path):
