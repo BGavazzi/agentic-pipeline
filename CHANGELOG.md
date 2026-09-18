@@ -2,6 +2,15 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Document agentic SDLC testing SOTA and next queue (task 0067)
+### Added
+- `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md` compares primary
+  sources on scalable test-impact analysis, continuous agent evals, benchmark
+  integrity, hermeticity, visual environments, telemetry, and human review.
+- A metric-driven implementation queue separates local eval/test work from
+  protected worker, policy, telemetry, and deployment activation.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add bounded local integration and human-review bundling (task 0066)
 ### Added
 - `scripts/local_integration_loop.py` for disposable, one-candidate-at-a-time
