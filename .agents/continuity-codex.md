@@ -1,5 +1,10 @@
 # Continuity — Codex
 
+## Task 0070 — trusted-policy verifier
+- Added `scripts/trusted_policy.py` and exact-pair/protected-attestation tests.
+- Included it in the policy/gate inventories; deployment must still wire a
+  genuinely protected producer and immutable policy pin.
+
 ## Task 0069 — impact selector regret/load metrics
 - Branch/PR: `feat/0069-impact-selector-regret-load` (stacked on task 0068).
 - Added versioned benchmark metrics for selection regret, fallback rate, p95
