@@ -32,6 +32,7 @@ def repo_with_candidates(tmp_path: Path) -> tuple[Path, str, str, str]:
     git(repo, "commit", "-m", "base")
     base = git(repo, "rev-parse", "HEAD")
     git(repo, "checkout", "-b", "routine")
+    (repo / "app.py").write_text("value = 2\n", encoding="utf-8")
     (repo / "feature.py").write_text("value = 2\n", encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "routine")
@@ -96,6 +97,22 @@ def test_failed_routine_is_held_and_local_merge_is_reverted(tmp_path: Path):
     assert result["candidates"][0]["reason"] == "integration_failed"
     assert not (repo / "feature.py").exists()
     assert not (repo / "orphan.txt").exists()
+
+
+def test_later_candidate_conflict_is_held_after_prior_survivor(tmp_path: Path):
+    repo, base, routine, _ = repo_with_candidates(tmp_path)
+    git(repo, "checkout", "-b", "conflict", base)
+    (repo / "app.py").write_text("value = 3\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "conflict")
+    conflict = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "master")
+    result = integrate(repo, "master", [Candidate(1, "routine", routine),
+                                         Candidate(3, "conflict", conflict)],
+                       (sys.executable, "-c", "raise SystemExit(0)"), timeout=30)
+    assert result["included_prs"] == [1]
+    assert result["held_prs"] == [3]
+    assert result["candidates"][1]["reason"] == "merge_conflict"
 
 
 def test_safe_environment_drops_credential_like_names(tmp_path: Path, monkeypatch):
