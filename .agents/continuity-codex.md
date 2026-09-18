@@ -1,5 +1,9 @@
 # Continuity — Codex
 
+## Task 0072 — validator contract tests
+- Added direct tests for `validate_task.py` and `validate_closure.py`, including
+  strict seven-obligation completion and in-progress advisory behavior.
+
 ## Task 0071 — tamper-evident receipt history
 - Added receipt event hash chaining and `verify_chain()`; summaries now report
   chain validity/breaks without changing admission semantics.
