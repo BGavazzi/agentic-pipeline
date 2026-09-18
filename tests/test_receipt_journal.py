@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.receipt_journal import append_event, summarize
+from scripts.receipt_journal import append_event, summarize, verify_chain
 
 BASE, HEAD = "a" * 40, "b" * 40
 
@@ -28,6 +28,18 @@ def test_append_is_idempotent_and_summary_is_replayable(tmp_path: Path):
     assert report["candidate_pair_count"] == 1
     assert report["status_counts"] == {"pass": 1}
     assert report["replayable"] is True
+    assert report["chain_valid"] is True
+    assert report["chain_event_count"] == 1
+
+
+def test_event_chain_binds_order_and_receipt_identity(tmp_path: Path):
+    journal = tmp_path / "receipts.sqlite"
+    first = receipt(tmp_path / "first.json")
+    second = receipt(tmp_path / "second.json", "fail")
+    one = append_event(journal, "run-1", "unit", first, BASE, HEAD)
+    two = append_event(journal, "run-2", "unit", second, BASE, HEAD)
+    assert one["event_sha256"] != two["event_sha256"]
+    assert verify_chain(journal) == {"valid": True, "event_count": 2, "break_count": 0}
 
 
 def test_conflicting_event_id_is_rejected(tmp_path: Path):
