@@ -61,6 +61,33 @@ def test_stale_identity_is_rejected(tmp_path):
         visual_receipt.validate_report(report(tmp_path), BASE, "c" * 40, tmp_path, 0.02)
 
 
+def test_protected_baseline_policy_binds_ref_digest_and_browser(tmp_path):
+    value = report(tmp_path)
+    value["baseline"]["ref"] = "baseline-ref"
+    protected = {
+        "schema_version": 1,
+        "baseline_ref": "baseline-ref",
+        "baseline_sha256": value["baseline"]["sha256"],
+        "browser_image": "mcr.microsoft.com/playwright:v1.55.0-noble",
+        "threshold": 0.02,
+    }
+    result = visual_receipt.validate_report(value, BASE, HEAD, tmp_path, 0.02, protected)
+    assert result["status"] == "pass"
+    assert result["baseline_policy"]["browser_image"].startswith("mcr.microsoft.com/")
+
+
+def test_candidate_cannot_replace_protected_baseline(tmp_path):
+    value = report(tmp_path)
+    protected = {
+        "schema_version": 1,
+        "baseline_ref": "protected-baseline",
+        "baseline_sha256": value["baseline"]["sha256"],
+        "browser_image": "playwright:v1",
+    }
+    with pytest.raises(ValueError, match="baseline ref"):
+        visual_receipt.validate_report(value, BASE, HEAD, tmp_path, 0.02, protected)
+
+
 def test_cli_writes_receipt(tmp_path):
     source = tmp_path / "visual.json"
     output = tmp_path / "receipt.json"

@@ -1,5 +1,10 @@
 # Continuity — Codex
 
+## Task 0073 — protected visual baseline binding
+- Extended `visual_receipt.py` with optional trusted baseline policy binding for
+  ref, digest, threshold, and browser image; added candidate-replacement tests.
+- A real Playwright producer and protected baseline store remain external.
+
 ## Task 0072 — validator contract tests
 - Added direct tests for `validate_task.py` and `validate_closure.py`, including
   strict seven-obligation completion and in-progress advisory behavior.
