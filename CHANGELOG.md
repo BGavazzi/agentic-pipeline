@@ -2,6 +2,17 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add deterministic intent and authorization evidence (task 0081)
+### Added
+- `intent_gate.py` validates declared path scope, forbidden paths/effects,
+  allowed data classes, sensitive negative tests, and exact base/head identity.
+- The SOTA capability audit now reports intent authorization separately as
+  partial until protected producer and admission wiring exist.
+### Safety
+- Intent reports are evidence-only and explicitly untrusted until a protected
+  producer and admission integration consume them.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Productize multi-base integration queue processing (task 0080)
 ### Added
 - `integration_queue.py` discovers the open PR queue once, groups candidates by

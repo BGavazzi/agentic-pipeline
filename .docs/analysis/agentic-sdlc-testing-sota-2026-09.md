@@ -145,6 +145,9 @@ green.
   telemetry, merge-group, and release-health contracts.
 - Local disposable multi-candidate integration with risk/contact metrics,
   fork quarantine, stateful bounded rounds, and human-review bundles.
+- Deterministic intent/authorization evidence now checks exact diff scope,
+  forbidden effects, data classes, and sensitive negative tests; protected
+  producer identity and admission consumption remain external.
 - Versioned SOTA capability audit that separates repository evidence from
   external activation facts.
 
@@ -212,6 +215,9 @@ The following local contracts are now implemented and dogfooded in the stacked
   admission authority;
 - admission mutation score and metadata-only PR topline metrics are now part of
   the local/CI evidence path.
+- intent/authorization evidence now binds an agent-declared boundary to the
+  exact changed tree; it remains explicitly untrusted until protected CI and
+  admission consume it.
 
 ### Important visual-regression boundary
 
@@ -225,9 +231,10 @@ activation is reviewed.
 
 ### Remaining SOTA gaps
 
-The residual gaps are mostly deployment-owned: a 20–50-case representative
-agent-eval corpus, durable cross-run TIA history/sharding, protected/JIT
-homelab observation, immutable policy producer identity, pinned browser and
-toolchain images, OTel collection/SLO alerts, merge-queue activation, and
-post-deploy rollback observation. These are intentionally represented as
-blocked/partial evidence in `sota_audit.py`, not simulated as local passes.
+The residual gaps are mostly deployment-owned: protected intent-policy
+authority and admission wiring, a 20–50-case representative agent-eval
+corpus, durable cross-run TIA history/sharding, protected/JIT homelab
+observation, immutable policy producer identity, pinned browser and toolchain
+images, OTel collection/SLO alerts, merge-queue activation, and post-deploy
+rollback observation. These are intentionally represented as blocked/partial
+evidence in `sota_audit.py`, not simulated as local passes.
