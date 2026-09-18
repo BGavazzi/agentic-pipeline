@@ -10,7 +10,7 @@ blocks: []
 blocked_by: []
 ---
 
-# 0060 — Feature: explicit flaky-test governance
+# 0061 — Feature: explicit flaky-test governance
 
 ## Context
 Agentic CI needs to distinguish a real regression from a flaky test without

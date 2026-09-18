@@ -14,7 +14,7 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
-## [2026-09-18] - Add explicit flaky-test governance (task 0060)
+## [2026-09-18] - Add explicit flaky-test governance (task 0061)
 ### Added
 - `scripts/flake_gate.py` and tests for owner/expiry quarantine evaluation
   over per-test history.
