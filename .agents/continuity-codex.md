@@ -1,5 +1,9 @@
 # Continuity — Codex
 
+## Task 0076 — admission mutation benchmark
+- Added deterministic receipt/risk mutations and CI execution; current mutation
+  score is required to be 1.0, but the benchmark remains descriptive-only.
+
 ## Task 0075 — versioned KPI vector history
 - Added compact deterministic KPI vectors and append-only SQLite summaries for
   long-run mean/variance/p95/freshness analysis without raw-log retention.

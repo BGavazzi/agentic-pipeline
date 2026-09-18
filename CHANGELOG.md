@@ -2,6 +2,15 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add admission mutation benchmark (task 0076)
+### Added
+- A deterministic mutation score exercises missing, failed, stale, unknown,
+  and removed-obligation admission evidence; the CI unit job now runs it.
+### Safety
+- Mutation output is descriptive correctness evidence and cannot authorize
+  admission or skipped tests.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add versioned KPI vector history (task 0075)
 ### Added
 - `kpi_history.py` stores compact numeric KPI vectors with input hashes and

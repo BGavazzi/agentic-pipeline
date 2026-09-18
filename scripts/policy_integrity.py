@@ -19,6 +19,7 @@ POLICY_PATHS = (
     ".pre-commit-config.yml",
     ".github/workflows/ci.yml",
     "scripts/admission_gate.py",
+    "scripts/admission_mutation_benchmark.py",
     "scripts/blast_radius.py",
     "scripts/ci_receipts.py",
     "scripts/core_sync.py",

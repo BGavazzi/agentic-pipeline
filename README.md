@@ -394,6 +394,13 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`ci_telemetry.py`** — materializes local scorecard/intelligence numbers as
   file-only, OTLP-shaped metrics with commit/run identity and report labels.
   Network export, collectors, queue-age and worker SLOs remain deployment work.
+- **`kpi_history.py`** — reduces JSON reports to a deterministic, versioned
+  numeric KPI vector, stores only input hashes plus append-only snapshots, and
+  reports long-run variance/p95/freshness over bounded windows. This is
+  embedding-like trend telemetry, not a semantic embedding or admission score.
+- **`admission_mutation_benchmark.py`** — applies deterministic adversarial
+  mutations to the admission fixture and reports whether the fail-closed
+  contract kills them; CI requires the current 1.000 mutation score.
 - **`merge_group_contract.py`** — validates GitHub merge-queue event identity
   and emits a non-authoritative contract artifact. It does not claim required
   checks passed or activate merge-queue/deployment settings.
