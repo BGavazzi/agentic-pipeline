@@ -1,5 +1,11 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0063, provider-neutral CI telemetry
+
+- Added `ci_telemetry.py`, a file-only OTLP-shaped metric adapter for local
+  scorecard and PR-intelligence reports. It preserves commit/run identity and
+  report labels without network export or admission authority.
+
 ## 2026-09-18 — Task 0062, JUnit history evidence
 
 - Added a fail-closed JUnit adapter and CI wiring that emits commit-bound,

@@ -594,6 +594,26 @@ jobs:
             --output .docs/quality-reports/pr-intelligence.json \
             --markdown-output .docs/quality-reports/pr-intelligence.md
           cat .docs/quality-reports/pr-intelligence.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Materialize provider-neutral CI telemetry
+        if: always()
+        continue-on-error: true
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          if test -f .docs/quality-reports/scorecard.json && test -f .docs/quality-reports/pr-intelligence.json; then
+            python scripts/ci_telemetry.py \
+              --input .docs/quality-reports/scorecard.json \
+              --input .docs/quality-reports/pr-intelligence.json \
+              --repository "$GITHUB_REPOSITORY" \
+              --commit "$HEAD_SHA" \
+              --run-id "$RUN_ID" \
+              --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --output .docs/quality-reports/otel-metrics.json
+          else
+            echo "CI telemetry unavailable: upstream quality reports were not produced."
+          fi
       - name: Evaluate autonomous staging eligibility
         if: always()
         env:
