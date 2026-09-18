@@ -3,7 +3,7 @@ status: in_progress
 priority: P1
 type: feat
 created: 2026-09-17
-updated: 2026-09-17
+updated: 2026-09-18
 clickup_id: null
 parent: null
 blocks: []
@@ -29,6 +29,11 @@ baseline/candidate images, measured changed pixels, and durable diff artifacts.
 - [x] Decode PNGs, compare dimensions/pixels, and emit diff artifacts.
 - [x] Bind receipt to base/head, baseline manifest, invocation and command digest.
 - [x] Add identical-render, changed-render and mismatched-view tests.
+- [x] Require a protected command policy, allowlisted environment, exact
+  merge-tree execution, bounded image inputs, safe view IDs and digest-checked
+  baseline/diff artifacts.
+- [x] Preserve multi-view baseline evidence and make the producer receipt
+  re-validate through the generic visual validator.
 - [ ] Pilot against a scoped frontend repository with approved baseline storage.
 
 ## Affected Files
@@ -42,6 +47,8 @@ baseline/candidate images, measured changed pixels, and durable diff artifacts.
 - [x] Changed decoded pixels fail a zero threshold and report exact counts.
 - [x] Missing/mismatched views fail before admission.
 - [x] Baseline/candidate/diff artifacts are copied under a bounded artifact root.
+- [x] Command identity, clean-room tree, per-view metrics and artifact digests
+  are recorded and adversarial path/duplicate/pixel-limit tests pass.
 - [x] Reviewer/scanner gates remain green after the producer is added.
 - [ ] A real Playwright browser run and protected baseline update are reviewed.
 
@@ -56,8 +63,8 @@ baseline/candidate images, measured changed pixels, and durable diff artifacts.
 - [ ] PR approved.
 
 ## Honest Backlog
-The runtime command, browser version, OS/font image, baseline storage and
-frontend scope remain deployment choices. The adapter proves decoded pixels and
-provenance consistency; it does not make a candidate-supplied command or
+The protected caller must supply the command policy, browser version, OS/font
+image, baseline storage and frontend scope. The adapter proves decoded pixels
+and provenance consistency; it does not make a candidate-supplied policy or
 baseline cryptographically trusted. No frontend repository or customer data was
 used in this packet.

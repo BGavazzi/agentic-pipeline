@@ -38,12 +38,13 @@ CLI output/exit changes must still be documented and regression-tested.
 ## Task 0046 visual producer v1
 
 - `playwright_visual_producer.run_producer(repo, task_id, base_sha, head_sha,
-  baseline_manifest, baseline_root, output, threshold, command)`: runs a
-  runtime-supplied browser/capture argv in an exact candidate archive, requires
-  an exact protected baseline view set, decodes PNGs with Pillow, computes
-  changed/total pixels, writes diff artifacts and emits a visual receipt with a
-  producer envelope. It does not authenticate the caller or approve baseline
-  updates.
+  baseline_manifest, baseline_root, output, threshold, command,
+  command_policy, baseline_policy=None)`: runs a protected-policy-bound
+  browser/capture argv in the exact base/head merge tree, requires an exact
+  protected baseline view set, decodes bounded PNGs with Pillow, computes
+  aggregate and per-view pixel metrics, writes digest-bound diff artifacts and
+  emits a visual receipt with a producer envelope. It does not authenticate the
+  caller or approve baseline updates.
 ## Task 0042 contract revisions (supersede earlier signatures below)
 
 | API | Current contract |

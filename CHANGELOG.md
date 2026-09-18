@@ -27,6 +27,14 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - No frontend repository, browser fleet, baseline store or customer data was
   selected. Baseline updates and real Playwright execution still require a
   protected producer pilot and human review.
+### Hardened
+- The producer now requires a policy-bound command digest, runs the exact
+  base/head merge tree with an allowlisted environment, rejects unsafe or
+  duplicate view IDs, bounds decoded image pixels, and terminates timed-out
+  capture processes.
+- Baseline manifests, per-view baselines, candidates and diffs are copied
+  under a confined artifact root with verified SHA-256 references; receipts
+  expose per-view and aggregate metrics and survive independent re-validation.
 **Author**: Codex (agent); pending independent review.
 
 ## [2026-09-18] - Carry intent evidence into risk and admission (task 0082)

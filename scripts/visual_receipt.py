@@ -45,6 +45,13 @@ def validate_report(report: dict, base_sha: str, head_sha: str,
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if item.get("sha256") != digest:
             raise ValueError("visual artifact digest mismatch")
+
+    producer = report.get("producer")
+    if producer is not None:
+        if (not isinstance(producer, dict) or producer.get("schema_version") != 1
+                or producer.get("kind") != "visual-producer"
+                or not _text(producer.get("invocation_id"))):
+            raise ValueError("invalid visual producer provenance envelope")
     evidence = report.get("evidence")
     if not isinstance(evidence, list) or not evidence:
         raise ValueError("visual evidence is required")
@@ -53,6 +60,12 @@ def validate_report(report: dict, base_sha: str, head_sha: str,
                 or not _text(item.get("path")) or not _text(item.get("viewport")):
             raise ValueError("each screenshot needs path and viewport")
         artifact(item)
+        for path_key, digest_key in (("baseline_path", "baseline_sha256"),
+                                     ("diff_path", "diff_sha256")):
+            if path_key in item or digest_key in item:
+                if not _text(item.get(path_key)) or not _text(item.get(digest_key)):
+                    raise ValueError(f"{path_key} requires a path and digest")
+                artifact({"path": item[path_key], "sha256": item[digest_key]})
     baseline = report.get("baseline")
     if not isinstance(baseline, dict) or not _text(baseline.get("ref")):
         raise ValueError("baseline provenance is required")
@@ -103,6 +116,7 @@ def validate_report(report: dict, base_sha: str, head_sha: str,
         "baseline_policy": baseline_policy,
         "evidence": evidence,
         "metrics": metrics,
+        **({"producer": producer} if producer is not None else {}),
     }
 
 

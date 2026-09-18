@@ -18,6 +18,15 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _require_producer(report: dict, kind: str) -> None:
+    producer = report.get("producer")
+    if (not isinstance(producer, dict) or producer.get("kind") != kind
+            or producer.get("schema_version") != 1
+            or not isinstance(producer.get("invocation_id"), str)
+            or not producer["invocation_id"].strip()):
+        raise ValueError(f"{kind} provenance envelope is missing or invalid")
+
+
 def test_status(path: Path, base_sha: str, head_sha: str) -> str:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
