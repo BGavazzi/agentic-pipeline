@@ -359,8 +359,15 @@ def run_loop(repo: Path, base_ref: str, candidates: Iterable[Candidate],
     else:
         base_sha = _sha(repo, base_ref)
     all_items = [item for report in reports for item in report["candidates"]]
-    included = [item["pr"] for item in all_items if item["status"] == "included"]
-    held = [item["pr"] for item in all_items if item["status"] == "held_for_human"]
+    # Keep exposure metrics in ``rounds``/candidates_total, but present one
+    # current decision per PR in the human bundle. If a PR head changes, the
+    # latest round replaces the stale prior decision.
+    latest_by_pr: dict[int, dict[str, Any]] = {}
+    for item in all_items:
+        latest_by_pr[int(item["pr"])] = item
+    bundle_items = list(latest_by_pr.values())
+    included = [item["pr"] for item in bundle_items if item["status"] == "included"]
+    held = [item["pr"] for item in bundle_items if item["status"] == "held_for_human"]
     return {"schema_version": SCHEMA_VERSION, "local_integration_version": 1,
             "base_ref": base_ref, "base_sha": base_sha,
             "status": "review_required" if held else "routine_survivors_ready",
@@ -368,11 +375,12 @@ def run_loop(repo: Path, base_ref: str, candidates: Iterable[Candidate],
             "human_review_required": bool(held), "remote_write": False,
             "metrics": {"rounds_completed": len(reports),
                         "candidates_total": len(all_items),
+                        "bundle_unique_count": len(bundle_items),
                         "included_count": len(included), "held_count": len(held),
                         "skipped_processed_count": skipped_total,
                         "acute_count": sum(item.get("classification") == "acute" for item in all_items)},
             "command": list(command), "rounds": reports,
-            "candidates": all_items, "state_path": str(state_path) if state_path else None,
+            "candidates": bundle_items, "state_path": str(state_path) if state_path else None,
             "policy": {"local_merge_only": True, "no_remote_merge": True,
                        "credential_env_scrubbed": True,
                        "acute_risk_surfaces_human": True,

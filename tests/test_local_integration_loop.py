@@ -126,9 +126,11 @@ def test_stateful_loop_keeps_acute_hold_visible(tmp_path: Path):
     candidate = Candidate(2, "workflow", acute, head_sha=acute)
     command = (sys.executable, "-c", "raise SystemExit(0)")
     first = run_loop(repo, "master", [candidate], command, timeout=30, state_path=state)
-    second = run_loop(repo, "master", [candidate], command, timeout=30, state_path=state)
+    second = run_loop(repo, "master", [candidate], command, timeout=30, state_path=state, max_rounds=2)
     assert first["held_prs"] == [2]
     assert second["held_prs"] == [2]
+    assert second["metrics"]["candidates_total"] == 2
+    assert second["metrics"]["bundle_unique_count"] == 1
     assert second["metrics"]["skipped_processed_count"] == 0
 
 
