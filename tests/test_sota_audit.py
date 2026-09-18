@@ -36,6 +36,9 @@ def test_real_repo_report_has_versioned_metrics():
     assert independent["evidence"]["ci"][".github/workflows/protected-policy.yml"] is True
     intent = next(item for item in report["capabilities"] if item["id"] == "intent-authorization")
     assert intent["status"] == "partial"
+    worker = next(item for item in report["capabilities"] if item["id"] == "worker-boundary")
+    assert worker["evidence"]["implementation"]["scripts/worker_preflight.py"] is True
+    assert "scripts/worker_boundary.py" not in worker["evidence"]["implementation"]
 
 
 def test_markdown_and_cli_outputs_are_deterministic(tmp_path: Path, monkeypatch):

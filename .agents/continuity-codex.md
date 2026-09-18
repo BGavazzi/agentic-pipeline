@@ -1,5 +1,10 @@
 # Continuity — Codex
 
+## Task 0085 — risk-first draft triage
+- Same-repository drafts are now classified read-only for risk/contact metrics
+  while remaining held and unexecutable; fork and unresolved cases stay
+  fail-closed.
+
 ## Task 0078 — SOTA implementation delta
 - Refreshed the SOTA report with shipped local contracts, KPI vector semantics,
   the separate Playwright producer lineage, and remaining external gaps.

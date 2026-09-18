@@ -84,7 +84,7 @@ def test_fork_candidate_is_held_before_ref_resolution(tmp_path: Path):
     assert item["required_gates"][-1] == "intent"
 
 
-def test_draft_candidate_is_held_before_ref_resolution(tmp_path: Path):
+def test_draft_candidate_is_held_without_execution_but_risk_triaged(tmp_path: Path):
     repo, _, routine, _ = repo_with_candidates(tmp_path)
     result = integrate(
         repo,
@@ -95,7 +95,10 @@ def test_draft_candidate_is_held_before_ref_resolution(tmp_path: Path):
     )
     item = result["candidates"][0]
     assert result["held_prs"] == [14]
-    assert item["classification"] == "not_ready"
+    assert item["classification"] == "routine"
+    assert item["risk_level"] == "low"
+    assert "draft-pr" in item["risk_triggers"]
+    assert item["changed_files"]
     assert item["reason"] == "draft_pr_requires_human_review"
     assert item["draft"] is True
 
