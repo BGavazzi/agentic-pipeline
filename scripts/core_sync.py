@@ -159,6 +159,7 @@ GATE_SCRIPTS = [
     "blast_radius.py",
     "scan_gate.py",
     "quota_gate.py",
+    "sota_audit.py",
 ]
 
 # This repo's own AGENTS.md as it existed before task 0006 filled it in —

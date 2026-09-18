@@ -186,11 +186,11 @@ def test_high_risk_ci_workflow_path(sandbox: Path):
 
 def test_high_risk_gate_script_path(sandbox: Path):
     """Same reasoning for the gate scripts themselves."""
-    write(sandbox, "scripts/validate_closure.py", "def main(): pass\n")
+    write(sandbox, "scripts/sota_audit.py", "def main(): pass\n")
     git(sandbox, "add", "-A")
     git(sandbox, "commit", "-q", "-m", "seed gate")
     git(sandbox, "checkout", "-q", "-b", "feat/gate")
-    write(sandbox, "scripts/validate_closure.py", "def main(): return 0\n")
+    write(sandbox, "scripts/sota_audit.py", "def main(): return 0\n")
     git(sandbox, "commit", "-q", "-am", "edit gate")
 
     result = blast_radius.classify(sandbox, "0104", base="master", branch="feat/gate")

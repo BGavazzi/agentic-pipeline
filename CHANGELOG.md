@@ -1,6 +1,19 @@
 # Changelog
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
+
+## [2026-09-18] - Add versioned SOTA harness capability audit (task 0057)
+### Added
+- `scripts/sota_audit.py` and CI evidence output for a deterministic,
+  denominator-first capability benchmark covering correctness, security,
+  agent evaluation, supply chain and operations.
+- Explicit separation between repository evidence and external activation
+  obligations; missing signatures, protected identities, ephemeral workers and
+  rollback controls are never inferred from prose or placeholder files.
+### Tests
+- Added conservative classification and deterministic JSON/Markdown CLI tests.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-16] - Repair reviewed evidence and trust boundaries (task 0042)
 ### Fixed
 - Preserve scanner vetoes; require commit-bound unit receipts and execute exact

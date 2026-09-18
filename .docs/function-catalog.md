@@ -42,3 +42,5 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `validate_task.py` | `main()` validates task schema; does not execute acceptance conditions. |
 | `validate_closure.py` | `main()` validates documentation structure; does not certify human approval or runtime correctness. |
 | `quota_gate.py` | `main()` evaluates local quota state for STOP/CONTINUE; not a worker scheduler. |
+| `sota_audit.py` | `audit(repo)` emits a versioned static capability report; `markdown(report)` renders denominator-first output; neither changes admission. |
+| `sota_audit.py` | `audit(repo)` emits a versioned static capability report; `markdown(report)` renders denominator-first output; neither changes admission. |

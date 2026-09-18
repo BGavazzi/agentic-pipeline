@@ -156,6 +156,14 @@ jobs:
       - name: Run test-impact precision/recall benchmark
         run: python scripts/impact_benchmark.py --output .docs/test-reports/impact-benchmark.json
 
+      - name: Build SOTA harness capability audit
+        run: |
+          python scripts/sota_audit.py \
+            --repo . \
+            --output .docs/test-reports/sota-audit.json \
+            --markdown-output .docs/test-reports/sota-audit.md
+          cat .docs/test-reports/sota-audit.md >> "$GITHUB_STEP_SUMMARY"
+
   # ---------------------------------------------------------------------------
   # Clean-room integration evidence. This deliberately repeats execution in a
   # git-archive workspace so a passing unit job cannot be confused with proof
