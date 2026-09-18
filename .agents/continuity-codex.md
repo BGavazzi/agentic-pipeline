@@ -1,5 +1,21 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0060, flaky-test governance
+
+- Started `D:\VIBES\agentic-pipeline-0061` from the release-provenance branch,
+  branch `feat/0061-flake-governance`.
+- Added `scripts/flake_gate.py` with explicit owner/expiry quarantine policy.
+  Active quarantines are visible as `degraded`, never green; expired or
+  unowned flakes block. No automatic retries or manifest mutation are added.
+
+## 2026-09-18 — Task 0060, pinned CI environment contract
+
+- Preserved and completed the concurrent environment slice in this worktree:
+  exact `requirements-ci.txt` pins, `environment_fingerprint.py`, tests and CI
+  wiring. It records only secret-free platform/dependency identity.
+- This improves environment parity but does not claim full hermeticity; pinned
+  OCI images, network isolation and browser/OS parity remain open.
+
 ## 2026-09-18 — Task 0059, release provenance and SBOM
 
 - Started `D:\VIBES\agentic-pipeline-0060` from the test-history branch, branch

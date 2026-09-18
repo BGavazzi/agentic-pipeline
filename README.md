@@ -373,6 +373,12 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
   commit, workflow and semantic-version ref. `.github/workflows/release-
   provenance.yml` runs only on version tags and uses GitHub's signed
   `actions/attest`; it does not attest routine PR test artifacts.
+- **`flake_gate.py`** — evaluates per-test history against an owner/expiry
+  quarantine manifest. Active quarantines are `degraded`, never `pass`; expired
+  or unowned flakes block. It does not auto-retry or mutate the manifest.
+- **`environment_fingerprint.py`** — verifies exact CI dependency pins and
+  emits a secret-free, versioned runner/platform fingerprint. This improves
+  parity evidence but is not a full hermetic-build proof.
 - **`release-provenance.yml`** — tag-only release path that creates a source
   archive, CycloneDX SBOM and GitHub/Sigstore attestation with immutable action
   pins. It deliberately does not run for test PRs or authorize admission.
