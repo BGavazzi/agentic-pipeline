@@ -188,3 +188,46 @@ green.
 
 The first four are implementable in this repository. The fifth requires
 operator-controlled infrastructure and must not be simulated by a local script.
+
+## Implementation delta after the initial research pass
+
+The following local contracts are now implemented and dogfooded in the stacked
+2026-09-18 work:
+
+- the agent-eval corpus reports readiness, baseline regression, latency,
+  tokens/cost, and configuration identity, while refusing to call an
+  undersized corpus a pass;
+- test-impact benchmarking reports selector regret, fallback rate, p95 case
+  latency, and bounded repeated-corpus throughput;
+- trusted policy verification binds exact base/head, immutable policy pin,
+  exact-head independent review, and protected producer/run attestation;
+- receipt history is hash-chained and replay-verifiable;
+- visual evidence can bind to a protected baseline ref/digest, threshold, and
+  browser image; the real producer remains a separate frontend/runtime concern;
+- self-hosted worker preflight now requires explicit verified network-policy
+  facts in addition to ephemeral, clean, secret-free lifecycle facts;
+- KPI reports can be reduced to versioned deterministic numeric vectors and
+  retained as append-only snapshots with long-run mean, variance, p95, and
+  freshness metrics; the vector is not a semantic embedding and has no
+  admission authority;
+- admission mutation score and metadata-only PR topline metrics are now part of
+  the local/CI evidence path.
+
+### Important visual-regression boundary
+
+The generic core currently contains the receipt validator and protected-baseline
+binding. The runnable Playwright-style producer is in the separate stacked
+feature line [PR #49](https://github.com/BGavazzi/agentic-pipeline/pull/49), and
+the only confirmed portfolio-native production consumer remains PortalApp's
+Chromatic/Storybook setup. No claim of a protected browser fleet, baseline
+ownership, or approved frontend pilot should be made until that external
+activation is reviewed.
+
+### Remaining SOTA gaps
+
+The residual gaps are mostly deployment-owned: a 20–50-case representative
+agent-eval corpus, durable cross-run TIA history/sharding, protected/JIT
+homelab observation, immutable policy producer identity, pinned browser and
+toolchain images, OTel collection/SLO alerts, merge-queue activation, and
+post-deploy rollback observation. These are intentionally represented as
+blocked/partial evidence in `sota_audit.py`, not simulated as local passes.
