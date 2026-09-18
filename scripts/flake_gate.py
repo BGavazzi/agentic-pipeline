@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = 1
-TEST_ID_RE = re.compile(r"^\S{1,240}$")
+TEST_ID_RE = re.compile(r"^[^\r\n\t]{1,240}$")
 
 
 def _timestamp(value: str) -> datetime:

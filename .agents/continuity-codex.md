@@ -1,5 +1,11 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0062, JUnit history evidence
+
+- Added a fail-closed JUnit adapter and CI wiring that emits commit-bound,
+  per-test status/duration evidence. It is not a retry or test-selection gate;
+  durable cross-run history remains an explicit external gap.
+
 ## 2026-09-18 — Task 0060, flaky-test governance
 
 - Started `D:\VIBES\agentic-pipeline-0061` from the release-provenance branch,

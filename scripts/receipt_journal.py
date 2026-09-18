@@ -25,7 +25,7 @@ from typing import Any
 SCHEMA_VERSION = 1
 SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 EVENT_RE = re.compile(r"^[a-z][a-z0-9._-]{1,63}$")
-TEST_ID_RE = re.compile(r"^[^\s]{1,240}$")
+TEST_ID_RE = re.compile(r"^[^\r\n\t]{1,240}$")
 TEST_STATUSES = {"pass", "fail", "error", "skip"}
 
 
@@ -134,7 +134,7 @@ def append_test_result(journal: Path, event_id: str, test_id: str,
     consumes this history.
     """
     if not isinstance(test_id, str) or not TEST_ID_RE.fullmatch(test_id):
-        raise ValueError("test_id must be non-empty, whitespace-free and bounded")
+        raise ValueError("test_id must be non-empty, single-line and bounded")
     if status not in TEST_STATUSES:
         raise ValueError("test status is invalid")
     if type(duration_ms) is not int or duration_ms < 0 or duration_ms > 86_400_000:

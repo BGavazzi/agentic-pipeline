@@ -379,6 +379,9 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`environment_fingerprint.py`** — verifies exact CI dependency pins and
   emits a secret-free, versioned runner/platform fingerprint. This improves
   parity evidence but is not a full hermetic-build proof.
+- **`junit_history.py`** — converts the unit job's JUnit XML into a versioned,
+  commit-bound per-test status/duration report. It is evidence only: it does
+  not retry, select, skip or authorize tests.
 - **`release-provenance.yml`** — tag-only release path that creates a source
   archive, CycloneDX SBOM and GitHub/Sigstore attestation with immutable action
   pins. It deliberately does not run for test PRs or authorize admission.
