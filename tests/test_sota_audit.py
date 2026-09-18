@@ -33,6 +33,8 @@ def test_real_repo_report_has_versioned_metrics():
     assert any(item["status"] == "partial" for item in report["capabilities"])
     independent = next(item for item in report["capabilities"] if item["id"] == "independent-review")
     assert independent["status"] == "partial"
+    intent = next(item for item in report["capabilities"] if item["id"] == "intent-authorization")
+    assert intent["status"] == "partial"
 
 
 def test_markdown_and_cli_outputs_are_deterministic(tmp_path: Path, monkeypatch):

@@ -300,6 +300,15 @@
 - Queue execution remains read-only with respect to GitHub and preserves the
   draft/not-ready and protected-surface policy from task 0079.
 
+## 2026-09-18 — Task 0081, intent and authorization evidence
+
+- Added `intent_gate.py`: a deterministic, exact-diff contract for allowed and
+  forbidden paths, effects, data classes, and sensitive negative tests.
+- Reports are explicitly evidence-only and bound to exact base/head SHAs; they
+  do not authenticate a candidate-authored claim or authorize admission.
+- Follow-up: carry the intent receipt into protected CI/admission for
+  agent-generated changes.
+
 ## 2026-09-18 — Task 0067, agentic SDLC testing SOTA
 
 - Added `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md`, grounding the

@@ -556,6 +556,18 @@ python scripts/integration_queue.py --repo . --repo-slug OWNER/REPO \
   --markdown-output .docs/integration-reports/queue.md
 ```
 
+Agent-generated work can also declare its intended boundary before admission.
+`scripts/intent_gate.py` checks the exact diff against allowed/forbidden paths,
+declared effects, data classes, and sensitive negative-test evidence. It emits
+evidence bound to the exact base/head pair; it does not authenticate the
+claim or authorize the candidate:
+
+```
+python scripts/intent_gate.py --intent .docs/intent/0081.json \
+  --repo . --base BASE_SHA --head HEAD_SHA \
+  --output .docs/intent-reports/0081.json
+```
+
 Use `--fetch-missing` only when the local clone needs to read same-repository
 PR head refs through `origin`; a manifest may instead provide already-fetched
 immutable commit SHAs. `review_required` is fail-closed: the bundle is an
