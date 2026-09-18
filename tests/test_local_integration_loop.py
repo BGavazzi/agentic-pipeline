@@ -12,6 +12,7 @@ from scripts.local_integration_loop import (
     discover_open,
     integrate,
     load_manifest,
+    run_loop,
 )
 
 
@@ -104,6 +105,19 @@ def test_discovery_normalizes_origin_prefix(monkeypatch):
     candidates = discover_open("OWNER/REPO", "origin/feat/base")
     assert candidates[0].number == 7
     assert seen[0][seen[0].index("--base") + 1] == "feat/base"
+
+
+def test_stateful_loop_skips_same_immutable_head(tmp_path: Path):
+    repo, _, routine, _ = repo_with_candidates(tmp_path)
+    state = tmp_path / "state.json"
+    candidate = Candidate(1, "routine", routine, head_sha=routine)
+    command = (sys.executable, "-c", "raise SystemExit(0)")
+    first = run_loop(repo, "master", [candidate], command, timeout=30, state_path=state)
+    second = run_loop(repo, "master", [candidate], command, timeout=30, state_path=state)
+    assert first["included_prs"] == [1]
+    assert second["included_prs"] == []
+    assert second["metrics"]["skipped_processed_count"] == 1
+    assert second["metrics"]["rounds_completed"] == 0
 
 
 def test_manifest_is_deterministic_and_validates_duplicate_ids(tmp_path: Path):

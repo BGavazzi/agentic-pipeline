@@ -36,6 +36,8 @@ candidate.
 - [x] Revert failed candidates and clean the worktree before the next candidate.
 - [x] Emit versioned JSON and Markdown metrics/review bundles with an explicit
       no-remote-write policy.
+- [x] Support bounded rediscovery rounds with local state keyed by immutable
+      candidate head SHA; new pushes are considered again.
 - [ ] Add a protected scheduler/worker consumer and notification channel as a
       separate deployment task; this local producer must remain bounded.
 
@@ -67,6 +69,7 @@ candidate.
 - [ ] PR approved
 
 ## Honest Backlog
-This task provides a local bounded producer. It does not provision homelab
-workers, create an unbounded daemon, authenticate GitHub policy, send external
-notifications, merge/push remotely, approve a PR, or deploy an application.
+This task provides a local bounded producer and stateful round primitive. It
+does not provision homelab workers, create an unbounded daemon, authenticate
+GitHub policy, send external notifications, merge/push remotely, approve a PR,
+or deploy an application.
