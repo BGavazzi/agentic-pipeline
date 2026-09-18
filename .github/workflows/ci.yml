@@ -463,6 +463,7 @@ jobs:
             --output ".docs/infra-reports/$TASK_ID.json"
 
       - name: Intent scope and authorization evidence
+        if: always()
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -470,6 +471,7 @@ jobs:
           RISK_REPORT: .docs/blast-reports/${{ steps.task.outputs.id }}.json
         run: |
           set -euo pipefail
+          test -f "$RISK_REPORT"
           level=$(python - <<'PY'
           import json, os
           with open(os.environ["RISK_REPORT"], encoding="utf-8") as handle:
