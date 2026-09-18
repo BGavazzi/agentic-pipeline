@@ -2,6 +2,13 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Surface deterministic quality metrics on PRs (task 0077)
+### Changed
+- Trusted PR summaries now show candidate/base identity, changed-file count,
+  churn, deterministic HITL status, and contact surfaces above the diagnostics
+  link, without checking out or executing candidate code.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add admission mutation benchmark (task 0076)
 ### Added
 - A deterministic mutation score exercises missing, failed, stale, unknown,
