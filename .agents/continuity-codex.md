@@ -218,6 +218,7 @@
 - Acute-risk, conflict, unresolved-ref and failed-test candidates remain held
   for human review. The producer has no remote merge, push, approval, deploy,
   or secret-forwarding path.
-- Focused verification: `tests/test_local_integration_loop.py` passes 4/4.
+- Focused verification: `tests/test_local_integration_loop.py` passes 6/6;
+  dogfood against PR #66 correctly held it as acute/high-risk without merging.
 - Next: run the full gate suite, push a draft PR, and keep external worker/
   scheduler/notification activation as a separate protected deployment task.

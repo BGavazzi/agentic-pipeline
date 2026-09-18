@@ -8,7 +8,8 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   local merges, argv-only integration tests, risk/contact-surface routing, and
   JSON/Markdown bundles of routine survivors and acute-risk holds.
 - Explicit credential-environment scrubbing, optional read-only PR-head fetch,
-  worktree cleanup between candidates, and a no-remote-write policy receipt.
+  GitHub base-branch normalization, worktree cleanup between candidates, and a
+  no-remote-write policy receipt.
 ### Safety
 - High-risk, infrastructure, CI/workflow, harness-policy, schema and
   security/identity changes remain human-review holds before execution.
