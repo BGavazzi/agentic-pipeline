@@ -1,5 +1,12 @@
 # Continuity — Codex
 
+## Task 0069 — impact selector regret/load metrics
+- Branch/PR: `feat/0069-impact-selector-regret-load` (stacked on task 0068).
+- Added versioned benchmark metrics for selection regret, fallback rate, p95
+  case latency, bounded iterations, and throughput; kept promotion fail-closed.
+- Representative corpus collection remains honest backlog; current fixtures are
+  calibration-only.
+
 ## 2026-09-18 — Task 0065, release health and rollback evidence
 
 - Added a fail-closed evidence contract for candidate/environment-bound health

@@ -82,7 +82,7 @@ def evaluate(
     fixtures = Path(__file__).resolve().parents[1] / "tests/impact/fixtures"
     corpus = hashlib.sha256(b"".join(path.name.encode() + path.read_bytes()
                             for path in sorted(fixtures.glob("*.json")))).hexdigest()
-    if (benchmark.get("benchmark_version") != "0.3" or benchmark.get("selector_sha256") != selector
+    if (benchmark.get("benchmark_version") != "0.4" or benchmark.get("selector_sha256") != selector
             or benchmark.get("corpus_sha256") != corpus):
         blockers["benchmark_identity"] = "selector/corpus/version mismatch"
     execution = shadow.get("execution", {})
