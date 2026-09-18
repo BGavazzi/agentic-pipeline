@@ -14,6 +14,16 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Add pinned CI environment evidence (task 0060)
+### Added
+- `requirements-ci.txt` with exact pytest, PyYAML and Pillow pins.
+- `scripts/environment_fingerprint.py` and CI evidence for dependency/runtime
+  drift, with no secret or credential values captured.
+### Safety
+- This is a parity contract, not a claim of full hermeticity; OS images,
+  network policy, browser/font stacks and homelab isolation remain separate.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add explicit flaky-test governance (task 0061)
 ### Added
 - `scripts/flake_gate.py` and tests for owner/expiry quarantine evaluation
