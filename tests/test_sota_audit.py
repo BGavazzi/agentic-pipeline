@@ -27,7 +27,12 @@ def test_real_repo_report_has_versioned_metrics():
     assert report["audit_version"] == 1
     assert report["metrics"]["capabilities_total"] >= 10
     assert 0.0 <= report["metrics"]["coverage_ratio"] <= 1.0
-    assert any(item["status"] == "missing" for item in report["capabilities"])
+    # Once the repository implements a capability, the audit must not keep
+    # asserting the old missing state merely because protected deployment
+    # activation remains external.
+    assert any(item["status"] == "partial" for item in report["capabilities"])
+    independent = next(item for item in report["capabilities"] if item["id"] == "independent-review")
+    assert independent["status"] == "partial"
 
 
 def test_markdown_and_cli_outputs_are_deterministic(tmp_path: Path, monkeypatch):
