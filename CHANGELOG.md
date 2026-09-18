@@ -2,6 +2,19 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Carry intent evidence into risk and admission (task 0082)
+### Added
+- Medium- and high-risk changes now require an `intent` obligation in the
+  deterministic risk report.
+- CI emits a fail-closed missing-contract receipt and carries valid/failed
+  intent evidence into the existing admission receipt bundle.
+### Safety
+- Low-risk legacy changes remain compatible without an intent contract, while
+  opt-in low-risk contracts are still evaluated.
+- Candidate-authored intent remains evidence-only; protected policy authority
+  and producer isolation remain required before treating it as authorization.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add deterministic intent and authorization evidence (task 0081)
 ### Added
 - `intent_gate.py` validates declared path scope, forbidden paths/effects,

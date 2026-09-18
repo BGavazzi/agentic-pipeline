@@ -80,7 +80,8 @@ HIGH_RISK_PATH_PATTERNS = [
     # is waved through on unit tests alone.
     (r"^\.github/workflows/.*\.ya?ml$", "ci-workflow"),
     (r"^\.claude/skills/.+/SKILL\.md$", "agent-skill"),
-    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|admission_mutation_benchmark|ci_receipts|integration_gate|impact_runner|impact_benchmark|impact_promotion|harness_selftest|meta_test|policy_integrity|trusted_policy|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt|staging_gate|worker_preflight|worker_supervisor|infra_dry_run|staging_pr)\.py$", "gate-script"),
+    (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|admission_mutation_benchmark|ci_receipts|integration_gate|impact_runner|impact_benchmark|impact_promotion|harness_selftest|meta_test|policy_integrity|trusted_policy|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt|staging_gate|worker_preflight|worker_supervisor|infra_dry_run|staging_pr|intent_gate)\.py$", "gate-script"),
+    (r"^\.docs/intent/.*\.json$", "intent-policy"),
     (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
     (r"^scripts/(meta_test_dispatch|staging_dispatch|pr_intelligence|quality_metrics_dashboard|receipt_journal|sota_audit|provenance_verify|flake_gate|environment_fingerprint|junit_history|ci_telemetry|merge_group_contract|release_health_gate|local_integration_loop|agent_eval_corpus|trusted_policy)\.py$", "gate-script"),
 ]
@@ -260,9 +261,9 @@ def required_gates_for(risk_level: str, triggered: list[str]) -> list[str]:
     if risk_level == "low":
         return ["unit"]
     if risk_level == "medium":
-        return ["unit", "integration", "sast", "sca"]
+        return ["unit", "integration", "sast", "sca", "intent"]
     # high
-    gates = ["unit", "integration", "sast", "sca", "ultrareview"]
+    gates = ["unit", "integration", "sast", "sca", "ultrareview", "intent"]
     if "agent-skill" in triggered:
         gates.append("meta-test")
     infra_labels = {"ansible", "helm", "fleet", "terraform", "rancher-or-nexus"}

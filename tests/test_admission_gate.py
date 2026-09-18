@@ -43,6 +43,13 @@ def test_missing_high_risk_obligation_blocks():
     assert result["blockers"] == {"ultrareview": "missing"}
 
 
+def test_missing_medium_risk_intent_blocks():
+    risk, receipts = documents("medium")
+    receipts["gates"] = [r for r in receipts["gates"] if r["gate"] != "intent"]
+    result = admission_gate.evaluate(risk, receipts, BASE, HEAD)
+    assert result["blockers"] == {"intent": "missing"}
+
+
 @pytest.mark.parametrize("mutation", ["sha", "version", "duplicate", "unknown", "removed", "empty"])
 def test_invalid_evidence_rejected(mutation):
     risk, receipts = documents("high")

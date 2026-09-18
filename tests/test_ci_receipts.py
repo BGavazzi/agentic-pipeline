@@ -70,6 +70,15 @@ def meta_test_file(tmp_path, status="pass", base=BASE, head=HEAD):
     return path
 
 
+def intent_file(tmp_path, eligible=True, base=BASE, head=HEAD, blockers=None):
+    path = tmp_path / "intent.json"
+    path.write_text(json.dumps({"schema_version": 1, "intent_version": 1,
+                                "task_id": "0082", "base_sha": base,
+                                "head_sha": head, "eligible": eligible,
+                                "blockers": blockers or []}))
+    return path
+
+
 def test_builds_pass_receipts_from_job_artifacts(tmp_path):
     risk, scan, unit, policy = files(tmp_path)
     result = build_receipts(risk, scan, unit, BASE, HEAD, policy_path=policy)
@@ -179,6 +188,56 @@ def test_meta_test_report_is_carried_and_identity_bound(tmp_path):
     )
     meta = next(g for g in result["gates"] if g["gate"] == "meta-test")
     assert meta["status"] == "pass"
+
+
+def test_intent_report_is_carried_and_identity_bound(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    result = build_receipts(
+        risk, scan, unit, BASE, HEAD, policy_path=policy,
+        intent_path=intent_file(tmp_path),
+    )
+    intent = next(g for g in result["gates"] if g["gate"] == "intent")
+    assert intent["status"] == "pass"
+    assert result["evidence"]["intent_report"].endswith("intent.json")
+
+
+def test_failed_intent_report_is_a_failed_receipt(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    result = build_receipts(
+        risk, scan, unit, BASE, HEAD, policy_path=policy,
+        intent_path=intent_file(tmp_path, eligible=False,
+                                blockers=[{"code": "path-outside-scope"}]),
+    )
+    assert next(g for g in result["gates"] if g["gate"] == "intent")["status"] == "fail"
+
+
+def test_missing_required_intent_is_an_explicit_error_receipt(tmp_path):
+    risk, scan, unit, policy = files(tmp_path)
+    data = json.loads(risk.read_text())
+    data["required_gates"] = ["unit", "intent"]
+    risk.write_text(json.dumps(data))
+    result = build_receipts(risk, scan, unit, BASE, HEAD, policy_path=policy)
+    assert next(g for g in result["gates"] if g["gate"] == "intent")["status"] == "error"
+    assert result["evidence"]["intent_report"] is None
+
+
+@pytest.mark.parametrize("mutation", ["sha", "version", "eligible", "blockers"])
+def test_invalid_intent_report_rejected(tmp_path, mutation):
+    risk, scan, unit, policy = files(tmp_path)
+    report = intent_file(tmp_path)
+    data = json.loads(report.read_text())
+    if mutation == "sha":
+        data["head_sha"] = "c" * 40
+    elif mutation == "version":
+        data["intent_version"] = 2
+    elif mutation == "eligible":
+        data["eligible"] = "true"
+    else:
+        data["blockers"] = "none"
+    report.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="intent report"):
+        build_receipts(risk, scan, unit, BASE, HEAD,
+                       policy_path=policy, intent_path=report)
 
 
 def test_stale_meta_test_report_rejected(tmp_path):

@@ -81,7 +81,7 @@ def test_fork_candidate_is_held_before_ref_resolution(tmp_path: Path):
     assert result["held_prs"] == [9]
     assert item["reason"] == "fork_pr_requires_human_review"
     assert item["risk_level"] == "high"
-    assert item["required_gates"][-1] == "ultrareview"
+    assert item["required_gates"][-1] == "intent"
 
 
 def test_draft_candidate_is_held_before_ref_resolution(tmp_path: Path):
