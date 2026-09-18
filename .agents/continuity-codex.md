@@ -1,5 +1,10 @@
 # Continuity — Codex
 
+## Task 0075 — versioned KPI vector history
+- Added compact deterministic KPI vectors and append-only SQLite summaries for
+  long-run mean/variance/p95/freshness analysis without raw-log retention.
+- Kept the feature descriptive-only and non-authoritative for admission.
+
 ## Task 0074 — worker network policy preflight
 - Added required `network_policy_verified` facts for self-hosted workers and
   blocked unverified homelab admission; fork/GitHub-hosted behavior is intact.

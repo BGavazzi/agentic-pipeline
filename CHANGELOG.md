@@ -2,6 +2,16 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add versioned KPI vector history (task 0075)
+### Added
+- `kpi_history.py` stores compact numeric KPI vectors with input hashes and
+  exact commit/run identity, then reports long-run variance, p95, freshness,
+  and bounded-window statistics.
+### Safety
+- KPI vectors are descriptive telemetry only; raw logs are not retained by this
+  layer and the vector cannot authorize admission or skipped tests.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Require verified worker network policy (task 0074)
 ### Changed
 - Self-hosted worker preflight now blocks unless host facts explicitly report
