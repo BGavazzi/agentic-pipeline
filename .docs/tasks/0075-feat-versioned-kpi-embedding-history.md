@@ -27,6 +27,8 @@ feature-vector store or deterministic rolling statistics for KPI behavior.
 - [x] Add append-only SQLite storage with idempotent run handling.
 - [x] Report mean, variance, standard deviation, min/max, p95, freshness and
       bounded windows.
+- [x] Provide a CLI build command so CI can materialize a vector artifact before
+      protected archival.
 - [x] Mark the vector descriptive-only and non-authoritative for admission.
 - [ ] Add protected long-term archival/retention and an external dashboard.
 

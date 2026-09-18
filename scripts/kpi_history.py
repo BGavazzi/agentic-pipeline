@@ -244,6 +244,13 @@ def summarize(journal: Path, as_of: str | None = None,
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+    build = sub.add_parser("build")
+    build.add_argument("--input", type=Path, action="append", required=True)
+    build.add_argument("--repository", required=True)
+    build.add_argument("--commit", required=True)
+    build.add_argument("--run-id", required=True)
+    build.add_argument("--timestamp", required=True)
+    build.add_argument("--output", type=Path, required=True)
     append = sub.add_parser("append")
     append.add_argument("--journal", type=Path, required=True)
     append.add_argument("--snapshot", type=Path, required=True)
@@ -254,7 +261,13 @@ def main() -> int:
     summary.add_argument("--window-seconds", type=int)
     args = parser.parse_args()
     try:
-        if args.command == "append":
+        if args.command == "build":
+            result = build_snapshot(args.input, args.repository, args.commit,
+                                    args.run_id, args.timestamp)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+            print(json.dumps({"status": "built", "run_id": args.run_id}, sort_keys=True))
+        elif args.command == "append":
             result = append_snapshot(args.journal, json.loads(args.snapshot.read_text(encoding="utf-8")))
             print(json.dumps(result, sort_keys=True))
         else:
