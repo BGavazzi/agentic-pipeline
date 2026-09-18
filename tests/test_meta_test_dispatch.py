@@ -35,6 +35,7 @@ def facts(path: Path, **overrides) -> Path:
         "workspace_clean": True,
         "mounted_secret_count": 0,
         "docker_reachable": True,
+        "network_policy_verified": True,
     }
     value.update(overrides)
     path.write_text(json.dumps(value), encoding="utf-8")

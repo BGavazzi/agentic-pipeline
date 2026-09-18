@@ -49,6 +49,10 @@ Docker. A machine without a reachable daemon must fail closed; the homelab can
 execute the scanners and the clean-room integration gate. This benefit never
 overrides the isolation requirements above.
 
+Self-hosted admission also requires the host facts to include
+`network_policy_verified: true`. This means the trusted host adapter checked the
+worker's egress policy; Docker reachability alone is not proof of isolation.
+
 ## Registration outline for the current GitHub User setup
 
 For each repository that genuinely needs the pool, mint a repository-scoped
@@ -117,8 +121,8 @@ python scripts/worker_supervisor.py \
 ```
 
 The pre-run facts must describe an eligible ephemeral worker with zero prior
-jobs, a clean workspace, zero mounted secrets, and (when required) reachable
-Docker. The runner command is an argv-only process; the supervisor does not
+jobs, a clean workspace, zero mounted secrets, verified network policy, and
+(when required) reachable Docker. The runner command is an argv-only process; the supervisor does not
 mint tokens or register the worker. After any exit (including failure/timeout),
 the separate trusted host teardown adapter must return fresh JSON on stdout
 with the supervisor-provided `PIPELINE_CLEANUP_ATTEMPT` as `attempt_id` and

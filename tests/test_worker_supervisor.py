@@ -17,6 +17,7 @@ def facts(path: Path, **overrides) -> Path:
         "workspace_clean": True,
         "mounted_secret_count": 0,
         "docker_reachable": True,
+        "network_policy_verified": True,
         "queue_wait_seconds": 12,
     }
     value.update(overrides)
