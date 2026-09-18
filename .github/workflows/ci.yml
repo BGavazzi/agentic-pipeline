@@ -137,6 +137,23 @@ jobs:
           RC="$rc" python -c 'import json,os; from pathlib import Path; Path(".docs/test-reports/unit.exit").write_text(json.dumps(dict(schema_version=1,base_sha=os.environ["BASE_SHA"],head_sha=os.environ["HEAD_SHA"],exit_code=int(os.environ["RC"]))),encoding="utf-8")'
           exit "$rc"
 
+      - name: Normalize JUnit test history evidence
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -f .docs/test-reports/unit.xml
+          python scripts/junit_history.py \
+            --junit .docs/test-reports/unit.xml \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --run-id "$RUN_ID" \
+            --occurred-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --output .docs/test-reports/test-history.json
+
       - name: Upload unit evidence
         if: always()
         uses: actions/upload-artifact@v4

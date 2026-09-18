@@ -46,5 +46,6 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `provenance_verify.py` | `build_manifest(...)` and `verify_manifest(...)` bind release archive/SBOM digests to tag, source SHA and workflow metadata; cryptographic verification remains GitHub `actions/attest`/`gh attestation verify`. |
 | `flake_gate.py` | `evaluate(history, manifest_path, as_of)` classifies flake evidence as pass/degraded/block with owner/expiry and denominator-first metrics; it never overrides admission. |
 | `environment_fingerprint.py` | `build_fingerprint(requirements, observed=None, platform_values=None)` verifies exact dependency pins and emits secret-free environment identity; it is parity evidence, not hermeticity proof. |
+| `junit_history.py` | `build_history(report, base_sha, head_sha, run_id, occurred_at)` converts common JUnit XML into versioned per-test status/duration evidence; it does not select, retry or skip tests. |
 | `.github/workflows/release-provenance.yml` | Tag-only operational contract for source archive, CycloneDX SBOM and signed artifact attestation; it is not a candidate admission gate. |
 | `sota_audit.py` | `audit(repo)` emits a versioned static capability report; `markdown(report)` renders denominator-first output; neither changes admission. |

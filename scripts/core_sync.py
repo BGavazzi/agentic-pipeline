@@ -163,6 +163,7 @@ GATE_SCRIPTS = [
     "provenance_verify.py",
     "flake_gate.py",
     "environment_fingerprint.py",
+    "junit_history.py",
 ]
 
 # This repo's own AGENTS.md as it existed before task 0006 filled it in —

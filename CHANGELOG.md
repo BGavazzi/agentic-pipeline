@@ -14,6 +14,16 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Normalize JUnit into per-test history evidence (task 0062)
+### Added
+- `scripts/junit_history.py` with fail-closed parsing for common JUnit XML,
+  exact candidate identity, per-test statuses, durations and report digest.
+- CI upload of normalized unit-test evidence on both passing and failing runs.
+### Safety
+- The adapter is descriptive only. It cannot retry, skip, select or authorize
+  tests; durable cross-run history and TIA promotion remain separate controls.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add pinned CI environment evidence (task 0060)
 ### Added
 - `requirements-ci.txt` with exact pytest, PyYAML and Pillow pins.
