@@ -1,5 +1,10 @@
 # Continuity — Codex
 
+## Task 0071 — tamper-evident receipt history
+- Added receipt event hash chaining and `verify_chain()`; summaries now report
+  chain validity/breaks without changing admission semantics.
+- Protected archival/notarization remains deployment work.
+
 ## Task 0070 — trusted-policy verifier
 - Added `scripts/trusted_policy.py` and exact-pair/protected-attestation tests.
 - Included it in the policy/gate inventories; deployment must still wire a

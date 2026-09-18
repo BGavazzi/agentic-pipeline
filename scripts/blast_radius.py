@@ -82,7 +82,7 @@ HIGH_RISK_PATH_PATTERNS = [
     (r"^\.claude/skills/.+/SKILL\.md$", "agent-skill"),
     (r"^scripts/(validate_task|validate_closure|scan_gate|blast_radius|quota_gate|admission_gate|ci_receipts|integration_gate|impact_runner|impact_benchmark|impact_promotion|harness_selftest|meta_test|policy_integrity|trusted_policy|ultrareview_receipt|ultrareview_runner|quality_scorecard|test_impact|visual_receipt|staging_gate|worker_preflight|worker_supervisor|infra_dry_run|staging_pr)\.py$", "gate-script"),
     (r"^\.pre-commit-config\.ya?ml$", "pre-commit-config"),
-    (r"^scripts/(meta_test_dispatch|staging_dispatch|pr_intelligence|quality_metrics_dashboard|receipt_journal|sota_audit|provenance_verify|flake_gate|environment_fingerprint|junit_history|ci_telemetry|merge_group_contract|release_health_gate|local_integration_loop|agent_eval_corpus)\.py$", "gate-script"),
+    (r"^scripts/(meta_test_dispatch|staging_dispatch|pr_intelligence|quality_metrics_dashboard|receipt_journal|sota_audit|provenance_verify|flake_gate|environment_fingerprint|junit_history|ci_telemetry|merge_group_contract|release_health_gate|local_integration_loop|agent_eval_corpus|trusted_policy)\.py$", "gate-script"),
 ]
 
 

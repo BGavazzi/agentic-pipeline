@@ -2,6 +2,15 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add tamper-evident receipt history (task 0071)
+### Added
+- Receipt journal events now carry chained digests over immutable identity and
+  receipt payloads; summaries expose chain validity and break counts.
+### Safety
+- The chain is descriptive evidence only. It does not authorize skipped tests
+  or replace protected archival and independent verification.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add fail-closed trusted-policy verification (task 0070)
 ### Added
 - `scripts/trusted_policy.py` binds policy receipts, exact-head reviewer

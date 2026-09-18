@@ -50,7 +50,9 @@ def connect(path: Path) -> sqlite3.Connection:
             receipt_json TEXT NOT NULL,
             source TEXT NOT NULL,
             occurred_at TEXT NOT NULL,
-            received_at TEXT NOT NULL
+            received_at TEXT NOT NULL,
+            prev_event_sha256 TEXT,
+            event_sha256 TEXT
         );
         CREATE TRIGGER IF NOT EXISTS events_no_update
         BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'receipt journal is append-only'); END;
@@ -58,6 +60,11 @@ def connect(path: Path) -> sqlite3.Connection:
         BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT, 'receipt journal is append-only'); END;
         """
     )
+    columns = {row[1] for row in db.execute("PRAGMA table_info(events)")}
+    if "prev_event_sha256" not in columns:
+        db.execute("ALTER TABLE events ADD COLUMN prev_event_sha256 TEXT")
+    if "event_sha256" not in columns:
+        db.execute("ALTER TABLE events ADD COLUMN event_sha256 TEXT")
     db.commit()
     version = db.execute("SELECT value FROM journal_meta WHERE key='schema_version'").fetchone()
     if version != (str(SCHEMA_VERSION),):
@@ -112,13 +119,30 @@ def _append_payload(journal: Path, event_id: str, event_type: str,
             if existing != (digest, base_sha, head_sha, event_type, source):
                 raise ValueError("event_id already exists with different evidence")
             return {"status": "duplicate", "event_id": event_id, "receipt_sha256": digest}
+        previous = db.execute(
+            "SELECT event_sha256 FROM events "
+            "ORDER BY received_at DESC, event_id DESC LIMIT 1"
+        ).fetchone()
+        previous_digest = previous[0] if previous and previous[0] else None
+        event_material = json.dumps({
+            "event_id": event_id, "event_type": event_type,
+            "base_sha": base_sha, "head_sha": head_sha,
+            "receipt_sha256": digest, "source": source,
+            "occurred_at": timestamp, "prev_event_sha256": previous_digest,
+        }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        event_digest = hashlib.sha256(event_material).hexdigest()
         db.execute(
-            "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO events "
+            "(event_id, event_type, base_sha, head_sha, receipt_sha256, "
+            "receipt_json, source, occurred_at, received_at, prev_event_sha256, event_sha256) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (event_id, event_type, base_sha, head_sha, digest, payload_json,
-             source, timestamp, datetime.now(timezone.utc).isoformat()),
+             source, timestamp, datetime.now(timezone.utc).isoformat(),
+             previous_digest, event_digest),
         )
         db.commit()
-        return {"status": "appended", "event_id": event_id, "receipt_sha256": digest}
+        return {"status": "appended", "event_id": event_id,
+                "receipt_sha256": digest, "event_sha256": event_digest}
     finally:
         db.close()
 
@@ -233,6 +257,7 @@ def summarize(journal: Path) -> dict[str, Any]:
         occurred.append(timestamp)
         status = json.loads(raw).get("status", "unknown")
         statuses[str(status)] = statuses.get(str(status), 0) + 1
+    chain = verify_chain(journal)
     return {
         "schema_version": SCHEMA_VERSION,
         "journal": str(journal),
@@ -244,7 +269,38 @@ def summarize(journal: Path) -> dict[str, Any]:
         "status_counts": dict(sorted(statuses.items())),
         "first_occurred_at": min(occurred) if occurred else None,
         "last_occurred_at": max(occurred) if occurred else None,
+        "chain_valid": chain["valid"],
+        "chain_event_count": chain["event_count"],
+        "chain_break_count": chain["break_count"],
     }
+
+
+def verify_chain(journal: Path) -> dict[str, Any]:
+    """Verify the append-only event hash chain without changing the journal."""
+    db = connect(journal)
+    try:
+        rows = db.execute(
+            "SELECT event_id, event_type, base_sha, head_sha, receipt_sha256, "
+            "source, occurred_at, prev_event_sha256, event_sha256 "
+            "FROM events ORDER BY received_at, event_id"
+        ).fetchall()
+    finally:
+        db.close()
+    previous = None
+    breaks = 0
+    for (event_id, event_type, base_sha, head_sha, receipt_sha, source,
+         occurred_at, prev_digest, event_digest) in rows:
+        material = json.dumps({
+            "event_id": event_id, "event_type": event_type,
+            "base_sha": base_sha, "head_sha": head_sha,
+            "receipt_sha256": receipt_sha, "source": source,
+            "occurred_at": occurred_at, "prev_event_sha256": prev_digest,
+        }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        expected = hashlib.sha256(material).hexdigest()
+        if prev_digest != previous or event_digest != expected:
+            breaks += 1
+        previous = event_digest
+    return {"valid": breaks == 0, "event_count": len(rows), "break_count": breaks}
 
 
 def main() -> int:
