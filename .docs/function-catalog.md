@@ -49,5 +49,6 @@ callers and host isolation; see `runbooks/review-remediation.md`.
 | `junit_history.py` | `build_history(report, base_sha, head_sha, run_id, occurred_at)` converts common JUnit XML into versioned per-test status/duration evidence; it does not select, retry or skip tests. |
 | `ci_telemetry.py` | `build_payload(inputs, repository, commit, run_id, timestamp)` emits file-only OTLP-shaped numeric metrics with commit/run identity; it never sends data or overrides admission. |
 | `merge_group_contract.py` | `validate_event(event, event_name, required_checks)` validates merge-queue commit/ref identity and records that check completion and admission were not observed. |
+| `release_health_gate.py` | `evaluate(health, rollback, candidate_sha, environment)` validates post-deploy health/rollback evidence without executing commands or claiming a trusted producer. |
 | `.github/workflows/release-provenance.yml` | Tag-only operational contract for source archive, CycloneDX SBOM and signed artifact attestation; it is not a candidate admission gate. |
 | `sota_audit.py` | `audit(repo)` emits a versioned static capability report; `markdown(report)` renders denominator-first output; neither changes admission. |

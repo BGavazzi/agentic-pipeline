@@ -1,5 +1,11 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0065, release health and rollback evidence
+
+- Added a fail-closed evidence contract for candidate/environment-bound health
+  checks and distinct rollback plans. It explicitly never executes commands or
+  infers a trusted production producer.
+
 ## 2026-09-18 — Task 0064, merge-group identity contract
 
 - Added explicit `merge_group` CI trigger and a fail-closed identity adapter for

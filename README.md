@@ -388,6 +388,9 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`merge_group_contract.py`** — validates GitHub merge-queue event identity
   and emits a non-authoritative contract artifact. It does not claim required
   checks passed or activate merge-queue/deployment settings.
+- **`release_health_gate.py`** — validates commit/environment-bound health and
+  rollback-plan evidence without executing commands or claiming a trusted
+  production observer. A real deploy provider remains an integration boundary.
 - **`release-provenance.yml`** — tag-only release path that creates a source
   archive, CycloneDX SBOM and GitHub/Sigstore attestation with immutable action
   pins. It deliberately does not run for test PRs or authorize admission.

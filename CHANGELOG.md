@@ -14,6 +14,17 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Add release health and rollback evidence contract (task 0065)
+### Added
+- `scripts/release_health_gate.py` for fail-closed health/check identity and
+  distinct rollback-plan validation.
+- Explicit evidence flags showing no trusted producer, command execution or
+  admission authority.
+### Safety
+- The adapter never polls services or executes rollback commands; deployment
+  provider integration remains a separately protected operational task.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add merge-group identity contract (task 0064)
 ### Added
 - Explicit `merge_group` CI trigger and a fail-closed event identity contract
