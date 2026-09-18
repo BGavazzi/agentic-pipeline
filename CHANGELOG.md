@@ -14,6 +14,16 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Add merge-group identity contract (task 0064)
+### Added
+- Explicit `merge_group` CI trigger and a fail-closed event identity contract
+  for merge-queue base/head SHAs and refs.
+- Non-authoritative contract artifact listing expected merge-group checks.
+### Safety
+- The contract never claims check completion, merge authorization, deployment
+  health or rollback; protected control-plane activation remains external.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add provider-neutral CI telemetry evidence (task 0063)
 ### Added
 - `scripts/ci_telemetry.py` and CI evidence output for file-only OTLP-shaped

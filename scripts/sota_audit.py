@@ -103,8 +103,11 @@ CAPABILITIES: tuple[dict[str, Any], ...] = (
                 external=("OpenTelemetry CI/CD export", "queue-age/lag alerts", "worker-pool SLO dashboard"),
                 note="Local reports exist; external telemetry and alerting are not assumed."),
     _capability("merge-release-safety", "Merge queue, deployment verification and rollback", "operations",
+                implementation=("scripts/merge_group_contract.py",),
+                tests=("tests/test_merge_group_contract.py", "tests/test_merge_group_workflow.py"),
+                ci=(".github/workflows/ci.yml",),
                 external=("merge_group checks", "post-deploy health gate", "automated rollback"),
-                note="Consumer deployment boundaries still need an explicit integration."),
+                note="Merge-group identity is explicit; protected queue, deployment health and rollback remain external."),
 )
 
 

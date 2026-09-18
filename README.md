@@ -385,6 +385,9 @@ These are the non-negotiable, model-free checks the skills above lean on. Each i
 - **`ci_telemetry.py`** — materializes local scorecard/intelligence numbers as
   file-only, OTLP-shaped metrics with commit/run identity and report labels.
   Network export, collectors, queue-age and worker SLOs remain deployment work.
+- **`merge_group_contract.py`** — validates GitHub merge-queue event identity
+  and emits a non-authoritative contract artifact. It does not claim required
+  checks passed or activate merge-queue/deployment settings.
 - **`release-provenance.yml`** — tag-only release path that creates a source
   archive, CycloneDX SBOM and GitHub/Sigstore attestation with immutable action
   pins. It deliberately does not run for test PRs or authorize admission.
