@@ -462,6 +462,34 @@ jobs:
             --head-sha "$HEAD_SHA" \
             --output ".docs/infra-reports/$TASK_ID.json"
 
+      - name: Intent scope and authorization evidence
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TASK_ID: ${{ steps.task.outputs.id }}
+          RISK_REPORT: .docs/blast-reports/${{ steps.task.outputs.id }}.json
+        run: |
+          set -euo pipefail
+          level=$(python - <<'PY'
+          import json, os
+          with open(os.environ["RISK_REPORT"], encoding="utf-8") as handle:
+              print(json.load(handle).get("risk_level", "unknown"))
+          PY
+          )
+          contract=".docs/intent/$TASK_ID.json"
+          if [[ "$level" == "medium" || "$level" == "high" || -f "$contract" ]]; then
+            mkdir -p .docs/intent-reports
+            python scripts/intent_gate.py \
+              --intent "$contract" \
+              --task-id "$TASK_ID" \
+              --repo . \
+              --base "$BASE_SHA" \
+              --head "$HEAD_SHA" \
+              --output ".docs/intent-reports/$TASK_ID.json"
+          else
+            echo "Intent contract not required for low-risk change without an opt-in contract."
+          fi
+
       - name: Upload gate artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -472,6 +500,7 @@ jobs:
             .docs/scan-reports/
             .docs/policy-reports/
             .docs/infra-reports/
+            .docs/intent-reports/
             .docs/worker-reports/
           if-no-files-found: ignore
 
@@ -545,6 +574,15 @@ jobs:
           integration=$(find .docs/integration-reports integration-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           policy=$(find .docs/policy-reports policy-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           infra=$(find .docs/infra-reports infra-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
+          task_id=$(basename "$risk" .json)
+          intent=""
+          for root in .docs/intent-reports intent-reports; do
+            candidate="$root/$task_id.json"
+            if test -f "$candidate"; then
+              intent="$candidate"
+              break
+            fi
+          done
           visual=$(find .docs/visual-reports visual-reports -maxdepth 1 -type f -name '*.json' -name '*visual*.json' -print -quit 2>/dev/null || true)
           meta_test=$(find .docs/meta-test-reports meta-test-reports -maxdepth 1 -type f -name '*.json' -print -quit 2>/dev/null || true)
           unit=$(find .docs/test-reports test-reports -maxdepth 2 -type f -name 'unit.exit' -print -quit 2>/dev/null || true)
@@ -569,6 +607,9 @@ jobs:
           fi
           if test -n "$meta_test"; then
             args+=(--meta-test-report "$meta_test")
+          fi
+          if test -n "$intent"; then
+            args+=(--intent-report "$intent")
           fi
           python scripts/ci_receipts.py "${args[@]}"
           python scripts/admission_gate.py \

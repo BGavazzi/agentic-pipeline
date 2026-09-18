@@ -7,7 +7,7 @@
     "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "risk_level": "high",
     "risk_triggers": ["gate-script"],
-    "required_gates": ["unit", "integration", "sast", "sca", "ultrareview"]
+    "required_gates": ["unit", "integration", "sast", "sca", "ultrareview", "intent"]
   },
   "receipts": {
     "schema_version": 1,

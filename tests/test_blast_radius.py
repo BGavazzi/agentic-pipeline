@@ -200,6 +200,20 @@ def test_high_risk_gate_script_path(sandbox: Path, script_name: str):
     assert "gate-script" in result["risk_triggers"]
 
 
+def test_intent_policy_contract_is_high_risk(sandbox: Path):
+    write(sandbox, ".docs/intent/0104.json", "{}\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-q", "-m", "seed intent contract")
+    git(sandbox, "checkout", "-q", "-b", "feat/intent")
+    write(sandbox, ".docs/intent/0104.json", '{"schema_version": 1}\n')
+    git(sandbox, "commit", "-q", "-am", "edit intent contract")
+
+    result = blast_radius.classify(sandbox, "0104", base="master", branch="feat/intent")
+
+    assert result["risk_level"] == "high"
+    assert "intent-policy" in result["risk_triggers"]
+
+
 def test_agent_skill_change_requires_meta_test(sandbox: Path):
     write(sandbox, ".claude/skills/builder/SKILL.md", "# builder\n")
     git(sandbox, "add", "-A")

@@ -309,6 +309,16 @@
 - Follow-up: carry the intent receipt into protected CI/admission for
   agent-generated changes.
 
+## 2026-09-18 — Task 0082, intent evidence in admission
+
+- Medium/high risk obligations now include the `intent` gate; low-risk legacy
+  changes remain compatible unless they opt into an intent contract.
+- CI emits a deterministic missing-contract receipt, carries valid/failed
+  intent evidence through `ci_receipts.py`, and lets admission fail closed on
+  missing or failed evidence.
+- Candidate-authored intent remains untrusted evidence; protected policy and a
+  producer outside the candidate checkout remain an explicit backlog item.
+
 ## 2026-09-18 — Task 0067, agentic SDLC testing SOTA
 
 - Added `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md`, grounding the

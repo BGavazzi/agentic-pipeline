@@ -21,12 +21,13 @@ def files(tmp_path, *, blocked=False):
         {"gate": "secrets", "status": "pass"},
         {"gate": "unit", "status": "pass"},
         {"gate": "ultrareview", "status": "fail" if blocked else "pass"},
+        {"gate": "intent", "status": "fail" if blocked else "pass"},
         {"gate": "policy", "status": "pass"},
     ]
     risk.write_text(json.dumps({
         "schema_version": 1, "base_sha": BASE, "head_sha": HEAD,
         "risk_level": "high", "risk_triggers": ["gate-script"],
-        "required_gates": ["unit", "integration", "sast", "sca", "ultrareview"],
+        "required_gates": ["unit", "integration", "sast", "sca", "ultrareview", "intent"],
         "changed_files": ["scripts/x.py"], "affected_modules": ["scripts"],
     }))
     receipts.write_text(json.dumps({

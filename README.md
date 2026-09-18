@@ -568,6 +568,8 @@ python scripts/intent_gate.py --intent .docs/intent/0081.json \
   --output .docs/intent-reports/0081.json
 ```
 
+For medium- and high-risk diffs, CI requires this evidence before admission;
+if the contract is absent, the gate emits an explicit fail-closed receipt.
 Use `--fetch-missing` only when the local clone needs to read same-repository
 PR head refs through `origin`; a manifest may instead provide already-fetched
 immutable commit SHAs. `review_required` is fail-closed: the bundle is an

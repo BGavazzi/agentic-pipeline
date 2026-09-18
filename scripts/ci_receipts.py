@@ -37,7 +37,8 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
                    policy_path: Path | None = None,
                    infra_path: Path | None = None,
                    visual_path: Path | None = None,
-                   meta_test_path: Path | None = None) -> dict:
+                   meta_test_path: Path | None = None,
+                   intent_path: Path | None = None) -> dict:
     risk = read_json(risk_path)
     scan = read_json(scan_path)
     if risk.get("base_sha") != base_sha or risk.get("head_sha") != head_sha:
@@ -92,6 +93,16 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         if meta_test.get("base_sha") != base_sha or meta_test.get("head_sha") != head_sha:
             raise ValueError("meta-test report is for a different commit pair")
 
+    intent = None
+    if intent_path is not None:
+        intent = read_json(intent_path)
+        if (intent.get("schema_version") != 1 or
+                intent.get("intent_version") != 1 or
+                intent.get("base_sha") != base_sha or intent.get("head_sha") != head_sha or
+                type(intent.get("eligible")) is not bool or
+                not isinstance(intent.get("blockers"), list)):
+            raise ValueError("invalid intent report")
+
     statuses = {
         "unit": test_status(unit_exit_path, base_sha, head_sha),
         "sast": scan.get("tool_status", {}).get("semgrep", {}).get("status", "error"),
@@ -131,6 +142,12 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         statuses["meta-test"] = meta_test.get("status", "error")
         if statuses["meta-test"] not in {"pass", "fail", "error"}:
             statuses["meta-test"] = "error"
+    if intent is not None:
+        statuses["intent"] = "pass" if intent["eligible"] and not intent["blockers"] else "fail"
+    elif "intent" in risk.get("required_gates", []):
+        # Preserve an explicit fail-closed receipt when a consequential risk
+        # report requires intent but the producer did not emit an artifact.
+        statuses["intent"] = "error"
     evidence = {"risk_report": str(risk_path), "scan_report": str(scan_path),
                 "unit_exit": str(unit_exit_path)}
     if integration_path is not None:
@@ -145,6 +162,10 @@ def build_receipts(risk_path: Path, scan_path: Path, unit_exit_path: Path,
         evidence["visual_report"] = str(visual_path)
     if meta_test_path is not None:
         evidence["meta_test_report"] = str(meta_test_path)
+    if intent_path is not None:
+        evidence["intent_report"] = str(intent_path)
+    elif "intent" in risk.get("required_gates", []):
+        evidence["intent_report"] = None
     return {"schema_version": SCHEMA_VERSION, "base_sha": base_sha,
             "head_sha": head_sha,
             "gates": [{"gate": name, "status": status} for name, status in sorted(statuses.items())],
@@ -162,6 +183,7 @@ def main() -> int:
     parser.add_argument("--infra-report", type=Path)
     parser.add_argument("--visual-report", type=Path)
     parser.add_argument("--meta-test-report", type=Path)
+    parser.add_argument("--intent-report", type=Path)
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -171,7 +193,7 @@ def main() -> int:
                                 args.base_sha, args.head_sha,
                                 args.integration_report, args.ultrareview_report,
                                 args.policy_report, args.infra_report, args.visual_report,
-                                args.meta_test_report)
+                                args.meta_test_report, args.intent_report)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, TypeError, json.JSONDecodeError):

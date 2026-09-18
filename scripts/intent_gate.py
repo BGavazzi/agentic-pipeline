@@ -135,19 +135,48 @@ def evaluate(intent: dict[str, Any], repo: Path, base: str, head: str) -> dict[s
     }
 
 
+def missing_report(repo: Path, task_id: str, base: str, head: str, reason: str) -> dict[str, Any]:
+    """Produce explicit fail-closed evidence when the contract is absent."""
+    base_sha, head_sha = _sha(repo, base), _sha(repo, head)
+    changed = changed_files(repo, base_sha, head_sha)
+    return {
+        "schema_version": SCHEMA_VERSION, "intent_version": INTENT_VERSION,
+        "task_id": task_id, "base_sha": base_sha, "head_sha": head_sha,
+        "changed_files": changed,
+        "metrics": {"changed_file_count": len(changed), "outside_scope_count": 0,
+                     "forbidden_path_count": 0, "declared_effect_count": 0,
+                     "data_class_count": 0, "negative_test_count": 0},
+        "blockers": [{"code": "intent-contract-missing", "detail": reason}],
+        "eligible": False, "human_review_required": True,
+        "policy": {"candidate_authored_claim_is_untrusted": True,
+                   "evidence_only": True, "no_remote_write": True},
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--intent", type=Path, required=True)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
+    parser.add_argument("--task-id")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
+        repo = args.repo.resolve()
+        if not args.intent.exists():
+            if not args.task_id or not TASK_ID.fullmatch(args.task_id):
+                raise ValueError("--task-id is required when the intent contract is missing")
+            report = missing_report(repo, args.task_id, args.base, args.head,
+                                    f"contract not found: {args.intent}")
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+            print(f"intent_gate: eligible=False blockers=1 (missing contract)")
+            return 1
         intent = json.loads(args.intent.read_text(encoding="utf-8"))
         if not isinstance(intent, dict):
             raise ValueError("intent must be a JSON object")
-        report = evaluate(intent, args.repo.resolve(), args.base, args.head)
+        report = evaluate(intent, repo, args.base, args.head)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     except (OSError, RuntimeError, TypeError, ValueError, json.JSONDecodeError) as exc:
