@@ -23,7 +23,23 @@ jobs:
               const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number: candidate.number});
               if (pr.state !== 'open' || pr.head.sha !== run.head_sha) continue;
               const marker = '<!-- agentic-pipeline-pr-intelligence -->';
-              const body = `${marker}\n## Agentic quality evidence\n\nCommit: \`${run.head_sha}\`\n\nCI conclusion: **${run.conclusion}**. [Risk, blast radius, contact surfaces and gate receipts](${run.html_url}).\n\nThis links candidate-run diagnostics; only trusted required checks can authorize promotion.`;
+              const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number: candidate.number, per_page: 100});
+              if (files.length !== pr.changed_files) throw new Error('Incomplete diff inventory');
+              const sensitive = /(^scripts\/|^\.github\/|^\.claude\/skills\/|(^|\/)(auth|security|infra|terraform|migrations|schema)(\/|\.)|\.tf$)/i;
+              const impactful = files.some(f => sensitive.test(f.filename) || sensitive.test(f.previous_filename || '')) || pr.additions + pr.deletions >= 400;
+              const surfaces = new Set();
+              for (const file of files) {
+                const path = file.filename;
+                if (/^\.github\/|^scripts\//i.test(path)) surfaces.add('harness/CI');
+                if (/(^|\/)(auth|security|secrets?)(\/|[_.-])/i.test(path)) surfaces.add('security/identity');
+                if (/(^|\/)(schema|migrations?|.*\.sql$)/i.test(path)) surfaces.add('data/schema');
+                if (/(^|\/)(infra|terraform|helm|charts?)(\/|[_.-])/i.test(path)) surfaces.add('infrastructure');
+                if (/(^|\/)(ui|web|frontend|playwright|components?)(\/|[_.-])/i.test(path)) surfaces.add('UI/visual');
+              }
+              const contact = [...surfaces].sort().join(', ') || 'application/source';
+              const hitl = impactful ? 'REQUIRED before staging' : 'standard review';
+              const diagnostic = `[risk, blast radius, contact surfaces and gate receipts](${run.html_url})`;
+              const body = `${marker}\n## Agentic quality evidence\n\n| Signal | Value |\n|---|---|\n| Candidate | \`${run.head_sha}\` |\n| Base | \`${pr.base.sha}\` |\n| Changed files | ${pr.changed_files} |\n| Diff churn | ${pr.additions + pr.deletions} (+${pr.additions} / -${pr.deletions}) |\n| Deterministic HITL | **${hitl}** |\n| Contact surfaces | ${contact} |\n| CI conclusion | **${run.conclusion}** |\n\n${diagnostic}. This summary is advisory; only trusted required checks can authorize promotion.`;
               const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number: pr.number, per_page: 100});
               const existing = comments.find(c => c.user.login === 'github-actions[bot]' && c.body?.includes(marker));
               const {data: latest} = await github.rest.pulls.get({owner, repo, pull_number: pr.number});

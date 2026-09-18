@@ -1,5 +1,9 @@
 # Continuity — Codex
 
+## Task 0077 — PR topline quality metrics
+- Updated the trusted metadata-only PR summary to show identity, churn,
+  deterministic HITL checkpoint, and contact surfaces; added workflow coverage.
+
 ## Task 0076 — admission mutation benchmark
 - Added deterministic receipt/risk mutations and CI execution; current mutation
   score is required to be 1.0, but the benchmark remains descriptive-only.
