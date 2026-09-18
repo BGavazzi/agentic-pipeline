@@ -318,16 +318,6 @@ def integrate(repo: Path, base_ref: str, candidates: Iterable[Candidate],
                                         "head_owner": candidate.head_owner}
                 previous_head = ""
                 try:
-                    if candidate.is_draft:
-                        item.update({"classification": "not_ready", "risk_level": "unknown",
-                                     "risk_triggers": ["draft-pr"], "required_gates": [],
-                                     "contact_surfaces": {"harness/policy": ["draft PR status"]},
-                                     "human_review_required": True,
-                                     "status": "held_for_human",
-                                     "reason": "draft_pr_requires_human_review"})
-                        held.append(candidate.number)
-                        results.append(item)
-                        continue
                     if (candidate.base_ref is not None
                             and _branch_name(candidate.base_ref) != _branch_name(base_ref)):
                         item.update({"classification": "acute", "risk_level": "high",
@@ -353,6 +343,30 @@ def integrate(repo: Path, base_ref: str, candidates: Iterable[Candidate],
                                      "human_review_required": True,
                                      "status": "held_for_human",
                                      "reason": "fork_pr_requires_human_review"})
+                        held.append(candidate.number)
+                        results.append(item)
+                        continue
+                    if candidate.is_draft:
+                        # A same-repository draft is still unexecutable, but
+                        # its immutable head can be classified read-only so a
+                        # human bundle can prioritize risky drafts before the
+                        # author marks them ready. Fork drafts stay covered by
+                        # the fork hold above and are never fetched.
+                        try:
+                            head_sha = resolve_candidate(repo, candidate, fetch_missing=fetch_missing)
+                            item["head_sha"] = head_sha
+                            item.update(classify_candidate(repo, base_sha, candidate, head_sha))
+                            item["risk_triggers"] = sorted(set(item["risk_triggers"]) | {"draft-pr"})
+                            item["human_review_required"] = True
+                        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                            item.update({"classification": "not_ready", "risk_level": "unknown",
+                                         "risk_triggers": ["draft-pr", "draft-head-unresolved"],
+                                         "required_gates": [],
+                                         "contact_surfaces": {"harness/policy": ["draft PR status"]},
+                                         "human_review_required": True,
+                                         "risk_triage_error": type(exc).__name__})
+                        item.update({"status": "held_for_human",
+                                     "reason": "draft_pr_requires_human_review"})
                         held.append(candidate.number)
                         results.append(item)
                         continue

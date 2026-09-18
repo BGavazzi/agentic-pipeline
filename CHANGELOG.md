@@ -2,6 +2,17 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Risk-triage draft PRs without executing them (task 0085)
+### Added
+- Same-repository draft heads now receive read-only changed-file,
+  blast-radius, contact-surface and risk-trigger evidence before remaining
+  held for human readiness review.
+### Safety
+- Draft code is never merged or executed; fork, base-mismatch and unresolved
+  head cases remain fail-closed. Risk evidence is descriptive and cannot
+  authorize staging.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Activate protected policy caller (task 0083)
 ### Added
 - Added a default-branch-owned `pull_request_target` caller that pins the

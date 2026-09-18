@@ -82,6 +82,12 @@ claims as proof and never auto-updates a baseline. The generic core has no
 frontend or customer fixture dependency; a real frontend pilot still chooses
 the pinned browser/OS/font environment and protected baseline store. See [task
 0046](.docs/tasks/0046-feat-playwright-visual-producer.md).
+
+Task 0085 keeps draft PRs non-executable while risk-triaging same-repository
+heads read-only. The local integration queue now exposes changed files,
+blast-radius, contact surfaces and risk triggers for draft prioritization;
+forks, base mismatches and unresolved heads remain fail-closed. See [task
+0085](.docs/tasks/0085-feat-draft-risk-triage.md).
 Task 0014 emits a deterministic `.docs/quality-reports/scorecard.json` from
 the risk report and admission receipts. It records schema/provenance, risk and
 fan-out, required/passed gate counts, evidence completeness, observed pass rate,
