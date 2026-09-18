@@ -84,6 +84,22 @@ def test_fork_candidate_is_held_before_ref_resolution(tmp_path: Path):
     assert item["required_gates"][-1] == "ultrareview"
 
 
+def test_draft_candidate_is_held_before_ref_resolution(tmp_path: Path):
+    repo, _, routine, _ = repo_with_candidates(tmp_path)
+    result = integrate(
+        repo,
+        "master",
+        [Candidate(14, "draft", routine, is_draft=True)],
+        (sys.executable, "-c", "raise SystemExit(99)"),
+        timeout=30,
+    )
+    item = result["candidates"][0]
+    assert result["held_prs"] == [14]
+    assert item["classification"] == "not_ready"
+    assert item["reason"] == "draft_pr_requires_human_review"
+    assert item["draft"] is True
+
+
 def test_base_ref_mismatch_is_held_before_resolution(tmp_path: Path):
     repo, _, routine, _ = repo_with_candidates(tmp_path)
     result = integrate(repo, "master", [Candidate(10, "wrong-base", routine,
@@ -171,7 +187,7 @@ def test_discovery_normalizes_origin_prefix(monkeypatch):
 
     class Result:
         returncode = 0
-        stdout = '[{"number": 7, "title": "routine", "headRefName": "feature", "headRefOid": "' + 'a' * 40 + '"}]'
+        stdout = '[{"number": 7, "title": "routine", "headRefName": "feature", "headRefOid": "' + 'a' * 40 + '", "isDraft": true}]'
 
     def fake_run(args, **kwargs):
         seen.append(args)
@@ -180,6 +196,8 @@ def test_discovery_normalizes_origin_prefix(monkeypatch):
     monkeypatch.setattr("scripts.local_integration_loop.subprocess.run", fake_run)
     candidates = discover_open("OWNER/REPO", "origin/feat/base")
     assert candidates[0].number == 7
+    assert candidates[0].ref == "origin/feature"
+    assert candidates[0].is_draft is True
     assert seen[0][seen[0].index("--base") + 1] == "feat/base"
 
 

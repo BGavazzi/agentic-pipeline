@@ -2,6 +2,17 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Harden integration queue identity and draft readiness (task 0079)
+### Changed
+- Local PR discovery now prefers remote-tracking heads and refreshes a moved
+  head once through the read-only pull-ref API before identity validation.
+- Draft PRs are carried through manifests and GitHub discovery, then held as
+  `not_ready` before ref resolution or candidate execution.
+### Safety
+- The change preserves fail-closed identity checks and adds no remote write,
+  merge, approval, deploy, or secret-forwarding capability.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Refresh SOTA report with implementation delta (task 0078)
 ### Changed
 - The SOTA report now records the shipped eval, selector, trust, visual,

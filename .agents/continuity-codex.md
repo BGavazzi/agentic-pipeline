@@ -278,6 +278,18 @@
 - Next: run the full gate suite, push a draft PR, and keep external worker/
   scheduler/notification activation as a separate protected deployment task.
 
+## 2026-09-18 — Task 0079, integration queue identity and readiness hardening
+
+- Hardened `local_integration_loop.py` after applying it to the 33-PR queue:
+  GitHub discovery now prefers `origin/<headRefName>` and refreshes a moved
+  same-repository head once through the read-only pull ref before failing closed.
+- Draft status is now carried through candidates and held as `not_ready` before
+  ref resolution or code execution; focused verification passes 14/14.
+- The queue run produced 0 routine survivors and 33 human-review holds; no
+  remote merge, approval, push, deploy, or staging PR was performed.
+- Follow-up: productize the multi-base queue wrapper instead of relying on an
+  operator-side grouping script.
+
 ## 2026-09-18 — Task 0067, agentic SDLC testing SOTA
 
 - Added `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md`, grounding the

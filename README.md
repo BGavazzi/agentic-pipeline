@@ -554,7 +554,11 @@ authorization. For bounded re-discovery rounds, add `--state
 only a PR whose immutable head SHA already reached a terminal local status, so
 a new push to that PR is considered again. Only locally included candidates
 are suppressed; acute/conflicting/failing candidates remain visible for human
-disposition. Cross-repository/fork PRs are held before ref fetch or code
+disposition. Discovery prefers `origin/<headRefName>` so a stale local branch
+cannot shadow GitHub's immutable head SHA; `--fetch-missing` refreshes a moved
+same-repository head once through the pull ref before failing closed. Draft PRs
+are held as `not_ready` before ref resolution or code execution.
+Cross-repository/fork PRs are held before ref fetch or code
 execution; they must use the GitHub-hosted untrusted lane and an explicit
 human decision. Re-invoke it from the existing bounded `/loop`/quota process
 rather than running an unbounded daemon.
