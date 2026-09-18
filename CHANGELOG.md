@@ -2,6 +2,17 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Activate protected policy caller (task 0083)
+### Added
+- Added a default-branch-owned `pull_request_target` caller that pins the
+  reusable policy workflow and `core_ref` to the same immutable SHA.
+- The caller passes exact PR base/head identity and performs no candidate
+  checkout or execution.
+### Safety
+- Candidate-local policy output remains diagnostic; requiring the protected
+  check in branch protection is still an explicit administrative step.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Carry intent evidence into risk and admission (task 0082)
 ### Added
 - Medium- and high-risk changes now require an `intent` obligation in the
