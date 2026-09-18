@@ -2,6 +2,34 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add bounded local integration and human-review bundling (task 0066)
+### Added
+- `scripts/local_integration_loop.py` for disposable, one-candidate-at-a-time
+  local merges, argv-only integration tests, risk/contact-surface routing, and
+  JSON/Markdown bundles of routine survivors and acute-risk holds.
+- Explicit credential-environment scrubbing, optional read-only PR-head fetch,
+  GitHub base-branch normalization, worktree cleanup between candidates, and a
+  no-remote-write policy receipt.
+- Optional stateful, bounded rediscovery rounds skip only immutable heads that
+  survived local integration; unresolved human-review holds remain visible and
+  round metrics accumulate.
+- Cross-repository/fork candidates are held before ref resolution, local fetch,
+  merge, or execution, preventing untrusted fork code from entering the
+  homelab/local lane.
+- Candidate base-ref mismatches are held before resolution, and unexpected
+  worker-launch exceptions restore the prior disposable merge state.
+- Local synthetic commits disable repository hooks, and integration processes
+  drop Git/SSH/Docker/Kubernetes control variables in addition to secrets.
+### Safety
+- High-risk, infrastructure, CI/workflow, harness-policy, schema and
+  security/identity changes remain human-review holds before execution.
+- Conflicts and failed integration commands are reverted in the disposable
+  worktree; the tool cannot approve, push, merge remotely or deploy.
+### Tests
+- Added focused coverage for acute classification, routine inclusion, failed
+  merge rollback, and deterministic candidate manifests.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Add versioned SOTA harness capability audit (task 0057)
 ### Added
 - `scripts/sota_audit.py` and CI evidence output for a deterministic,

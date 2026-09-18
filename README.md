@@ -513,6 +513,36 @@ When the autonomous lane is eligible for human review, use
 receipt and exact head SHA, avoids duplicating an open PR, supports `--dry-run`,
 and only creates a staging PR; approval and merge remain human actions.
 
+For a local integration pass over several open PR candidates, use
+`scripts/local_integration_loop.py`. It resolves a manifest (or a read-only
+`gh pr list` discovery), classifies each diff's risk and contact surfaces,
+holds acute changes before execution, and merges routine candidates one at a
+time in a disposable worktree. A passing candidate is included in the local
+bundle; conflicts and failed commands are reverted and held. The command is
+bounded and repeatable, emits JSON plus Markdown review artifacts, scrubs
+obvious credential variables, and has no remote merge/push/deploy path:
+
+```
+python scripts/local_integration_loop.py --repo . --base main \
+  --repo-slug OWNER/REPO --fetch-missing \
+  --output .docs/integration-reports/local-bundle.json \
+  --markdown-output .docs/integration-reports/local-bundle.md
+```
+
+Use `--fetch-missing` only when the local clone needs to read same-repository
+PR head refs through `origin`; a manifest may instead provide already-fetched
+immutable commit SHAs. `review_required` is fail-closed: the bundle is an
+input to `staging_gate.py` and the human handoff, not an approval or merge
+authorization. For bounded re-discovery rounds, add `--state
+.docs/integration-reports/local-loop-state.json --max-rounds 3`; the loop skips
+only a PR whose immutable head SHA already reached a terminal local status, so
+a new push to that PR is considered again. Only locally included candidates
+are suppressed; acute/conflicting/failing candidates remain visible for human
+disposition. Cross-repository/fork PRs are held before ref fetch or code
+execution; they must use the GitHub-hosted untrusted lane and an explicit
+human decision. Re-invoke it from the existing bounded `/loop`/quota process
+rather than running an unbounded daemon.
+
 ### 2. Fill in your constitution
 If `core_sync.py` created a fresh `AGENTS.md` for you, edit it — fill in your
 repo name, stack, and any project-specific rules. (If you already had one, it
