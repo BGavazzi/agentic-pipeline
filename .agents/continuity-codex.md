@@ -1,5 +1,16 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0057, SOTA capability audit
+
+- Started `D:\VIBES\agentic-pipeline-0058` from current `origin/master`, branch
+  `feat/0058-sota-harness-audit`.
+- Added `scripts/sota_audit.py`, a versioned report-only rubric that measures
+  implementation/test/CI evidence while keeping external controls uncredited
+  unless independently represented.
+- Added CI report generation and tests. Follow-up gaps remain separate bounded
+  tasks: test-result history freshness, artifact provenance/SBOM, hermetic
+  toolchains, flake governance, telemetry exports and merge/deploy safety.
+
 ## 2026-09-16 — Task 0042, reviewed stack remediation
 
 - User explicitly requested fixes for review findings across open PRs #14–#44.
