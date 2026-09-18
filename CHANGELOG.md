@@ -2,6 +2,15 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Bind visual receipts to protected baselines (task 0073)
+### Added
+- Visual receipts can now require an independently supplied baseline policy
+  binding the baseline ref, digest, threshold, and browser image provenance.
+### Safety
+- The core still does not launch Playwright; protected frontend production and
+  baseline storage remain external prerequisites.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Dogfood task and closure validator contracts (task 0072)
 ### Added
 - Adversarial unit coverage for valid/invalid task schemas and advisory versus

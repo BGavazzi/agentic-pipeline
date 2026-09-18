@@ -25,7 +25,8 @@ def _text(value: object) -> bool:
 
 
 def validate_report(report: dict, base_sha: str, head_sha: str,
-                    artifact_root: Path | None = None, threshold: float = 0.0) -> dict:
+                    artifact_root: Path | None = None, threshold: float = 0.0,
+                    baseline_policy: dict | None = None) -> dict:
     if not isinstance(report, dict) or report.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("unsupported schema version")
     if not FULL_SHA.fullmatch(base_sha) or not FULL_SHA.fullmatch(head_sha):
@@ -56,6 +57,18 @@ def validate_report(report: dict, base_sha: str, head_sha: str,
     if not isinstance(baseline, dict) or not _text(baseline.get("ref")):
         raise ValueError("baseline provenance is required")
     artifact(baseline)
+    if baseline_policy is not None:
+        if not isinstance(baseline_policy, dict) or baseline_policy.get("schema_version") != 1:
+            raise ValueError("unsupported protected baseline policy")
+        for name in ("baseline_ref", "baseline_sha256", "browser_image"):
+            if not _text(baseline_policy.get(name)):
+                raise ValueError(f"protected baseline policy requires {name}")
+        if baseline.get("ref") != baseline_policy["baseline_ref"]:
+            raise ValueError("baseline ref differs from protected policy")
+        if baseline.get("sha256") != baseline_policy["baseline_sha256"]:
+            raise ValueError("baseline digest differs from protected policy")
+        if "threshold" in baseline_policy and baseline_policy["threshold"] != threshold:
+            raise ValueError("visual threshold differs from protected baseline policy")
     metrics = report.get("metrics")
     if not isinstance(metrics, dict):
         raise ValueError("visual metrics are required")
@@ -87,6 +100,7 @@ def validate_report(report: dict, base_sha: str, head_sha: str,
         "head_sha": head_sha,
         "status": status,
         "baseline": baseline,
+        "baseline_policy": baseline_policy,
         "evidence": evidence,
         "metrics": metrics,
     }
@@ -101,10 +115,15 @@ def main() -> int:
     parser.add_argument("--artifact-root", type=Path, required=True)
     parser.add_argument("--threshold", type=float, required=True,
                         help="trusted policy threshold, not supplied by the candidate report")
+    parser.add_argument("--baseline-policy", type=Path,
+                        help="protected baseline manifest supplied by the trusted caller")
     args = parser.parse_args()
     try:
+        baseline_policy = (json.loads(args.baseline_policy.read_text(encoding="utf-8"))
+                           if args.baseline_policy else None)
         report = validate_report(json.loads(args.input.read_text(encoding="utf-8")),
-                                 args.base_sha, args.head_sha, args.artifact_root, args.threshold)
+                                 args.base_sha, args.head_sha, args.artifact_root,
+                                 args.threshold, baseline_policy)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
