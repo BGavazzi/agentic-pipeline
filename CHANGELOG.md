@@ -14,6 +14,16 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
 - Added conservative classification and deterministic JSON/Markdown CLI tests.
 **Author**: Codex (agent); pending independent review.
 
+## [2026-09-18] - Add provider-neutral CI telemetry evidence (task 0063)
+### Added
+- `scripts/ci_telemetry.py` and CI evidence output for file-only OTLP-shaped
+  numeric metrics derived from scorecard and PR-intelligence reports.
+- Commit/run identity, report labels and explicit network-export-disabled policy.
+### Safety
+- Telemetry is descriptive and cannot compensate for failed admission evidence;
+  collectors, queue SLOs and external export remain protected deployment work.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Normalize JUnit into per-test history evidence (task 0062)
 ### Added
 - `scripts/junit_history.py` with fail-closed parsing for common JUnit XML,
