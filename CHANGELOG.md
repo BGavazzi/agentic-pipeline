@@ -2,6 +2,17 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Add fail-closed trusted-policy verification (task 0070)
+### Added
+- `scripts/trusted_policy.py` binds policy receipts, exact-head reviewer
+  evidence, immutable policy pins, and protected producer attestations.
+- Missing, stale, mismatched, or unprotected trust evidence is blocked rather
+  than inferred as trusted.
+### Safety
+- The verifier is an adapter, not a trust oracle; protected workflow identity
+  and deployment-owned immutable pins remain external prerequisites.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Measure test-impact selector regret and bounded load (task 0069)
 ### Added
 - `impact_benchmark.py` now reports per-case selection regret, selection ratio,

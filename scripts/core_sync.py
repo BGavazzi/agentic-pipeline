@@ -146,6 +146,7 @@ GATE_SCRIPTS = [
     "harness_selftest.py",
     "impact_benchmark.py",
     "policy_integrity.py",
+    "trusted_policy.py",
     "visual_receipt.py",
     "staging_gate.py",
     "worker_preflight.py",
