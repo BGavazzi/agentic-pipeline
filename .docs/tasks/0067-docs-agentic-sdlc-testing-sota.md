@@ -1,7 +1,7 @@
 ---
 status: in_progress
 priority: P1
-type: research
+type: docs
 created: 2026-09-18
 updated: 2026-09-18
 clickup_id: null
