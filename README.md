@@ -94,10 +94,11 @@ product changes pass the policy check. This is explicit provenance, not a claim
 that a candidate-edited workflow is itself a trust boundary.
 
 Task 0021 adds `.github/workflows/policy-gate-reusable.yml` and a rollout
-runbook. Consuming repositories can pin the final policy execution to an
-immutable core commit and require that protected check in branch protection;
-candidate-local CI remains diagnostic, while the protected reusable workflow
-becomes the admission trust anchor.
+runbook. Agentic-pipeline now has a default-branch-owned
+`.github/workflows/protected-policy.yml` caller pinned to an immutable core
+commit; candidate-local CI remains diagnostic. Require the resulting
+`Protected policy integrity` check in branch protection to complete the trust
+boundary.
 
 Task 0016 adds the core visual-regression evidence contract in
 `scripts/visual_receipt.py`. A consuming frontend runner (typically Playwright)

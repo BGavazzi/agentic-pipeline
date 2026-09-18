@@ -20,6 +20,13 @@ jobs:
       task_id: policy
 ```
 
+Agentic-pipeline's default-branch caller is
+`.github/workflows/protected-policy.yml`. It uses `pull_request_target`, pins
+both the reusable workflow reference and `core_ref` to the same full SHA, and
+passes the exact PR base/head SHAs. It intentionally has no checkout, shell
+step, secrets, or candidate execution. The caller must remain on the default
+branch, and branch protection must require `Protected policy integrity`.
+
 Pin both the workflow reference and `core_ref` to the same reviewed full commit
 SHA. Require the resulting `Protected policy integrity` check in branch
 protection. Fork PRs can use the GitHub-hosted runner because the job only reads

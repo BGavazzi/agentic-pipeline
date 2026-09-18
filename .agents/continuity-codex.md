@@ -319,6 +319,15 @@
 - Candidate-authored intent remains untrusted evidence; protected policy and a
   producer outside the candidate checkout remain an explicit backlog item.
 
+## 2026-09-18 — Task 0083, activate protected policy caller
+
+- Added `.github/workflows/protected-policy.yml` as a default-branch-owned
+  `pull_request_target` caller with a full immutable workflow/core SHA pin.
+- The caller passes exact PR base/head SHAs and performs no candidate checkout,
+  shell execution, or secret inheritance.
+- Branch protection still must require `Protected policy integrity`; the
+  candidate-local CI policy receipt remains diagnostic.
+
 ## 2026-09-18 — Task 0067, agentic SDLC testing SOTA
 
 - Added `.docs/analysis/agentic-sdlc-testing-sota-2026-09.md`, grounding the
