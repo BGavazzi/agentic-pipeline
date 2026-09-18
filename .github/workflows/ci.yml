@@ -4,6 +4,7 @@ on:
   push:
     branches: [master, main]
   pull_request:
+  merge_group:
 
 # Least privilege: the gates only read the tree and the diff.
 permissions:
@@ -84,6 +85,37 @@ jobs:
             } catch (error) { core.warning('Trusted early-review workflow is not installed or not readable.'); }
             core.setOutput('allowed', String(allowed));
             if (!allowed) core.notice('Integration held: exact-head trusted early review required; rerun CI after it passes.');
+
+  # Merge queues use a different event payload from pull requests. This job
+  # validates its commit/ref identity, but deliberately does not claim that
+  # required checks or deployment health were observed.
+  merge-group-contract:
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate merge-group identity contract
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PATH: ${{ github.event_path }}
+        run: |
+          set -euo pipefail
+          python scripts/merge_group_contract.py \
+            --event "$EVENT_PATH" \
+            --event-name "$EVENT_NAME" \
+            --required-check "CI/test (merge_group)" \
+            --required-check "merge-group-contract (merge_group)" \
+            --output .docs/merge-group-reports/contract.json
+      - name: Upload merge-group contract
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: merge-group-contract
+          path: .docs/merge-group-reports/contract.json
+          if-no-files-found: warn
 
   test:
     needs: route

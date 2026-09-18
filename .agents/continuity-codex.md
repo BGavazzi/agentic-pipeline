@@ -1,5 +1,11 @@
 # Continuity — Codex
 
+## 2026-09-18 — Task 0064, merge-group identity contract
+
+- Added explicit `merge_group` CI trigger and a fail-closed identity adapter for
+  queue base/head SHAs and refs. It records expected checks but never infers
+  their completion or merge/deployment authority.
+
 ## 2026-09-18 — Task 0063, provider-neutral CI telemetry
 
 - Added `ci_telemetry.py`, a file-only OTLP-shaped metric adapter for local
