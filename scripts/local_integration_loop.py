@@ -100,8 +100,12 @@ def load_manifest(path: Path) -> list[Candidate]:
 
 
 def discover_open(repo_slug: str, base: str) -> list[Candidate]:
+    # Git callers commonly use ``origin/branch`` while GitHub's API expects
+    # the branch name itself.  Normalizing here prevents a valid base ref from
+    # becoming a silently empty candidate set.
+    gh_base = base.removeprefix("origin/")
     result = subprocess.run(
-        ["gh", "pr", "list", "--repo", repo_slug, "--base", base, "--state", "open",
+        ["gh", "pr", "list", "--repo", repo_slug, "--base", gh_base, "--state", "open",
          "--limit", "100", "--json", "number,title,headRefName,headRefOid,url,baseRefName"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
     )

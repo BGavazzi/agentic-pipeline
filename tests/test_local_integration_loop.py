@@ -9,6 +9,7 @@ from scripts.local_integration_loop import (
     Candidate,
     _safe_env,
     classify_candidate,
+    discover_open,
     integrate,
     load_manifest,
 )
@@ -86,6 +87,23 @@ def test_safe_environment_drops_credential_like_names(tmp_path: Path, monkeypatc
     env = _safe_env()
     assert "GH_TOKEN" not in env
     assert env["PIPELINE_MODE"] == "safe"
+
+
+def test_discovery_normalizes_origin_prefix(monkeypatch):
+    seen: list[list[str]] = []
+
+    class Result:
+        returncode = 0
+        stdout = '[{"number": 7, "title": "routine", "headRefName": "feature", "headRefOid": "' + 'a' * 40 + '"}]'
+
+    def fake_run(args, **kwargs):
+        seen.append(args)
+        return Result()
+
+    monkeypatch.setattr("scripts.local_integration_loop.subprocess.run", fake_run)
+    candidates = discover_open("OWNER/REPO", "origin/feat/base")
+    assert candidates[0].number == 7
+    assert seen[0][seen[0].index("--base") + 1] == "feat/base"
 
 
 def test_manifest_is_deterministic_and_validates_duplicate_ids(tmp_path: Path):
