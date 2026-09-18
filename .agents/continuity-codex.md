@@ -1,5 +1,9 @@
 # Continuity — Codex
 
+## Task 0074 — worker network policy preflight
+- Added required `network_policy_verified` facts for self-hosted workers and
+  blocked unverified homelab admission; fork/GitHub-hosted behavior is intact.
+
 ## Task 0073 — protected visual baseline binding
 - Extended `visual_receipt.py` with optional trusted baseline policy binding for
   ref, digest, threshold, and browser image; added candidate-replacement tests.

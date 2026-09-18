@@ -27,8 +27,10 @@ def evaluate(
     mounted_secret_count: int,
     docker_reachable: bool,
     require_docker: bool = False,
+    network_policy_verified: bool = False,
 ) -> dict:
-    for value in (fork_pr, ephemeral, workspace_clean, docker_reachable, require_docker):
+    for value in (fork_pr, ephemeral, workspace_clean, docker_reachable,
+                  require_docker, network_policy_verified):
         if type(value) is not bool:
             raise ValueError("worker flags must be JSON booleans")
     if any(type(value) is not int for value in (jobs_completed, mounted_secret_count)):
@@ -54,6 +56,8 @@ def evaluate(
         blockers["workspace"] = "cleanup_not_verified"
     if self_hosted and mounted_secret_count != 0:
         blockers["secrets"] = f"mounted_secret_count={mounted_secret_count}"
+    if self_hosted and not network_policy_verified:
+        blockers["network"] = "network_policy_not_verified"
     if require_docker and not docker_reachable:
         blockers["docker"] = "docker_unreachable"
     return {
@@ -67,11 +71,13 @@ def evaluate(
             "mounted_secret_count": mounted_secret_count,
             "cleanup_verified": workspace_clean,
             "docker_reachable": docker_reachable,
+            "network_policy_verified": network_policy_verified,
             "fork_pr_pool_routes": int(fork_pr and self_hosted),
         },
         "policy": {
             "fork_pr_may_use_pool": False,
             "self_hosted_requires_ephemeral": True,
+            "self_hosted_requires_verified_network_policy": True,
             "human_review_required_after_staging": True,
         },
     }
@@ -88,6 +94,7 @@ def main() -> int:
     parser.add_argument("--mounted-secret-count", type=int)
     parser.add_argument("--docker-reachable", action="store_true", default=None)
     parser.add_argument("--require-docker", action="store_true")
+    parser.add_argument("--network-policy-verified", action="store_true", default=None)
     parser.add_argument(
         "--facts", type=Path,
         help="JSON facts written by the worker supervisor; required for self-hosted jobs",
@@ -103,7 +110,8 @@ def main() -> int:
         worker_kind = args.worker_kind or facts.get("worker_kind")
         if worker_kind == "self-hosted":
             required = {"worker_kind", "labels", "ephemeral", "jobs_completed",
-                        "workspace_clean", "mounted_secret_count", "docker_reachable", "fork_pr"}
+                        "workspace_clean", "mounted_secret_count", "docker_reachable",
+                        "network_policy_verified", "fork_pr"}
             if not required <= facts.keys():
                 raise ValueError("self-hosted workers require complete supervisor facts")
             if type(facts["fork_pr"]) is not bool:
@@ -117,11 +125,15 @@ def main() -> int:
         mounted_secret_count = args.mounted_secret_count if args.mounted_secret_count is not None else facts.get("mounted_secret_count", 0)
         docker_reachable = args.docker_reachable if args.docker_reachable is not None else facts.get("docker_reachable", False)
         require_docker = args.require_docker or facts.get("require_docker", False)
+        network_policy_verified = (args.network_policy_verified
+                                   if args.network_policy_verified is not None
+                                   else facts.get("network_policy_verified", False))
         result = evaluate(
             worker_kind, args.fork_pr or facts.get("fork_pr", False),
             [label for label in labels if label],
             ephemeral, jobs_completed, workspace_clean,
             mounted_secret_count, docker_reachable, require_docker,
+            network_policy_verified,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

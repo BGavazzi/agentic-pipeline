@@ -24,6 +24,7 @@ def clean_worker(**overrides):
         "workspace_clean": True,
         "mounted_secret_count": 0,
         "docker_reachable": True,
+        "network_policy_verified": True,
         "require_docker": True,
     }
     args.update(overrides)
@@ -48,6 +49,7 @@ def test_clean_ephemeral_homelab_worker_is_eligible():
         ({"mounted_secret_count": 1}, "secrets"),
         ({"docker_reachable": False}, "docker"),
         ({"labels": ["self-hosted"]}, "pool_label"),
+        ({"network_policy_verified": False}, "network"),
     ],
 )
 def test_unsafe_worker_is_blocked(change, blocker):
@@ -62,6 +64,7 @@ def test_github_hosted_worker_is_safe_default_for_fork_pr():
         worker_kind="github-hosted", fork_pr=True, labels=[], ephemeral=False,
         jobs_completed=17, workspace_clean=False, mounted_secret_count=0,
         docker_reachable=False,
+        network_policy_verified=False,
     )
 
     assert result["eligible"] is True
@@ -84,6 +87,7 @@ def test_supervisor_facts_file_can_supply_self_hosted_runtime_state(tmp_path: Pa
         "workspace_clean": True,
         "mounted_secret_count": 0,
         "docker_reachable": True,
+        "network_policy_verified": True,
         "require_docker": True,
     }))
     output = tmp_path / "receipt.json"

@@ -2,6 +2,12 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-18] - Require verified worker network policy (task 0074)
+### Changed
+- Self-hosted worker preflight now blocks unless host facts explicitly report
+  a verified network policy; Docker reachability is not treated as isolation.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Bind visual receipts to protected baselines (task 0073)
 ### Added
 - Visual receipts can now require an independently supplied baseline policy

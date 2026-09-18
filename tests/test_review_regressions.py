@@ -98,7 +98,7 @@ def test_missing_teardown_fields_do_not_prove_cleanup():
 def test_stale_child_cleanup_file_cannot_authorize_worker(tmp_path):
     facts = write_json(tmp_path / "pre.json", {"worker_kind": "self-hosted", "labels": ["homelab-pool"],
         "fork_pr": False,
-        "ephemeral": True, "workspace_clean": True, "mounted_secret_count": 0, "jobs_completed": 0, "docker_reachable": True})
+        "ephemeral": True, "workspace_clean": True, "mounted_secret_count": 0, "jobs_completed": 0, "docker_reachable": True, "network_policy_verified": True})
     post = write_json(tmp_path / "post.json", {"registered": False, "jobs_completed": 1, "workspace_clean": True, "mounted_secret_count": 0})
     result = worker_supervisor.supervise(facts, post, [sys.executable, "-c", "raise RuntimeError('must not run')"])
     assert result["status"] == "blocked"
@@ -108,7 +108,7 @@ def test_stale_child_cleanup_file_cannot_authorize_worker(tmp_path):
 def test_cleanup_runs_after_failure_and_timeout(tmp_path, behavior):
     facts = write_json(tmp_path / "pre.json", {"worker_kind": "self-hosted", "labels": ["homelab-pool"],
         "fork_pr": False,
-        "ephemeral": True, "workspace_clean": True, "mounted_secret_count": 0, "jobs_completed": 0, "docker_reachable": True})
+        "ephemeral": True, "workspace_clean": True, "mounted_secret_count": 0, "jobs_completed": 0, "docker_reachable": True, "network_policy_verified": True})
     adapter = tmp_path / "cleanup.py"
     adapter.write_text('import os, json\nprint(json.dumps({"attempt_id":os.environ["PIPELINE_CLEANUP_ATTEMPT"],"registered":False,"jobs_completed":1,"workspace_clean":True,"mounted_secret_count":0}))')
     post = tmp_path / "post.json"

@@ -47,7 +47,8 @@ def _facts(path: Path) -> dict[str, Any]:
 
 def _preflight(facts: dict[str, Any], fork_pr: bool, require_docker: bool) -> dict:
     required = {"worker_kind", "labels", "ephemeral", "jobs_completed",
-                "workspace_clean", "mounted_secret_count", "docker_reachable", "fork_pr"}
+                "workspace_clean", "mounted_secret_count", "docker_reachable",
+                "network_policy_verified", "fork_pr"}
     if not required <= facts.keys():
         raise ValueError("missing worker facts")
     if type(facts["fork_pr"]) is not bool:
@@ -66,6 +67,7 @@ def _preflight(facts: dict[str, Any], fork_pr: bool, require_docker: bool) -> di
         facts["mounted_secret_count"],
         facts["docker_reachable"],
         require_docker or facts.get("require_docker", False),
+        facts["network_policy_verified"],
     )
 
 
