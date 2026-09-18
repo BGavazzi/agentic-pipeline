@@ -224,6 +224,8 @@
   execution and explicitly require the untrusted hosted lane plus human review.
 - Candidate base identity is checked before resolution; unexpected worker
   exceptions roll back to the prior disposable merge state before continuing.
+- Synthetic commits bypass repository hooks, and child integration processes
+  do not inherit Git/SSH/Docker/Kubernetes control variables.
 - Focused verification: `tests/test_local_integration_loop.py` passes 7/7;
   dogfood against PR #66 correctly held it as acute/high-risk without merging.
 - Next: run the full gate suite, push a draft PR, and keep external worker/

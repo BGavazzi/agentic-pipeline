@@ -145,10 +145,25 @@ def test_later_candidate_conflict_is_held_after_prior_survivor(tmp_path: Path):
 
 def test_safe_environment_drops_credential_like_names(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("GH_TOKEN", "must-not-cross-boundary")
+    monkeypatch.setenv("GIT_DIR", "must-not-redirect-git")
+    monkeypatch.setenv("SSH_AUTH_SOCK", "must-not-forward-agent")
     monkeypatch.setenv("PIPELINE_MODE", "safe")
     env = _safe_env()
     assert "GH_TOKEN" not in env
+    assert "GIT_DIR" not in env
+    assert "SSH_AUTH_SOCK" not in env
     assert env["PIPELINE_MODE"] == "safe"
+
+
+def test_local_merge_commit_bypasses_repository_hooks(tmp_path: Path):
+    repo, _, routine, _ = repo_with_candidates(tmp_path)
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    (hooks / "pre-commit").write_text("#!/bin/sh\nexit 77\n", encoding="utf-8")
+    git(repo, "config", "core.hooksPath", str(hooks))
+    result = integrate(repo, "master", [Candidate(13, "routine", routine)],
+                       (sys.executable, "-c", "raise SystemExit(0)"), timeout=30)
+    assert result["included_prs"] == [13]
 
 
 def test_discovery_normalizes_origin_prefix(monkeypatch):

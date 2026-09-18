@@ -42,6 +42,10 @@ FULL_SHA = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 DEFAULT_COMMAND = (sys.executable, "-m", "pytest", "tests", "-q")
 ACUTE_SURFACES = {"security/identity", "data/schema", "infrastructure", "CI/workflow", "harness/policy"}
 SECRET_ENV = re.compile(r"(?:TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|PRIVATE_KEY|API_KEY|ACCESS_KEY)", re.I)
+CONTROL_ENV = re.compile(
+    r"^(?:GIT_(?:DIR|WORK_TREE|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|CONFIG_.*|SSH_COMMAND)|"
+    r"SSH_AUTH_SOCK|DOCKER_HOST|KUBECONFIG|GOOGLE_APPLICATION_CREDENTIALS|"
+    r"CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE|AZURE_CONFIG_DIR)$", re.I)
 
 
 @dataclass(frozen=True)
@@ -228,7 +232,8 @@ def classify_candidate(repo: Path, base_sha: str, candidate: Candidate,
 
 
 def _safe_env() -> dict[str, str]:
-    return {key: value for key, value in os.environ.items() if not SECRET_ENV.search(key)}
+    return {key: value for key, value in os.environ.items()
+            if not SECRET_ENV.search(key) and not CONTROL_ENV.fullmatch(key)}
 
 
 def _run_command(worktree: Path, command: tuple[str, ...], timeout: int) -> dict[str, Any]:
@@ -257,7 +262,8 @@ def _merge_one(worktree: Path, head_sha: str) -> tuple[bool, str | None]:
         subprocess.run(["git", "merge", "--abort"], cwd=worktree,
                        capture_output=True, text=True)
         return False, "merge_conflict"
-    commit = subprocess.run(["git", "-c", "user.name=agentic-pipeline-local",
+    commit = subprocess.run(["git", "-c", "core.hooksPath=",
+                             "-c", "user.name=agentic-pipeline-local",
                              "-c", "user.email=local@invalid", "commit", "--no-edit",
                              "-m", f"local integration of {head_sha[:12]}"],
                             cwd=worktree, capture_output=True, text=True,

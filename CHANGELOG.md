@@ -18,6 +18,8 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   homelab/local lane.
 - Candidate base-ref mismatches are held before resolution, and unexpected
   worker-launch exceptions restore the prior disposable merge state.
+- Local synthetic commits disable repository hooks, and integration processes
+  drop Git/SSH/Docker/Kubernetes control variables in addition to secrets.
 ### Safety
 - High-risk, infrastructure, CI/workflow, harness-policy, schema and
   security/identity changes remain human-review holds before execution.
