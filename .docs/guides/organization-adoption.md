@@ -28,6 +28,81 @@ review, browser, telemetry or deployment infrastructure.
 Do not try to activate every capability at once. Adopt the evidence model first,
 then add execution capacity only when volume or risk justifies it.
 
+## If you are a traditional tech lead introducing AI
+
+The first job is not to “transform the team.” It is to remove a few painful,
+neglected bottlenecks without lowering the team's engineering bar.
+
+Good first targets are usually underserved work:
+
+- flaky tests, missing regression cases and slow feedback;
+- repetitive refactors with clear acceptance criteria;
+- stale documentation and difficult onboarding paths;
+- dependency, secret and configuration hygiene;
+- small maintenance tasks that never win priority against feature delivery;
+- release checklists, evidence collection and incident follow-up.
+
+Avoid starting with autonomous production changes, customer-data access,
+architecture decisions made only by an agent, or a mandate that every developer
+must use the same tool. Let the team see useful results before asking it to
+change its habits.
+
+### A practical 30/60/90-day transition
+
+**First 30 days — observe and assist**
+
+Pick one repository and two or three low-risk tasks. Use AI in a transparent
+pairing mode. Require the normal tests and human review, but capture simple
+metrics: cycle time, review rounds, escaped defects, test coverage of changed
+behavior and developer-reported usefulness. Do not automate merge or deploy.
+
+**Days 31–60 — introduce evidence**
+
+Add task scope, deterministic tests, scanners, risk/contact summaries and a
+clean-room integration pass. Let agents prepare repair loops and review bundles;
+humans still decide what enters staging. Turn every serious failure into a
+regression fixture or a documented backlog item.
+
+**Days 61–90 — selectively automate**
+
+Allow routine, well-scoped work to reach a staging-review bundle automatically.
+Keep high-risk changes, uncertain evidence and policy/gate edits on an earlier
+human checkpoint. Review the metrics with the team and remove controls that do
+not reduce risk or waiting time.
+
+### What changes for the tech lead
+
+The role shifts from personally inspecting every line to designing the system
+in which inspection is proportionate and evidence is trustworthy:
+
+| Traditional emphasis | AI-assisted emphasis |
+|---|---|
+| Review every change manually | Define risk tiers and review exceptions |
+| Keep tribal knowledge in memory | Turn decisions and failure modes into task/docs/eval artifacts |
+| Ask whether the agent “seems good” | Require reproducible evidence and exact commit identity |
+| Optimize one developer's speed | Optimize feedback latency, escaped defects and team capacity |
+| Add process when incidents happen | Add the smallest regression gate that prevents recurrence |
+
+This is not abdication of technical leadership. It is moving leadership upward:
+from being the highest-throughput reviewer to owning boundaries, quality signals,
+architecture decisions and the team's ability to recover from automation
+mistakes.
+
+### How to bring the team along
+
+1. Start from a team pain point, not an AI slogan.
+2. State what the agent is not allowed to do before showing what it can do.
+3. Publish both wins and failures; never present generated code as inherently
+   trustworthy.
+4. Keep normal code ownership and review responsibilities intact.
+5. Invite skeptics to design negative tests and failure scenarios.
+6. Measure time saved and defects avoided, not prompts or lines generated.
+7. Give developers a way to opt out of agent assistance while the pilot is
+   being evaluated.
+
+The adoption succeeds when the team says “the feedback loop is better,” not
+when it says “we installed an agent platform.”
+
 ## The target operating model
 
 ```text

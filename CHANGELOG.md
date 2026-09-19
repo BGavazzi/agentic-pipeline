@@ -9,6 +9,8 @@ Format: newest entry on top. Never delete or rewrite past entries (typos excepte
   checklist.
 - Documented which controls are usually overkill early and which safety
   boundaries must never be removed.
+- Added a 30/60/90-day transition path for traditional tech leads, focused on
+  underserved maintenance and feedback work before autonomous promotion.
 ### Changed
 - README now exposes the current static capability score and links adopters to
   the guide, while distinguishing repository evidence from external activation.

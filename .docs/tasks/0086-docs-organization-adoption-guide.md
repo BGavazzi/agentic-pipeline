@@ -13,9 +13,10 @@ blocked_by: []
 # 0086 — [Docs]: Organization adoption guide and project status
 
 ## Context
-The repository has accumulated a broad agentic SDLC capability set, but a new
-organization needs a practical order of implementation and an honest boundary
-between shipped core behavior and external activation.
+The repository has accumulated a broad agentic SDLC capability set, but a
+traditional tech lead introducing AI to an existing team needs a practical
+order of implementation, a low-overhead pilot, and an honest boundary between
+shipped core behavior and external activation.
 
 ## Problem
 The existing README is a detailed component reference, not an adoption

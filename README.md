@@ -19,9 +19,10 @@ telemetry collectors and deployment rollback remain external integrations.
 The score is descriptive; it never replaces `admission_gate.py`.
 
 For a new organization, follow the phased [organization adoption guide](.docs/guides/organization-adoption.md).
-It defines the implementation order, organizational impact, ownership model,
-and controls that are usually overkill before there is enough volume or risk
-to justify them.
+It is especially aimed at a traditional tech lead introducing AI to an
+existing team: it defines the implementation order, organizational impact,
+ownership model, a 30/60/90-day transition, and controls that are usually
+overkill before there is enough volume or risk to justify them.
 
 ## Quality admission hardening (task 0009, in progress)
 
