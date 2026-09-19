@@ -8,6 +8,21 @@
 > Trusted workflows must be installed on the protected default branch and made
 > mandatory externally; an unmerged PR is not active security enforcement.
 
+## Project status and adoption
+
+This repository is the canonical evidence-and-admission core for agentic
+software delivery. As of 2026-09-19, its static SOTA capability audit is
+**24/34 points (70.6%)**: the deterministic contracts are substantially
+implemented, while protected policy activation, independent reviewer identity,
+ephemeral worker observation, durable test history, browser environments,
+telemetry collectors and deployment rollback remain external integrations.
+The score is descriptive; it never replaces `admission_gate.py`.
+
+For a new organization, follow the phased [organization adoption guide](.docs/guides/organization-adoption.md).
+It defines the implementation order, organizational impact, ownership model,
+and controls that are usually overkill before there is enough volume or risk
+to justify them.
+
 ## Quality admission hardening (task 0009, in progress)
 
 `scan_gate.py` now fails closed: exit 0 means every required scanner succeeded
