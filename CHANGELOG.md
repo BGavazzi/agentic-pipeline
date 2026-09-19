@@ -2,6 +2,20 @@
 
 Format: newest entry on top. Never delete or rewrite past entries (typos excepted).
 
+## [2026-09-19] - Document organization adoption and project boundaries (task 0086)
+### Added
+- Added `.docs/guides/organization-adoption.md` with a phased adoption order,
+  decision-impact map, ownership model, adoption profiles and first-week
+  checklist.
+- Documented which controls are usually overkill early and which safety
+  boundaries must never be removed.
+- Added a 30/60/90-day transition path for traditional tech leads, focused on
+  underserved maintenance and feedback work before autonomous promotion.
+### Changed
+- README now exposes the current static capability score and links adopters to
+  the guide, while distinguishing repository evidence from external activation.
+**Author**: Codex (agent); pending independent review.
+
 ## [2026-09-18] - Risk-triage draft PRs without executing them (task 0085)
 ### Added
 - Same-repository draft heads now receive read-only changed-file,

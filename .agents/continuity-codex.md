@@ -1,5 +1,12 @@
 # Continuity — Codex
 
+## Task 0086 — organization adoption guide
+- Added a phased adoption guide covering foundation, deterministic gates,
+  clean-room integration, risk-weighted HITL, worker scaling, specialized
+  evidence and deployment controls.
+- Recorded current static capability status as 24/34 (70.6%) and separated
+  repository evidence from external activation requirements.
+
 ## Task 0085 — risk-first draft triage
 - Same-repository drafts are now classified read-only for risk/contact metrics
   while remaining held and unexecutable; fork and unresolved cases stay

@@ -19,7 +19,7 @@ This file is repo-specific and is NEVER overwritten by a core sync — edit it f
 ```yaml
 multi_agent: false
 sdd_kit_path: N/A                          # no architecture-decision doc yet; this repo's decisions live in GDFRSBT.md + task files' own rationale
-function_catalog: .docs/function-catalog.md # not yet created — scripts/ docstrings are the interim source; create this file the next time a script's public signature changes
+  function_catalog: .docs/function-catalog.md # canonical public function/CLI inventory
 route_map: N/A                             # no web routes — this is a CLI/CI-gate repo
 task_dir: .docs/tasks
 clickup_list_id: null                      # repo (not ClickUp) is canonical source of truth for tasks — see README "Conventions" / guidelines_IA's old cutover history
